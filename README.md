@@ -120,11 +120,48 @@ if __name__ == "__main__":
     sys.exit(main(params))
 ```
 
+## Quick Build & Run
+
+**Option 1: Full Build (Recommended for first time)**
+```bash
+# Windows
+build.bat
+
+# Or use Python directly (cross-platform)
+python build.py
+```
+
+This will:
+1. Build the React frontend (if it exists)
+2. Install Python dependencies
+3. Start the FastAPI server
+
+**Option 2: Development Mode**
+```bash
+# Windows - skip builds and run with auto-reload
+dev.bat
+
+# Or use Python directly
+python build.py --skip-frontend --skip-requirements --dev
+```
+
+**Build Script Options:**
+```bash
+python build.py --help
+
+Options:
+  --skip-frontend       Skip frontend build
+  --skip-requirements   Skip Python requirements installation
+  --no-server          Don't start the server after building
+  --dev                Start server in development mode with auto-reload
+```
+
 ## Development
 
 - Backend runs on port 8000 by default
 - Frontend dev server will run on port 5173 (Vite default)
 - CORS is pre-configured to allow connections from common dev ports
+- Use `dev.bat` for quick development without rebuilding
 
 ## Technology Stack
 
