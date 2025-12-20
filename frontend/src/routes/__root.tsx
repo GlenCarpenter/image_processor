@@ -1,4 +1,4 @@
-import { createRootRoute, Outlet, useMatches } from '@tanstack/react-router'
+import { createRootRoute, Outlet, useLocation } from '@tanstack/react-router'
 import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar'
 import { AppSidebar } from '@/components/app-sidebar'
@@ -24,9 +24,8 @@ const getPageTitle = (pathname: string) => {
 }
 
 const RootLayout = () => {
-  const matches = useMatches()
-  const currentPath = matches[matches.length - 1]?.pathname || '/'
-  const pageTitle = getPageTitle(currentPath)
+  const location = useLocation()
+  const pageTitle = getPageTitle(location.pathname)
 
   return (
     <SidebarProvider>
