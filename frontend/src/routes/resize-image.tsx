@@ -6,6 +6,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useImageStore } from '@/store/imageStore'
+import { extractImageMetadata, type ImageMetadata } from '@/lib/imageUtils'
+import { ImageMetadataDisplay } from '@/components/ImageMetadataDisplay'
 
 export const Route = createFileRoute('/resize-image')({
   component: RouteComponent,
@@ -15,7 +17,7 @@ const API_BASE_URL = 'http://localhost:8000/api'
 
 function RouteComponent() {
   const navigate = useNavigate()
-  
+
   // Get state from Zustand store
   const resizeImage = useImageStore((state) => state.resizeImage)
   const setResizeOriginal = useImageStore((state) => state.setResizeOriginal)
@@ -26,14 +28,23 @@ function RouteComponent() {
   const [targetSize, setTargetSize] = useState<number>(1024)
   const [isResizing, setIsResizing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [originalMetadata, setOriginalMetadata] = useState<ImageMetadata | null>(null)
 
   const handleFileDrop = (acceptedFiles: File[]) => {
     if (acceptedFiles.length > 0) {
       const file = acceptedFiles[0]
       const url = URL.createObjectURL(file)
       setResizeOriginal(file, url)
-      setResizeResult(null, null)
+      setResizeResult(null, null, null)
       setError(null)
+
+      // Extract image metadata
+      extractImageMetadata(file, url)
+        .then(setOriginalMetadata)
+        .catch((err) => {
+          console.error('Failed to extract image metadata:', err)
+          setOriginalMetadata(null)
+        })
     }
   }
 
@@ -83,7 +94,7 @@ function RouteComponent() {
         originalPixels: data.info.original_pixels,
         actualPixels: data.info.actual_pixels,
       }
-      
+
       setResizeResult(data.job_id, data.output_filename, info)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')
@@ -159,14 +170,18 @@ function RouteComponent() {
             </div>
 
             {resizeImage.originalUrl && (
-              <div>
-                <Label>Original Image Preview</Label>
-                <img
-                  src={resizeImage.originalUrl}
-                  alt="Original"
-                  className="mt-2 max-h-64 w-full object-contain rounded-md border"
-                />
-              </div>
+              <>
+                <div>
+                  <Label>Original Image Preview</Label>
+                  <img
+                    src={resizeImage.originalUrl}
+                    alt="Original"
+                    className="mt-2 max-h-64 w-full object-contain rounded-md border"
+                  />
+                </div>
+
+                {originalMetadata && <ImageMetadataDisplay metadata={originalMetadata} />}
+              </>
             )}
 
             <Button

@@ -1,9 +1,12 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { useState } from 'react'
 import { Dropzone, DropzoneContent, DropzoneEmptyState } from '@/components/ui/shadcn-io/dropzone'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useImageStore } from '@/store/imageStore'
 import { ImageIcon, Edit } from 'lucide-react'
+import { extractImageMetadata, type ImageMetadata } from '@/lib/imageUtils'
+import { ImageMetadataDisplay } from '@/components/ImageMetadataDisplay'
 
 export const Route = createFileRoute('/')({
   component: RouteComponent,
@@ -16,11 +19,21 @@ function RouteComponent() {
   const sendHomeToResize = useImageStore((state) => state.sendHomeToResize)
   const sendHomeToEdit = useImageStore((state) => state.sendHomeToEdit)
 
+  const [metadata, setMetadata] = useState<ImageMetadata | null>(null)
+
   const handleFileDrop = (acceptedFiles: File[]) => {
     if (acceptedFiles.length > 0) {
       const file = acceptedFiles[0]
       const url = URL.createObjectURL(file)
       setHomeImage(file, url)
+
+      // Extract image metadata
+      extractImageMetadata(file, url)
+        .then(setMetadata)
+        .catch((err) => {
+          console.error('Failed to extract image metadata:', err)
+          setMetadata(null)
+        })
     }
   }
 
@@ -71,6 +84,8 @@ function RouteComponent() {
                   className="w-full max-h-96 object-contain rounded-md border"
                 />
               </div>
+
+              {metadata && <ImageMetadataDisplay metadata={metadata} />}
 
               <div className="space-y-2">
                 <p className="text-sm font-medium">What would you like to do?</p>
