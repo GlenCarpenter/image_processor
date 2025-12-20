@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Dropzone, DropzoneContent, DropzoneEmptyState } from '@/components/ui/shadcn-io/dropzone'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -9,26 +9,60 @@ import { useImageStore } from '@/store/imageStore'
 import { extractImageMetadata, type ImageMetadata } from '@/lib/imageUtils'
 import { ImageMetadataDisplay } from '@/components/ImageMetadataDisplay'
 
+type ResizeSearch = {
+  filename?: string
+}
+
 export const Route = createFileRoute('/resize-image')({
   component: RouteComponent,
+  validateSearch: (search: Record<string, unknown>): ResizeSearch => {
+    return {
+      filename: search.filename as string | undefined,
+    }
+  },
 })
 
 const API_BASE_URL = 'http://localhost:8000/api'
 
 function RouteComponent() {
   const navigate = useNavigate()
+  const search = Route.useSearch()
 
   // Get state from Zustand store
   const resizeImage = useImageStore((state) => state.resizeImage)
   const setResizeOriginal = useImageStore((state) => state.setResizeOriginal)
   const setResizeResult = useImageStore((state) => state.setResizeResult)
   const sendResizeToEdit = useImageStore((state) => state.sendResizeToEdit)
+  const sendResizeToUpscale = useImageStore((state) => state.sendResizeToUpscale)
+  const sendResizeToSegment = useImageStore((state) => state.sendResizeToSegment)
 
   // Local state for UI only
   const [targetSize, setTargetSize] = useState<number>(1024)
   const [isResizing, setIsResizing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [originalMetadata, setOriginalMetadata] = useState<ImageMetadata | null>(null)
+
+  // Load image from URL query param on mount
+  useEffect(() => {
+    if (search.filename && !resizeImage.originalFile) {
+      const imageUrl = `${API_BASE_URL}/images/output/${search.filename}`
+
+      fetch(imageUrl)
+        .then(res => res.blob())
+        .then(blob => {
+          const file = new File([blob], search.filename!, { type: blob.type })
+          setResizeOriginal(file, imageUrl)
+
+          extractImageMetadata(file, imageUrl)
+            .then(setOriginalMetadata)
+            .catch(err => console.error('Failed to extract metadata:', err))
+        })
+        .catch(err => {
+          console.error('Failed to load image:', err)
+          setError('Failed to load image from URL')
+        })
+    }
+  }, [search.filename, resizeImage.originalFile])
 
   const handleFileDrop = (acceptedFiles: File[]) => {
     if (acceptedFiles.length > 0) {
@@ -114,9 +148,33 @@ function RouteComponent() {
     document.body.removeChild(link)
   }
 
-  const handleEditClick = () => {
-    sendResizeToEdit()
-    navigate({ to: '/edit' })
+  const handleUpscaleClick = () => {
+    if (!resizeImage.outputFilename) return
+    sendResizeToUpscale()
+    navigate({ to: '/upscale', search: { filename: resizeImage.outputFilename } })
+  }
+
+  const handleResizeAgain = () => {
+    if (!resizeImage.outputFilename) return
+    // Set the resized image as the new original
+    const imageUrl = `${API_BASE_URL}/images/output/${resizeImage.outputFilename}`
+    fetch(imageUrl)
+      .then(res => res.blob())
+      .then(blob => {
+        const file = new File([blob], resizeImage.outputFilename!, { type: blob.type })
+        setResizeOriginal(file, imageUrl)
+        setResizeResult(null, null, null)
+        extractImageMetadata(file, imageUrl)
+          .then(setOriginalMetadata)
+          .catch(err => console.error('Failed to extract metadata:', err))
+      })
+      .catch(err => console.error('Failed to load image:', err))
+  }
+
+  const handleSegmentClick = () => {
+    if (!resizeImage.outputFilename) return
+    sendResizeToSegment()
+    navigate({ to: '/segment', search: { filename: resizeImage.outputFilename } })
   }
 
   const formatNumber = (num: string | number | null | undefined) => {
@@ -126,9 +184,7 @@ function RouteComponent() {
   }
 
   return (
-    <div className="container mx-auto p-8 max-w-6xl">
-      <h1 className="text-4xl font-bold mb-8">Image Resizer</h1>
-
+    <div className="container mx-auto p-4 max-w-6xl">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Input Section */}
         <Card>
@@ -250,12 +306,20 @@ function RouteComponent() {
                   </div>
                 )}
 
-                <div className="flex gap-2">
-                  <Button onClick={handleDownload} variant="outline" className="flex-1">
+                <div className="space-y-2">
+                  <div className="grid grid-cols-3 gap-2">
+                    <Button onClick={handleUpscaleClick} variant="outline" size="sm">
+                      Upscale
+                    </Button>
+                    <Button onClick={handleResizeAgain} variant="outline" size="sm">
+                      Resize
+                    </Button>
+                    <Button onClick={handleSegmentClick} variant="outline" size="sm">
+                      Segment
+                    </Button>
+                  </div>
+                  <Button onClick={handleDownload} className="w-full">
                     Download Resized Image
-                  </Button>
-                  <Button className="flex-1" onClick={handleEditClick}>
-                    Edit Image
                   </Button>
                 </div>
               </>

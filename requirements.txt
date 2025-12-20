@@ -15,3 +15,13 @@ tqdm==4.67.1
 # Fal AI client for image upscaling
 fal-client==0.5.7
 requests==2.32.3
+
+# PyTorch for GPU acceleration (Windows with CUDA 12.1)
+# NOTE: Install using setup_environment.py to get CUDA support
+# Or manually: pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+torch==2.5.1
+torchvision==0.20.1
+torchaudio==2.5.1
+
+# Ultralytics SAM 2 for segmentation
+ultralytics==8.3.50

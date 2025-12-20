@@ -2,21 +2,39 @@ import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { useImageStore } from '@/store/imageStore'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 const API_BASE_URL = 'http://localhost:8000/api'
 
+type EditSearch = {
+  filename?: string
+}
+
 export const Route = createFileRoute('/edit')({
   component: RouteComponent,
+  validateSearch: (search: Record<string, unknown>): EditSearch => {
+    return {
+      filename: search.filename as string | undefined,
+    }
+  },
 })
 
 function RouteComponent() {
   const navigate = useNavigate()
+  const search = Route.useSearch()
   const editImage = useImageStore((state) => state.editImage)
+  const setEditImage = useImageStore((state) => state.setEditImage)
   const clearEditImage = useImageStore((state) => state.clearEditImage)
   const sendEditToUpscale = useImageStore((state) => state.sendEditToUpscale)
   const setUpscaleOriginal = useImageStore((state) => state.setUpscaleOriginal)
   const [isLoading, setIsLoading] = useState(false)
+
+  // Load image from URL query param on mount
+  useEffect(() => {
+    if (search.filename && search.filename !== editImage.outputFilename) {
+      setEditImage(null, search.filename, null)
+    }
+  }, [search.filename])
 
   const handleUpscaleClick = async () => {
     if (!editImage.outputFilename) return
@@ -36,7 +54,7 @@ function RouteComponent() {
       setUpscaleOriginal(file, url)
 
       // Navigate to upscale page
-      navigate({ to: '/upscale' })
+      navigate({ to: '/upscale', search: { filename: editImage.outputFilename } })
     } catch (error) {
       console.error('Failed to load image for upscaling:', error)
     } finally {
@@ -46,7 +64,7 @@ function RouteComponent() {
 
   if (!editImage.outputFilename) {
     return (
-      <div className="container mx-auto p-8 max-w-4xl">
+      <div className="container mx-auto p-4 max-w-4xl">
         <Card>
           <CardHeader>
             <CardTitle>No Image to Edit</CardTitle>
@@ -68,9 +86,7 @@ function RouteComponent() {
   }
 
   return (
-    <div className="container mx-auto p-8 max-w-4xl">
-      <h1 className="text-4xl font-bold mb-8">Edit Image</h1>
-
+    <div className="container mx-auto p-4 max-w-4xl">
       <Card>
         <CardHeader>
           <CardTitle>Your Image</CardTitle>

@@ -124,12 +124,13 @@ def get_job(job_id: int) -> Optional[Dict[str, Any]]:
         return dict(row) if row else None
 
 
-def get_recent_jobs(limit: int = 50, job_type: Optional[str] = None) -> List[Dict[str, Any]]:
+def get_recent_jobs(limit: int = 50, offset: int = 0, job_type: Optional[str] = None) -> List[Dict[str, Any]]:
     """
     Get recent jobs, optionally filtered by type
     
     Args:
         limit: Maximum number of jobs to return
+        offset: Number of jobs to skip (for pagination)
         job_type: Optional job type filter (e.g., 'resize', 'crop')
     
     Returns:
@@ -142,14 +143,14 @@ def get_recent_jobs(limit: int = 50, job_type: Optional[str] = None) -> List[Dic
                 SELECT * FROM image_jobs 
                 WHERE job_type = ?
                 ORDER BY created_at DESC 
-                LIMIT ?
-            """, (job_type, limit))
+                LIMIT ? OFFSET ?
+            """, (job_type, limit, offset))
         else:
             cursor.execute("""
                 SELECT * FROM image_jobs 
                 ORDER BY created_at DESC 
-                LIMIT ?
-            """, (limit,))
+                LIMIT ? OFFSET ?
+            """, (limit, offset))
         
         return [dict(row) for row in cursor.fetchall()]
 

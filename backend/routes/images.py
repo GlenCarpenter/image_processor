@@ -195,7 +195,15 @@ async def get_output_image(filename: str):
     except ValueError:
         raise HTTPException(status_code=403, detail="Access denied")
 
-    return FileResponse(path=str(file_path), media_type="image/jpeg")
+    return FileResponse(
+        path=str(file_path),
+        media_type="image/jpeg",
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, OPTIONS",
+            "Access-Control-Allow-Headers": "*",
+        }
+    )
 
 
 @router.get("/output/{filename}/download")
@@ -246,22 +254,33 @@ async def get_job_info(job_id: int):
 
 
 @router.get("/jobs")
-async def list_recent_jobs(limit: int = 50, job_type: Optional[str] = None):
+async def list_recent_jobs(limit: int = 50, offset: int = 0, job_type: Optional[str] = None):
     """
     List recent jobs, optionally filtered by type
 
     **Parameters:**
-    - **limit**: Maximum number of jobs to return (default: 50)
+    - **limit**: Maximum number of jobs to return (default: 50, max: 200)
+    - **offset**: Number of jobs to skip for pagination (default: 0)
     - **job_type**: Filter by job type (e.g., 'resize')
 
-    **Returns:** List of jobs
+    **Returns:** List of jobs with pagination info
     """
     if limit < 1 or limit > 200:
         raise HTTPException(status_code=400, detail="Limit must be between 1 and 200")
+    
+    if offset < 0:
+        raise HTTPException(status_code=400, detail="Offset must be non-negative")
 
-    jobs = get_recent_jobs(limit=limit, job_type=job_type)
+    jobs = get_recent_jobs(limit=limit, offset=offset, job_type=job_type)
 
-    return {"success": True, "jobs": jobs, "count": len(jobs)}
+    return {
+        "success": True, 
+        "jobs": jobs, 
+        "count": len(jobs),
+        "limit": limit,
+        "offset": offset,
+        "has_more": len(jobs) == limit  # If we got a full page, there might be more
+    }
 
 
 @router.delete("/job/{job_id}")

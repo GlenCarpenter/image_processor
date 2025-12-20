@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -12,7 +12,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { useImageStore } from '@/store/imageStore'
-import { ImageIcon, Calendar, Ruler, Trash2, Download, Check } from 'lucide-react'
+import { ImageIcon, Calendar, Ruler, Trash2, Download, Check, ArrowUpCircle, Expand, Scissors } from 'lucide-react'
 
 const API_BASE_URL = 'http://localhost:8000/api'
 
@@ -42,38 +42,90 @@ function RouteComponent() {
   const navigate = useNavigate()
   const setResizeResult = useImageStore((state) => state.setResizeResult)
   const setEditImage = useImageStore((state) => state.setEditImage)
+  const sendResizeToUpscale = useImageStore((state) => state.sendResizeToUpscale)
+  const sendResizeToSegment = useImageStore((state) => state.sendResizeToSegment)
 
   const [jobs, setJobs] = useState<Job[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [selectedJob, setSelectedJob] = useState<Job | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [selectedFilenames, setSelectedFilenames] = useState<Set<string>>(new Set())
   const [downloading, setDownloading] = useState(false)
+  const [hasMore, setHasMore] = useState(true)
+  const [offset, setOffset] = useState(0)
+
+  // Ref for the intersection observer target
+  const observerTarget = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    loadJobs()
+    loadJobs(true)
   }, [])
 
-  const loadJobs = async () => {
+  // Intersection Observer for infinite scroll
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loading && !loadingMore) {
+          loadMoreJobs()
+        }
+      },
+      { threshold: 0.1 }
+    )
+
+    const currentTarget = observerTarget.current
+    if (currentTarget) {
+      observer.observe(currentTarget)
+    }
+
+    return () => {
+      if (currentTarget) {
+        observer.unobserve(currentTarget)
+      }
+    }
+  }, [hasMore, loading, loadingMore, offset])
+
+  const loadJobs = async (initial = false) => {
     try {
-      setLoading(true)
+      if (initial) {
+        setLoading(true)
+        setOffset(0)
+      } else {
+        setLoadingMore(true)
+      }
       setError(null)
-      const response = await fetch(`${API_BASE_URL}/images/jobs?limit=50`)
+      
+      const currentOffset = initial ? 0 : offset
+      const response = await fetch(`${API_BASE_URL}/images/jobs?limit=50&offset=${currentOffset}`)
 
       if (!response.ok) {
         throw new Error('Failed to load job history')
       }
 
       const data = await response.json()
-      setJobs(data.jobs || [])
+      
+      if (initial) {
+        setJobs(data.jobs || [])
+      } else {
+        setJobs(prev => [...prev, ...(data.jobs || [])])
+      }
+      
+      setHasMore(data.has_more || false)
+      setOffset(currentOffset + (data.jobs?.length || 0))
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')
     } finally {
       setLoading(false)
+      setLoadingMore(false)
     }
   }
+
+  const loadMoreJobs = useCallback(() => {
+    if (!hasMore || loading || loadingMore) return
+    loadJobs(false)
+  }, [hasMore, loading, loadingMore, offset])
 
   const handleThumbnailClick = (job: Job) => {
     setSelectedJob(job)
@@ -96,7 +148,7 @@ function RouteComponent() {
 
     setResizeResult(selectedJob.id, selectedJob.output_filename, info)
     setDialogOpen(false)
-    navigate({ to: '/resize-image' })
+    navigate({ to: '/resize-image', search: { filename: selectedJob.output_filename } })
   }
 
   const handleSendToEdit = () => {
@@ -114,7 +166,45 @@ function RouteComponent() {
 
     setEditImage(selectedJob.id, selectedJob.output_filename, info)
     setDialogOpen(false)
-    navigate({ to: '/edit' })
+    navigate({ to: '/edit', search: { filename: selectedJob.output_filename } })
+  }
+
+  const handleSendToUpscale = () => {
+    if (!selectedJob) return
+
+    const info = {
+      originalWidth: selectedJob.original_width,
+      originalHeight: selectedJob.original_height,
+      targetWidth: selectedJob.output_width,
+      targetHeight: selectedJob.output_height,
+      aspectRatio: selectedJob.aspect_ratio,
+      originalPixels: selectedJob.original_pixels,
+      actualPixels: selectedJob.output_pixels,
+    }
+
+    setResizeResult(selectedJob.id, selectedJob.output_filename, info)
+    sendResizeToUpscale()
+    setDialogOpen(false)
+    navigate({ to: '/upscale', search: { filename: selectedJob.output_filename } })
+  }
+
+  const handleSendToSegment = () => {
+    if (!selectedJob) return
+
+    const info = {
+      originalWidth: selectedJob.original_width,
+      originalHeight: selectedJob.original_height,
+      targetWidth: selectedJob.output_width,
+      targetHeight: selectedJob.output_height,
+      aspectRatio: selectedJob.aspect_ratio,
+      originalPixels: selectedJob.original_pixels,
+      actualPixels: selectedJob.output_pixels,
+    }
+
+    setResizeResult(selectedJob.id, selectedJob.output_filename, info)
+    sendResizeToSegment()
+    setDialogOpen(false)
+    navigate({ to: '/segment', search: { filename: selectedJob.output_filename } })
   }
 
   const handleDelete = async () => {
@@ -210,7 +300,7 @@ function RouteComponent() {
   }
 
   return (
-    <div className="container mx-auto p-8 max-w-7xl">
+    <div className="container mx-auto p-4 max-w-7xl">
       <div className="mb-8">
         <h1 className="text-4xl font-bold mb-2">Image History</h1>
         <p className="text-muted-foreground">
@@ -247,7 +337,7 @@ function RouteComponent() {
         <Card className="mb-6 border-destructive">
           <CardContent className="pt-6">
             <p className="text-destructive">{error}</p>
-            <Button onClick={loadJobs} variant="outline" className="mt-4">
+            <Button onClick={() => loadJobs(true)} variant="outline" className="mt-4">
               Retry
             </Button>
           </CardContent>
@@ -331,6 +421,31 @@ function RouteComponent() {
         </div>
       )}
 
+      {/* Loading more indicator */}
+      {loadingMore && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mt-6">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Card key={`loading-${i}`}>
+              <CardContent className="p-4">
+                <Skeleton className="w-full aspect-square rounded-md mb-4" />
+                <Skeleton className="h-4 w-3/4 mb-2" />
+                <Skeleton className="h-3 w-1/2" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* Intersection observer target for infinite scroll */}
+      <div ref={observerTarget} className="h-10" />
+
+      {/* End of results message */}
+      {!loading && !loadingMore && !hasMore && jobs.length > 0 && (
+        <div className="text-center text-muted-foreground py-8">
+          No more images to load
+        </div>
+      )}
+
       {/* Image Detail Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-3xl">
@@ -381,24 +496,30 @@ function RouteComponent() {
                 </div>
               </div>
 
-              <DialogFooter className="gap-2">
+              <DialogFooter className="flex-col sm:flex-row gap-2">
                 <Button
                   variant="destructive"
                   onClick={handleDelete}
                   disabled={deleting}
-                  className="mr-auto"
+                  className="w-full sm:w-auto sm:mr-auto"
                 >
                   <Trash2 className="w-4 h-4 mr-2" />
                   {deleting ? 'Deleting...' : 'Delete'}
                 </Button>
-                <Button variant="outline" onClick={() => setDialogOpen(false)}>
-                  Close
-                </Button>
-                <Button variant="secondary" onClick={handleSendToResize}>
-                  <ImageIcon className="w-4 h-4 mr-2" />
-                  Send to Resize
-                </Button>
-                <Button onClick={handleSendToEdit}>Send to Edit</Button>
+                <div className="grid grid-cols-3 gap-2 w-full sm:w-auto">
+                  <Button variant="outline" size="sm" onClick={handleSendToUpscale}>
+                    <ArrowUpCircle className="w-4 h-4 mr-1" />
+                    Upscale
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={handleSendToResize}>
+                    <Expand className="w-4 h-4 mr-1" />
+                    Resize
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={handleSendToSegment}>
+                    <Scissors className="w-4 h-4 mr-1" />
+                    Segment
+                  </Button>
+                </div>
               </DialogFooter>
             </>
           )}

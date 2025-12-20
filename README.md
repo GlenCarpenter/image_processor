@@ -36,7 +36,14 @@ segment_markup/
      source venv/bin/activate
      ```
 
-3. **Install dependencies:**
+3. **Install dependencies (with GPU support):**
+   ```bash
+   python setup_environment.py
+   ```
+   
+   This will install PyTorch with CUDA 12.1 support for GPU acceleration.
+   
+   *Alternative (CPU-only):*
    ```bash
    pip install -r requirements.txt
    ```

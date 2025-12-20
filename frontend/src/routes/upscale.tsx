@@ -1,33 +1,67 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { useState } from 'react'
+import { useEffect } from 'react'
 import { Dropzone, DropzoneContent, DropzoneEmptyState } from '@/components/ui/shadcn-io/dropzone'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Scissors, Trash2, Download, Undo, ArrowUpCircle, Expand } from 'lucide-react'
 import { useImageStore } from '@/store/imageStore'
-import { extractImageMetadata, type ImageMetadata } from '@/lib/imageUtils'
+import { extractImageMetadata } from '@/lib/imageUtils'
 import { ImageMetadataDisplay } from '@/components/ImageMetadataDisplay'
+
+type UpscaleSearch = {
+  filename?: string
+}
 
 export const Route = createFileRoute('/upscale')({
   component: RouteComponent,
+  validateSearch: (search: Record<string, unknown>): UpscaleSearch => {
+    return {
+      filename: search.filename as string | undefined,
+    }
+  },
 })
 
 const API_BASE_URL = 'http://localhost:8000/api'
 
 function RouteComponent() {
   const navigate = useNavigate()
+  const search = Route.useSearch()
 
   // Get state from Zustand store
   const upscaleImage = useImageStore((state) => state.upscaleImage)
   const setUpscaleOriginal = useImageStore((state) => state.setUpscaleOriginal)
   const setUpscaleResult = useImageStore((state) => state.setUpscaleResult)
+  const setUpscaleUpscaling = useImageStore((state) => state.setUpscaleUpscaling)
+  const setUpscaleError = useImageStore((state) => state.setUpscaleError)
+  const setUpscaleOriginalMetadata = useImageStore((state) => state.setUpscaleOriginalMetadata)
+  const setUpscaleResultMetadata = useImageStore((state) => state.setUpscaleResultMetadata)
   const sendUpscaleToEdit = useImageStore((state) => state.sendUpscaleToEdit)
+  const sendUpscaleToUpscale = useImageStore((state) => state.sendUpscaleToUpscale)
+  const sendUpscaleToResize = useImageStore((state) => state.sendUpscaleToResize)
+  const sendUpscaleToSegment = useImageStore((state) => state.sendUpscaleToSegment)
 
-  // Local state for UI only
-  const [isUpscaling, setIsUpscaling] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [originalMetadata, setOriginalMetadata] = useState<ImageMetadata | null>(null)
-  const [resultMetadata, setResultMetadata] = useState<ImageMetadata | null>(null)
+  // Load image from URL query param on mount
+  useEffect(() => {
+    if (search.filename && !upscaleImage.originalFile) {
+      const imageUrl = `${API_BASE_URL}/images/output/${search.filename}`
+
+      fetch(imageUrl)
+        .then(res => res.blob())
+        .then(blob => {
+          const file = new File([blob], search.filename!, { type: blob.type })
+          setUpscaleOriginal(file, imageUrl)
+
+          extractImageMetadata(file, imageUrl)
+            .then(setUpscaleOriginalMetadata)
+            .catch(err => console.error('Failed to extract metadata:', err))
+        })
+        .catch(err => {
+          console.error('Failed to load image:', err)
+          setUpscaleError('Failed to load image from URL')
+        })
+    }
+  }, [search.filename, upscaleImage.originalFile])
 
   const handleFileDrop = (acceptedFiles: File[]) => {
     if (acceptedFiles.length > 0) {
@@ -35,27 +69,27 @@ function RouteComponent() {
       const url = URL.createObjectURL(file)
       setUpscaleOriginal(file, url)
       setUpscaleResult(null, null, null)
-      setError(null)
-      setResultMetadata(null)
+      setUpscaleError(null)
+      setUpscaleResultMetadata(null)
 
       // Extract image metadata
       extractImageMetadata(file, url)
-        .then(setOriginalMetadata)
+        .then(setUpscaleOriginalMetadata)
         .catch((err) => {
           console.error('Failed to extract image metadata:', err)
-          setOriginalMetadata(null)
+          setUpscaleOriginalMetadata(null)
         })
     }
   }
 
   const handleUpscale = async () => {
     if (!upscaleImage.originalFile) {
-      setError('Please select an image first')
+      setUpscaleError('Please select an image first')
       return
     }
 
-    setIsUpscaling(true)
-    setError(null)
+    setUpscaleUpscaling(true)
+    setUpscaleError(null)
 
     try {
       const formData = new FormData()
@@ -100,15 +134,15 @@ function RouteComponent() {
       const file = new File([blob], data.output_filename, { type: blob.type })
 
       extractImageMetadata(file, imageUrl)
-        .then(setResultMetadata)
+        .then(setUpscaleResultMetadata)
         .catch((err) => {
           console.error('Failed to extract result metadata:', err)
-          setResultMetadata(null)
+          setUpscaleResultMetadata(null)
         })
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred')
+      setUpscaleError(err instanceof Error ? err.message : 'An error occurred')
     } finally {
-      setIsUpscaling(false)
+      setUpscaleUpscaling(false)
     }
   }
 
@@ -124,8 +158,27 @@ function RouteComponent() {
   }
 
   const handleEditClick = () => {
+    if (!upscaleImage.outputFilename) return
     sendUpscaleToEdit()
-    navigate({ to: '/edit' })
+    navigate({ to: '/edit', search: { filename: upscaleImage.outputFilename } })
+  }
+
+  const handleUpscaleAgain = () => {
+    if (!upscaleImage.outputFilename) return
+    sendUpscaleToUpscale()
+    navigate({ to: '/upscale', search: { filename: upscaleImage.outputFilename } })
+  }
+
+  const handleResizeClick = () => {
+    if (!upscaleImage.outputFilename) return
+    sendUpscaleToResize()
+    navigate({ to: '/resize-image', search: { filename: upscaleImage.outputFilename } })
+  }
+
+  const handleSegmentClick = () => {
+    if (!upscaleImage.outputFilename) return
+    sendUpscaleToSegment()
+    navigate({ to: '/segment', search: { filename: upscaleImage.outputFilename } })
   }
 
   const formatNumber = (num: string | number | null | undefined) => {
@@ -135,9 +188,7 @@ function RouteComponent() {
   }
 
   return (
-    <div className="container mx-auto p-8 max-w-6xl">
-      <h1 className="text-4xl font-bold mb-8">Image Upscaler</h1>
-
+    <div className="container mx-auto p-4 max-w-6xl">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Input Section */}
         <Card>
@@ -170,22 +221,22 @@ function RouteComponent() {
                   />
                 </div>
 
-                {originalMetadata && <ImageMetadataDisplay metadata={originalMetadata} />}
+                {upscaleImage.originalMetadata && <ImageMetadataDisplay metadata={upscaleImage.originalMetadata} />}
               </>
             )}
 
             <Button
               onClick={handleUpscale}
-              disabled={!upscaleImage.originalFile || isUpscaling}
+              disabled={!upscaleImage.originalFile || upscaleImage.isUpscaling}
               className="w-full"
               size="lg"
             >
-              {isUpscaling ? 'Upscaling...' : 'Upscale Image (2x)'}
+              {upscaleImage.isUpscaling ? 'Upscaling...' : 'Upscale Image (2x)'}
             </Button>
 
-            {error && (
+            {upscaleImage.error && (
               <div className="p-3 bg-destructive/10 text-destructive rounded-md text-sm">
-                {error}
+                {upscaleImage.error}
               </div>
             )}
           </CardContent>
@@ -208,7 +259,7 @@ function RouteComponent() {
                   />
                 </div>
 
-                {resultMetadata && <ImageMetadataDisplay metadata={resultMetadata} />}
+                {upscaleImage.resultMetadata && <ImageMetadataDisplay metadata={upscaleImage.resultMetadata} />}
 
                 {upscaleImage.upscaleInfo && (
                   <div className="space-y-2 text-sm">
@@ -232,12 +283,24 @@ function RouteComponent() {
                   </div>
                 )}
 
-                <div className="flex gap-2">
-                  <Button onClick={handleDownload} variant="outline" className="flex-1">
+                <div className="space-y-2">
+                  <div className="grid grid-cols-3 gap-2">
+                    <Button onClick={handleUpscaleAgain} variant="outline" size="sm">
+                      <ArrowUpCircle className="w-4 h-4 mr-1" />
+                      Upscale
+                    </Button>
+                    <Button onClick={handleResizeClick} variant="outline" size="sm">
+                      <Expand className="w-4 h-4 mr-1" />
+                      Resize
+                    </Button>
+                    <Button onClick={handleSegmentClick} variant="outline" size="sm">
+                      <Scissors className="w-4 h-4 mr-1" />
+                      Segment
+                    </Button>
+                  </div>
+                  <Button onClick={handleDownload} className="w-full">
+                    <Download className="w-4 h-4 mr-2" />
                     Download Upscaled Image
-                  </Button>
-                  <Button className="flex-1" onClick={handleEditClick}>
-                    Edit Image
                   </Button>
                 </div>
               </>
