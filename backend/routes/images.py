@@ -12,7 +12,7 @@ import uuid
 import zipfile
 from io import BytesIO
 
-from backend.utils.image_processing import resize_image_bytes
+from backend.utils.image_processing import resize_image_bytes, extract_exif_data
 from backend.database import create_job, get_job, get_recent_jobs
 
 router = APIRouter()
@@ -20,6 +20,57 @@ router = APIRouter()
 # Output directory for processed images
 OUTPUTS_DIR = Path(__file__).parent.parent.parent / "outputs"
 OUTPUTS_DIR.mkdir(exist_ok=True)
+
+# Temporary directory for EXIF extraction
+TEMP_DIR = Path(__file__).parent.parent.parent / "temp"
+TEMP_DIR.mkdir(exist_ok=True)
+
+
+@router.post("/upload-temp")
+async def upload_temp_for_exif(
+    file: UploadFile = File(..., description="Image file to extract EXIF from")
+):
+    """
+    Temporarily upload an image to extract EXIF metadata
+    
+    **Parameters:**
+    - **file**: Image file
+    
+    **Returns:** EXIF metadata
+    """
+    # Validate file type
+    if not file.content_type or not file.content_type.startswith("image/"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid file type: {file.content_type}. Must be an image.",
+        )
+    
+    try:
+        # Read the uploaded file
+        image_bytes = await file.read()
+        
+        # Generate temporary filename
+        temp_id = str(uuid.uuid4())
+        temp_path = TEMP_DIR / f"exif_{temp_id}.tmp"
+        
+        # Save temporarily
+        with open(temp_path, "wb") as f:
+            f.write(image_bytes)
+        
+        # Extract EXIF data
+        exif_data = extract_exif_data(str(temp_path))
+        
+        # Delete the temporary file immediately
+        temp_path.unlink()
+        
+        return {
+            "success": True,
+            "exif": exif_data,
+            "has_exif": len(exif_data) > 0
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error extracting EXIF: {str(e)}")
 
 
 @router.post("/resize")
@@ -204,6 +255,37 @@ async def get_output_image(filename: str):
             "Access-Control-Allow-Headers": "*",
         }
     )
+
+
+@router.get("/output/{filename}/exif")
+async def get_image_exif(filename: str):
+    """
+    Extract and return EXIF metadata from an output image
+    
+    **Parameters:**
+    - **filename**: The output filename from a previous job
+    
+    **Returns:** EXIF metadata organized by category
+    """
+    file_path = OUTPUTS_DIR / filename
+    
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Image not found")
+    
+    # Security check: ensure the file is within outputs directory
+    try:
+        file_path.resolve().relative_to(OUTPUTS_DIR.resolve())
+    except ValueError:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    exif_data = extract_exif_data(str(file_path))
+    
+    return {
+        "success": True,
+        "filename": filename,
+        "exif": exif_data,
+        "has_exif": len(exif_data) > 0
+    }
 
 
 @router.get("/output/{filename}/download")

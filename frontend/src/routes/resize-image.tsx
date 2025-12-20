@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useImageStore } from '@/store/imageStore'
-import { extractImageMetadata, type ImageMetadata } from '@/lib/imageUtils'
+import { extractImageMetadata, fetchExifData, type ImageMetadata } from '@/lib/imageUtils'
 import { ImageMetadataDisplay } from '@/components/ImageMetadataDisplay'
 import { OutputCard } from '@/components/OutputCard'
 import { API_BASE_URL } from '@/lib/constants'
@@ -53,7 +53,11 @@ function RouteComponent() {
           setResizeOriginal(file, imageUrl)
 
           extractImageMetadata(file, imageUrl)
-            .then(setOriginalMetadata)
+            .then(async (metadata) => {
+              // Fetch EXIF data for the output image
+              const exifData = await fetchExifData(search.filename!, API_BASE_URL)
+              setOriginalMetadata({ ...metadata, exif: exifData || undefined })
+            })
             .catch((err) => console.error('Failed to extract metadata:', err))
         })
         .catch((err) => {
@@ -73,7 +77,31 @@ function RouteComponent() {
 
       // Extract image metadata
       extractImageMetadata(file, url)
-        .then(setOriginalMetadata)
+        .then(async (metadata) => {
+          // Upload file temporarily to extract EXIF data
+          const formData = new FormData()
+          formData.append('file', file)
+
+          try {
+            const response = await fetch(`${API_BASE_URL}/images/upload-temp`, {
+              method: 'POST',
+              body: formData,
+            })
+
+            if (response.ok) {
+              const data = await response.json()
+              if (data.exif && Object.keys(data.exif).length > 0) {
+                setOriginalMetadata({ ...metadata, exif: data.exif })
+                return
+              }
+            }
+          } catch (err) {
+            console.error('Failed to fetch EXIF data:', err)
+          }
+
+          // If EXIF fetch fails or returns empty, set metadata without EXIF
+          setOriginalMetadata(metadata)
+        })
         .catch((err) => {
           console.error('Failed to extract image metadata:', err)
           setOriginalMetadata(null)
