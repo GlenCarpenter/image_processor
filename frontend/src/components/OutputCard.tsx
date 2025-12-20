@@ -1,6 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Download, ArrowUpCircle, Expand, Scissors } from 'lucide-react'
+import { Download, ArrowBigUpDash, Expand, Scissors } from 'lucide-react'
 import { API_BASE_URL } from '@/lib/constants'
 import type { ReactNode } from 'react'
 
@@ -50,13 +50,13 @@ export function OutputCard({
 
             <div className="space-y-2">
               <div className="grid grid-cols-3 gap-2">
-                <Button onClick={onUpscale} variant="outline" size="sm">
-                  <ArrowUpCircle className="w-4 h-4 mr-1" />
-                  Upscale
-                </Button>
                 <Button onClick={onResize} variant="outline" size="sm">
                   <Expand className="w-4 h-4 mr-1" />
                   Resize
+                </Button>
+                <Button onClick={onUpscale} variant="outline" size="sm">
+                  <ArrowBigUpDash className="w-4 h-4 mr-1" />
+                  Upscale
                 </Button>
                 <Button onClick={onSegment} variant="outline" size="sm">
                   <Scissors className="w-4 h-4 mr-1" />
