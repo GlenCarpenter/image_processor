@@ -17,6 +17,7 @@ export interface ImageMetadata {
   size: number
   type: string
   exif?: ExifData
+  prompt?: string
 }
 
 /**
@@ -147,6 +148,7 @@ export const formatExifLabel = (key: string): string => {
     Software: 'Software',
     Artist: 'Artist',
     Copyright: 'Copyright',
+    AIPrompt: 'AI Generation Prompt',
   }
 
   return labelMap[key] || key
@@ -170,6 +172,28 @@ export const fetchExifData = async (
     return data.has_exif ? data.exif : null
   } catch (error) {
     console.error('Failed to fetch EXIF data:', error)
+    return null
+  }
+}
+
+/**
+ * Fetch AI prompt from backend for an output image
+ * @param filename - Output filename
+ * @param apiBaseUrl - API base URL
+ * @returns Promise with prompt string or null
+ */
+export const fetchPrompt = async (
+  filename: string,
+  apiBaseUrl: string
+): Promise<string | null> => {
+  try {
+    const response = await fetch(`${apiBaseUrl}/images/output/${filename}/exif`)
+    if (!response.ok) return null
+
+    const data = await response.json()
+    return data.has_prompt ? data.prompt : null
+  } catch (error) {
+    console.error('Failed to fetch prompt:', error)
     return null
   }
 }

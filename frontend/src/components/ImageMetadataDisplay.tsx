@@ -13,6 +13,7 @@ interface ImageMetadataDisplayProps {
 
 export function ImageMetadataDisplay({ metadata }: ImageMetadataDisplayProps) {
   const hasExif = metadata.exif && Object.keys(metadata.exif).length > 0
+  const hasPrompt = !!metadata.prompt
 
   return (
     <div className="bg-muted/50 p-3 rounded-md space-y-3">
@@ -40,6 +41,23 @@ export function ImageMetadataDisplay({ metadata }: ImageMetadataDisplayProps) {
         </div>
       </div>
 
+      {hasPrompt && (
+        <>
+          <div className="border-t border-border pt-3">
+            <Label className="text-xs font-semibold uppercase text-muted-foreground">
+              AI Generation
+            </Label>
+          </div>
+
+          <div className="space-y-2 bg-primary/5 p-3 rounded-md border border-primary/20">
+            <Label className="text-xs font-medium text-primary">Prompt</Label>
+            <p className="text-sm font-medium break-words whitespace-pre-wrap">
+              {metadata.prompt}
+            </p>
+          </div>
+        </>
+      )}
+
       {hasExif && (
         <>
           <div className="border-t border-border pt-3">
@@ -47,6 +65,17 @@ export function ImageMetadataDisplay({ metadata }: ImageMetadataDisplayProps) {
               EXIF Data
             </Label>
           </div>
+
+          {metadata.exif?.other?.AIPrompt && (
+            <div className="space-y-2 bg-primary/5 p-3 rounded-md border border-primary/20">
+              <Label className="text-xs font-medium text-primary">
+                AI Generation Prompt
+              </Label>
+              <p className="text-sm font-medium break-words whitespace-pre-wrap">
+                {metadata.exif.other.AIPrompt}
+              </p>
+            </div>
+          )}
 
           {metadata.exif?.camera && Object.keys(metadata.exif.camera).length > 0 && (
             <div className="space-y-2">
@@ -98,14 +127,16 @@ export function ImageMetadataDisplay({ metadata }: ImageMetadataDisplayProps) {
             <div className="space-y-2">
               <Label className="text-xs font-medium text-muted-foreground">Additional Info</Label>
               <div className="grid grid-cols-2 gap-2 text-sm">
-                {Object.entries(metadata.exif.other).map(([key, value]) => (
-                  <div key={key}>
-                    <span className="text-muted-foreground">{formatExifLabel(key)}:</span>
-                    <p className="font-medium truncate" title={formatExifValue(key, value)}>
-                      {formatExifValue(key, value)}
-                    </p>
-                  </div>
-                ))}
+                {Object.entries(metadata.exif.other)
+                  .filter(([key]) => key !== 'AIPrompt')
+                  .map(([key, value]) => (
+                    <div key={key}>
+                      <span className="text-muted-foreground">{formatExifLabel(key)}:</span>
+                      <p className="font-medium truncate" title={formatExifValue(key, value)}>
+                        {formatExifValue(key, value)}
+                      </p>
+                    </div>
+                  ))}
               </div>
             </div>
           )}

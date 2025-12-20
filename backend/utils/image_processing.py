@@ -4,6 +4,7 @@ Extracted from resize_images.py for API use
 """
 
 import math
+import json
 from io import BytesIO
 from PIL import Image
 from PIL.ExifTags import TAGS, GPSTAGS
@@ -187,22 +188,111 @@ def resize_image_bytes(
     return output_buffer.getvalue(), info
 
 
+def extract_comfyui_prompt(metadata):
+    """
+    Extract prompt from ComfyUI workflow JSON.
+    Looks for CLIPTextEncode node with title "CLIP Text Encode (Positive Prompt)".
+
+    Args:
+        metadata: Parsed JSON metadata
+
+    Returns:
+        str: The prompt text if found, None otherwise
+    """
+    if not isinstance(metadata, dict):
+        return None
+
+    for node_id, node_data in metadata.items():
+        if not isinstance(node_data, dict):
+            continue
+
+        # Check if this is a CLIPTextEncode node with positive prompt
+        if (
+            node_data.get("class_type") == "CLIPTextEncode"
+            and node_data.get("_meta", {}).get("title")
+            == "CLIP Text Encode (Positive Prompt)"
+        ):
+
+            # Extract the text from inputs
+            text = node_data.get("inputs", {}).get("text")
+            if text:
+                return text
+
+    return None
+
+
+def extract_prompt_from_metadata(img: Image.Image) -> str | None:
+    """
+    Extract prompt from image metadata.
+    Handles three formats:
+    1. Non-JSON text (newline separated) - returns first line
+    2. SwarmUI JSON with sui_image_params.prompt
+    3. ComfyUI workflow JSON with CLIPTextEncode node
+
+    Args:
+        img: PIL Image object
+
+    Returns:
+        str: The prompt text if found, None otherwise
+    """
+    # Check PNG info for metadata
+    if hasattr(img, "info"):
+        print(f"Image has info attribute with keys: {list(img.info.keys())}")
+        for key in img.info.keys():
+            metadata_str = img.info[key]
+
+            if not metadata_str:
+                continue
+
+            print(f"Checking metadata key: {key}, length: {len(str(metadata_str))}")
+
+            # Try to parse as JSON first
+            try:
+                metadata = json.loads(metadata_str)
+                print(f"Successfully parsed JSON metadata")
+
+                # Case 2: SwarmUI format - sui_image_params.prompt
+                if isinstance(metadata, dict) and "sui_image_params" in metadata:
+                    prompt = metadata["sui_image_params"].get("prompt")
+                    if prompt:
+                        print(f"Found SwarmUI prompt: {prompt[:100]}...")
+                        return prompt
+
+                # Case 3: ComfyUI format
+                comfyui_prompt = extract_comfyui_prompt(metadata)
+                if comfyui_prompt:
+                    print(f"Found ComfyUI prompt: {comfyui_prompt[:100]}...")
+                    return comfyui_prompt
+
+            except (json.JSONDecodeError, TypeError) as e:
+                # Case 1: Non-JSON format - return first line
+                if isinstance(metadata_str, str):
+                    lines = metadata_str.split("\n")
+                    if lines and lines[0].strip():
+                        print(f"Found non-JSON prompt: {lines[0][:100]}...")
+                        return lines[0].strip()
+    else:
+        print("Image does not have info attribute")
+
+    print("No prompt found in image metadata")
+    return None
+
+
 def extract_exif_data(image_path: str) -> Dict[str, Any]:
     """
-    Extract EXIF metadata from an image file
+    Extract EXIF metadata and AI prompt from an image file
 
     Args:
         image_path: Path to the image file
 
     Returns:
-        Dictionary with EXIF data organized by category
+        Dictionary with separate exif data and prompt
     """
     try:
         img = Image.open(image_path)
-        exif_data = img.getexif()
-
-        if not exif_data:
-            return {}
+        
+        # Extract AI generation prompt first (works for PNG metadata)
+        prompt = extract_prompt_from_metadata(img)
 
         # Organize EXIF data into categories
         camera_info = {}
@@ -212,130 +302,138 @@ def extract_exif_data(image_path: str) -> Dict[str, Any]:
         datetime_info = {}
         other_info = {}
 
-        for tag_id, value in exif_data.items():
-            tag = TAGS.get(tag_id, tag_id)
+        # Now extract EXIF data
+        exif_data = img.getexif()
 
-            # Handle GPS data separately
-            if tag == "GPSInfo":
-                try:
-                    gps_data = {}
-                    if isinstance(value, dict):
-                        for gps_tag_id in value:
-                            gps_tag = GPSTAGS.get(gps_tag_id, gps_tag_id)
-                            gps_data[gps_tag] = value[gps_tag_id]
-                        location_info["GPS"] = gps_data
-                except Exception as e:
-                    print(f"Error processing GPS data: {e}")
-                continue
+        if exif_data:
+            for tag_id, value in exif_data.items():
+                tag = TAGS.get(tag_id, tag_id)
 
-            # Convert bytes to string if possible
-            if isinstance(value, bytes):
-                try:
-                    value = value.decode("utf-8", errors="ignore").strip("\x00")
-                except Exception:
+                # Handle GPS data separately
+                if tag == "GPSInfo":
+                    try:
+                        gps_data = {}
+                        if isinstance(value, dict):
+                            for gps_tag_id in value:
+                                gps_tag = GPSTAGS.get(gps_tag_id, gps_tag_id)
+                                gps_data[gps_tag] = value[gps_tag_id]
+                            location_info["GPS"] = gps_data
+                    except Exception as e:
+                        print(f"Error processing GPS data: {e}")
+                    continue
+
+                # Convert bytes to string if possible
+                if isinstance(value, bytes):
+                    try:
+                        value = value.decode("utf-8", errors="ignore").strip("\x00")
+                    except Exception:
+                        value = str(value)
+
+                # Skip empty or invalid values
+                if value == "" or value is None:
+                    continue
+                
+                # Convert IFDRational (PIL's rational number type) to float
+                if hasattr(value, 'numerator') and hasattr(value, 'denominator'):
+                    # It's a rational number (like exposure time, aperture, etc.)
+                    try:
+                        value = float(value)
+                    except Exception:
+                        value = str(value)
+                
+                # Convert tuples to strings for JSON serialization
+                if isinstance(value, tuple):
                     value = str(value)
 
-            # Skip empty or invalid values
-            if value == "" or value is None:
-                continue
-            
-            # Convert IFDRational (PIL's rational number type) to float
-            if hasattr(value, 'numerator') and hasattr(value, 'denominator'):
-                # It's a rational number (like exposure time, aperture, etc.)
-                try:
-                    value = float(value)
-                except Exception:
-                    value = str(value)
-            
-            # Convert tuples to strings for JSON serialization
-            if isinstance(value, tuple):
-                value = str(value)
+                # Categorize the data
+                if tag in ["Make", "Model", "LensMake", "LensModel", "SerialNumber"]:
+                    camera_info[tag] = value
+                elif tag in [
+                    "ExposureTime",
+                    "FNumber",
+                    "ISOSpeedRatings",
+                    "ISO",
+                    "FocalLength",
+                    "ExposureProgram",
+                    "MeteringMode",
+                    "Flash",
+                    "WhiteBalance",
+                    "ExposureMode",
+                    "ExposureBiasValue",
+                    "MaxApertureValue",
+                    "ShutterSpeedValue",
+                    "FocalLengthIn35mmFilm",
+                    "DigitalZoomRatio",
+                    "SceneCaptureType",
+                    "GainControl",
+                    "Contrast",
+                    "Saturation",
+                    "Sharpness",
+                ]:
+                    settings_info[tag] = value
+                elif tag in [
+                    "DateTime",
+                    "DateTimeOriginal",
+                    "DateTimeDigitized",
+                    "OffsetTime",
+                    "OffsetTimeOriginal",
+                    "SubsecTime",
+                    "SubsecTimeOriginal",
+                    "SubsecTimeDigitized",
+                ]:
+                    datetime_info[tag] = value
+                elif tag in [
+                    "ImageWidth",
+                    "ImageHeight",
+                    "Orientation",
+                    "ResolutionUnit",
+                    "XResolution",
+                    "YResolution",
+                    "ColorSpace",
+                    "ExifImageWidth",
+                    "ExifImageHeight",
+                    "PixelXDimension",
+                    "PixelYDimension",
+                    "CompressedBitsPerPixel",
+                    "Compression",
+                    "PhotometricInterpretation",
+                ]:
+                    image_info[tag] = value
+                elif tag in [
+                    "Software",
+                    "Artist",
+                    "Copyright",
+                    "ImageDescription",
+                    "UserComment",
+                    "HostComputer",
+                    "ProcessingSoftware",
+                ]:
+                    other_info[tag] = value
+                else:
+                    # Put everything else in other_info instead of dropping it
+                    other_info[tag] = value
 
-            # Categorize the data
-            if tag in ["Make", "Model", "LensMake", "LensModel", "SerialNumber"]:
-                camera_info[tag] = value
-            elif tag in [
-                "ExposureTime",
-                "FNumber",
-                "ISOSpeedRatings",
-                "ISO",
-                "FocalLength",
-                "ExposureProgram",
-                "MeteringMode",
-                "Flash",
-                "WhiteBalance",
-                "ExposureMode",
-                "ExposureBiasValue",
-                "MaxApertureValue",
-                "ShutterSpeedValue",
-                "FocalLengthIn35mmFilm",
-                "DigitalZoomRatio",
-                "SceneCaptureType",
-                "GainControl",
-                "Contrast",
-                "Saturation",
-                "Sharpness",
-            ]:
-                settings_info[tag] = value
-            elif tag in [
-                "DateTime",
-                "DateTimeOriginal",
-                "DateTimeDigitized",
-                "OffsetTime",
-                "OffsetTimeOriginal",
-                "SubsecTime",
-                "SubsecTimeOriginal",
-                "SubsecTimeDigitized",
-            ]:
-                datetime_info[tag] = value
-            elif tag in [
-                "ImageWidth",
-                "ImageHeight",
-                "Orientation",
-                "ResolutionUnit",
-                "XResolution",
-                "YResolution",
-                "ColorSpace",
-                "ExifImageWidth",
-                "ExifImageHeight",
-                "PixelXDimension",
-                "PixelYDimension",
-                "CompressedBitsPerPixel",
-                "Compression",
-                "PhotometricInterpretation",
-            ]:
-                image_info[tag] = value
-            elif tag in [
-                "Software",
-                "Artist",
-                "Copyright",
-                "ImageDescription",
-                "UserComment",
-                "HostComputer",
-                "ProcessingSoftware",
-            ]:
-                other_info[tag] = value
-            else:
-                # Put everything else in other_info instead of dropping it
-                other_info[tag] = value
-
-        # Build result dictionary with only non-empty categories
-        result = {}
+        # Build EXIF result dictionary with only non-empty categories
+        exif_result = {}
         if camera_info:
-            result["camera"] = camera_info
+            exif_result["camera"] = camera_info
         if settings_info:
-            result["settings"] = settings_info
+            exif_result["settings"] = settings_info
         if datetime_info:
-            result["datetime"] = datetime_info
+            exif_result["datetime"] = datetime_info
         if image_info:
-            result["image"] = image_info
+            exif_result["image"] = image_info
         if location_info:
-            result["location"] = location_info
+            exif_result["location"] = location_info
         if other_info:
-            result["other"] = other_info
+            exif_result["other"] = other_info
 
-        return result
+        # Return both EXIF and prompt separately
+        return {
+            "exif": exif_result,
+            "prompt": prompt
+        }
 
     except Exception as e:
         print(f"Error extracting EXIF data: {str(e)}")
-        return {}
+        return {"exif": {}, "prompt": None}

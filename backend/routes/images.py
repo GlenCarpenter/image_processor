@@ -57,16 +57,18 @@ async def upload_temp_for_exif(
         with open(temp_path, "wb") as f:
             f.write(image_bytes)
         
-        # Extract EXIF data
-        exif_data = extract_exif_data(str(temp_path))
+        # Extract EXIF data and prompt
+        result = extract_exif_data(str(temp_path))
         
         # Delete the temporary file immediately
         temp_path.unlink()
         
         return {
             "success": True,
-            "exif": exif_data,
-            "has_exif": len(exif_data) > 0
+            "exif": result.get("exif", {}),
+            "prompt": result.get("prompt"),
+            "has_exif": len(result.get("exif", {})) > 0,
+            "has_prompt": result.get("prompt") is not None
         }
         
     except Exception as e:
@@ -278,13 +280,15 @@ async def get_image_exif(filename: str):
     except ValueError:
         raise HTTPException(status_code=403, detail="Access denied")
     
-    exif_data = extract_exif_data(str(file_path))
+    result = extract_exif_data(str(file_path))
     
     return {
         "success": True,
         "filename": filename,
-        "exif": exif_data,
-        "has_exif": len(exif_data) > 0
+        "exif": result.get("exif", {}),
+        "prompt": result.get("prompt"),
+        "has_exif": len(result.get("exif", {})) > 0,
+        "has_prompt": result.get("prompt") is not None
     }
 
 

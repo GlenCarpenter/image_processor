@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useImageStore } from '@/store/imageStore'
-import { extractImageMetadata, fetchExifData } from '@/lib/imageUtils'
+import { extractImageMetadata, fetchExifData, fetchPrompt } from '@/lib/imageUtils'
 import { ImageMetadataDisplay } from '@/components/ImageMetadataDisplay'
 import { OutputCard } from '@/components/OutputCard'
 import { API_BASE_URL } from '@/lib/constants'
@@ -52,9 +52,14 @@ function RouteComponent() {
 
           extractImageMetadata(file, imageUrl)
             .then(async (metadata) => {
-              // Fetch EXIF data for the output image
+              // Fetch EXIF data and prompt for the output image
               const exifData = await fetchExifData(search.filename!, API_BASE_URL)
-              setUpscaleOriginalMetadata({ ...metadata, exif: exifData || undefined })
+              const prompt = await fetchPrompt(search.filename!, API_BASE_URL)
+              setUpscaleOriginalMetadata({
+                ...metadata,
+                exif: exifData || undefined,
+                prompt: prompt || undefined,
+              })
             })
             .catch((err) => console.error('Failed to extract metadata:', err))
         })
@@ -77,7 +82,7 @@ function RouteComponent() {
       // Extract image metadata
       extractImageMetadata(file, url)
         .then(async (metadata) => {
-          // Upload file temporarily to extract EXIF data
+          // Upload file temporarily to extract EXIF data and prompt
           const formData = new FormData()
           formData.append('file', file)
 
@@ -89,16 +94,18 @@ function RouteComponent() {
 
             if (response.ok) {
               const data = await response.json()
-              if (data.exif && Object.keys(data.exif).length > 0) {
-                setUpscaleOriginalMetadata({ ...metadata, exif: data.exif })
-                return
-              }
+              setUpscaleOriginalMetadata({
+                ...metadata,
+                exif: data.has_exif ? data.exif : undefined,
+                prompt: data.has_prompt ? data.prompt : undefined,
+              })
+              return
             }
           } catch (err) {
-            console.error('Failed to fetch EXIF data:', err)
+            console.error('Failed to fetch EXIF/prompt data:', err)
           }
 
-          // If EXIF fetch fails or returns empty, set metadata without EXIF
+          // If EXIF/prompt fetch fails, set metadata without them
           setUpscaleOriginalMetadata(metadata)
         })
         .catch((err) => {
