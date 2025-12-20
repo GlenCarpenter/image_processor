@@ -48,3 +48,9 @@ frontend/build/
 # Logs
 *.log
 logs/
+
+# Output images and database
+outputs/
+*.db
+*.sqlite
+*.sqlite3

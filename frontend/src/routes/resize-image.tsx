@@ -73,7 +73,7 @@ function RouteComponent() {
         throw new Error('Failed to resize image')
       }
 
-      // Set resize result in store
+      // Set resize result in store with job ID and filename
       const info = {
         originalWidth: data.info.original_size.width,
         originalHeight: data.info.original_size.height,
@@ -84,7 +84,7 @@ function RouteComponent() {
         actualPixels: data.info.actual_pixels,
       }
       
-      setResizeResult(data.image, info)
+      setResizeResult(data.job_id, data.output_filename, info)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')
     } finally {
@@ -93,11 +93,11 @@ function RouteComponent() {
   }
 
   const handleDownload = () => {
-    if (!resizeImage.resizedUrl) return
+    if (!resizeImage.outputFilename) return
 
     const link = document.createElement('a')
-    link.href = resizeImage.resizedUrl
-    link.download = `resized_${resizeImage.originalFile?.name || 'image.jpg'}`
+    link.href = `${API_BASE_URL}/images/output/${resizeImage.outputFilename}`
+    link.download = resizeImage.outputFilename
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
@@ -193,11 +193,11 @@ function RouteComponent() {
             <CardDescription>Your resized image will appear here</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {resizeImage.resizedUrl ? (
+            {resizeImage.outputFilename ? (
               <>
                 <div>
                   <img
-                    src={resizeImage.resizedUrl}
+                    src={`${API_BASE_URL}/images/output/${resizeImage.outputFilename}`}
                     alt="Resized"
                     className="w-full rounded-md border"
                   />

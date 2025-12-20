@@ -10,12 +10,18 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as ResizeImageRouteImport } from './routes/resize-image'
+import { Route as HistoryRouteImport } from './routes/history'
 import { Route as EditRouteImport } from './routes/edit'
 import { Route as IndexRouteImport } from './routes/index'
 
 const ResizeImageRoute = ResizeImageRouteImport.update({
   id: '/resize-image',
   path: '/resize-image',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HistoryRoute = HistoryRouteImport.update({
+  id: '/history',
+  path: '/history',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EditRoute = EditRouteImport.update({
@@ -32,30 +38,34 @@ const IndexRoute = IndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/edit': typeof EditRoute
+  '/history': typeof HistoryRoute
   '/resize-image': typeof ResizeImageRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/edit': typeof EditRoute
+  '/history': typeof HistoryRoute
   '/resize-image': typeof ResizeImageRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/edit': typeof EditRoute
+  '/history': typeof HistoryRoute
   '/resize-image': typeof ResizeImageRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/edit' | '/resize-image'
+  fullPaths: '/' | '/edit' | '/history' | '/resize-image'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/edit' | '/resize-image'
-  id: '__root__' | '/' | '/edit' | '/resize-image'
+  to: '/' | '/edit' | '/history' | '/resize-image'
+  id: '__root__' | '/' | '/edit' | '/history' | '/resize-image'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   EditRoute: typeof EditRoute
+  HistoryRoute: typeof HistoryRoute
   ResizeImageRoute: typeof ResizeImageRoute
 }
 
@@ -66,6 +76,13 @@ declare module '@tanstack/react-router' {
       path: '/resize-image'
       fullPath: '/resize-image'
       preLoaderRoute: typeof ResizeImageRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/history': {
+      id: '/history'
+      path: '/history'
+      fullPath: '/history'
+      preLoaderRoute: typeof HistoryRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/edit': {
@@ -88,6 +105,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   EditRoute: EditRoute,
+  HistoryRoute: HistoryRoute,
   ResizeImageRoute: ResizeImageRoute,
 }
 export const routeTree = rootRouteImport

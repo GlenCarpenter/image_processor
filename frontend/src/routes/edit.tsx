@@ -3,6 +3,8 @@ import { useImageStore } from '@/store/imageStore'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 
+const API_BASE_URL = 'http://localhost:8000/api'
+
 export const Route = createFileRoute('/edit')({
   component: RouteComponent,
 })
@@ -11,7 +13,7 @@ function RouteComponent() {
   const editImage = useImageStore((state) => state.editImage)
   const clearEditImage = useImageStore((state) => state.clearEditImage)
 
-  if (!editImage.url) {
+  if (!editImage.outputFilename) {
     return (
       <div className="container mx-auto p-8 max-w-4xl">
         <Card>
@@ -47,7 +49,11 @@ function RouteComponent() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
-            <img src={editImage.url} alt="Edit" className="w-full rounded-md border" />
+            <img 
+              src={`${API_BASE_URL}/images/output/${editImage.outputFilename}`} 
+              alt="Edit" 
+              className="w-full rounded-md border" 
+            />
           </div>
 
           {editImage.info && (

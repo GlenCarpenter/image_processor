@@ -1,5 +1,4 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
 
 export interface ResizeInfo {
   originalWidth: number
@@ -22,13 +21,15 @@ interface ImageState {
   resizeImage: {
     originalFile: File | null
     originalUrl: string | null
-    resizedUrl: string | null
+    jobId: number | null
+    outputFilename: string | null
     resizeInfo: ResizeInfo | null
   }
 
   // Edit page image
   editImage: {
-    url: string | null
+    jobId: number | null
+    outputFilename: string | null
     info: ResizeInfo | null
   }
 
@@ -38,11 +39,11 @@ interface ImageState {
 
   // Resize page actions
   setResizeOriginal: (file: File | null, url: string | null) => void
-  setResizeResult: (url: string | null, info: ResizeInfo | null) => void
+  setResizeResult: (jobId: number | null, outputFilename: string | null, info: ResizeInfo | null) => void
   clearResizeImages: () => void
 
   // Edit page actions
-  setEditImage: (url: string | null, info: ResizeInfo | null) => void
+  setEditImage: (jobId: number | null, outputFilename: string | null, info: ResizeInfo | null) => void
   clearEditImage: () => void
 
   // Transfer actions
@@ -51,108 +52,96 @@ interface ImageState {
   sendResizeToEdit: () => void
 }
 
-export const useImageStore = create<ImageState>()(
-  persist(
-    (set, get) => ({
-      // Initial state
-      homeImage: {
-        file: null,
-        url: null,
-      },
+export const useImageStore = create<ImageState>()((set, get) => ({
+  // Initial state
+  homeImage: {
+    file: null,
+    url: null,
+  },
+  resizeImage: {
+    originalFile: null,
+    originalUrl: null,
+    jobId: null,
+    outputFilename: null,
+    resizeInfo: null,
+  },
+  editImage: {
+    jobId: null,
+    outputFilename: null,
+    info: null,
+  },
+
+  // Home page actions
+  setHomeImage: (file, url) =>
+    set({
+      homeImage: { file, url },
+    }),
+  clearHomeImage: () =>
+    set({
+      homeImage: { file: null, url: null },
+    }),
+
+  // Resize page actions
+  setResizeOriginal: (file, url) =>
+    set({
+      resizeImage: { ...get().resizeImage, originalFile: file, originalUrl: url },
+    }),
+  setResizeResult: (jobId, outputFilename, info) =>
+    set({
+      resizeImage: { ...get().resizeImage, jobId, outputFilename, resizeInfo: info },
+    }),
+  clearResizeImages: () =>
+    set({
       resizeImage: {
         originalFile: null,
         originalUrl: null,
-        resizedUrl: null,
+        jobId: null,
+        outputFilename: null,
         resizeInfo: null,
       },
+    }),
+
+  // Edit page actions
+  setEditImage: (jobId, outputFilename, info) =>
+    set({
+      editImage: { jobId, outputFilename, info },
+    }),
+  clearEditImage: () =>
+    set({
+      editImage: { jobId: null, outputFilename: null, info: null },
+    }),
+
+  // Transfer actions
+  sendHomeToResize: () => {
+    const { homeImage } = get()
+    set({
+      resizeImage: {
+        originalFile: homeImage.file,
+        originalUrl: homeImage.url,
+        jobId: null,
+        outputFilename: null,
+        resizeInfo: null,
+      },
+    })
+  },
+  sendHomeToEdit: () => {
+    const { homeImage } = get()
+    set({
       editImage: {
-        url: null,
+        jobId: null,
+        outputFilename: null,
         info: null,
       },
-
-      // Home page actions
-      setHomeImage: (file, url) =>
-        set({
-          homeImage: { file, url },
-        }),
-      clearHomeImage: () =>
-        set({
-          homeImage: { file: null, url: null },
-        }),
-
-      // Resize page actions
-      setResizeOriginal: (file, url) =>
-        set({
-          resizeImage: { ...get().resizeImage, originalFile: file, originalUrl: url },
-        }),
-      setResizeResult: (url, info) =>
-        set({
-          resizeImage: { ...get().resizeImage, resizedUrl: url, resizeInfo: info },
-        }),
-      clearResizeImages: () =>
-        set({
-          resizeImage: {
-            originalFile: null,
-            originalUrl: null,
-            resizedUrl: null,
-            resizeInfo: null,
-          },
-        }),
-
-      // Edit page actions
-      setEditImage: (url, info) =>
-        set({
-          editImage: { url, info },
-        }),
-      clearEditImage: () =>
-        set({
-          editImage: { url: null, info: null },
-        }),
-
-      // Transfer actions
-      sendHomeToResize: () => {
-        const { homeImage } = get()
-        set({
-          resizeImage: {
-            originalFile: homeImage.file,
-            originalUrl: homeImage.url,
-            resizedUrl: null,
-            resizeInfo: null,
-          },
-        })
+    })
+  },
+  sendResizeToEdit: () => {
+    const { resizeImage } = get()
+    set({
+      editImage: {
+        jobId: resizeImage.jobId,
+        outputFilename: resizeImage.outputFilename,
+        info: resizeImage.resizeInfo,
       },
-      sendHomeToEdit: () => {
-        const { homeImage } = get()
-        set({
-          editImage: {
-            url: homeImage.url,
-            info: null,
-          },
-        })
-      },
-      sendResizeToEdit: () => {
-        const { resizeImage } = get()
-        set({
-          editImage: {
-            url: resizeImage.resizedUrl || resizeImage.originalUrl,
-            info: resizeImage.resizeInfo,
-          },
-        })
-      },
-    }),
-    {
-      name: 'image-store',
-      // Persist URLs and info, but not File objects
-      partialize: (state) => ({
-        homeImage: { file: null, url: state.homeImage.url },
-        resizeImage: {
-          originalFile: null,
-          originalUrl: state.resizeImage.originalUrl,
-          resizedUrl: state.resizeImage.resizedUrl,
-          resizeInfo: state.resizeImage.resizeInfo,
-        },
-        editImage: state.editImage,
-      }),
-    }
-  )
-)
+    })
+  },
+}))

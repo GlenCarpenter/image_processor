@@ -9,7 +9,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar'
-import { Home, ImageIcon, Edit } from 'lucide-react'
+import { Home, ImageIcon, Edit, History } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
 const menuItems = [
@@ -27,6 +27,11 @@ const menuItems = [
     title: 'Edit',
     url: '/edit' as const,
     icon: Edit,
+  },
+  {
+    title: 'History',
+    url: '/history' as const,
+    icon: History,
   },
 ] satisfies Array<{ title: string; url: string; icon: LucideIcon }>
 
