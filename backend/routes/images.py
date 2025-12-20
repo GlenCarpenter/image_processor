@@ -6,6 +6,7 @@ from fastapi import APIRouter, UploadFile, File, HTTPException, Form
 from fastapi.responses import StreamingResponse
 from typing import Optional
 import io
+import base64
 
 from backend.utils.image_processing import resize_image_bytes
 
@@ -71,23 +72,15 @@ async def resize_image(
             quality=quality
         )
         
-        # Prepare response headers with metadata
-        headers = {
-            "X-Original-Width": str(info["original_size"]["width"]),
-            "X-Original-Height": str(info["original_size"]["height"]),
-            "X-Target-Width": str(info["target_size"]["width"]),
-            "X-Target-Height": str(info["target_size"]["height"]),
-            "X-Aspect-Ratio": info["ratio_name"],
-            "X-Original-Pixels": str(info["original_pixels"]),
-            "X-Actual-Pixels": str(info["actual_pixels"]),
-        }
+        # Encode image as base64
+        image_base64 = base64.b64encode(resized_bytes).decode('utf-8')
         
-        # Return the resized image
-        return StreamingResponse(
-            io.BytesIO(resized_bytes),
-            media_type="image/jpeg",
-            headers=headers
-        )
+        # Return JSON with image and metadata
+        return {
+            "success": True,
+            "image": f"data:image/jpeg;base64,{image_base64}",
+            "info": info
+        }
     
     except Exception as e:
         raise HTTPException(

@@ -64,28 +64,32 @@ function RouteComponent() {
         throw new Error(errorData?.detail || 'Failed to resize image')
       }
 
-      // Get resize info from headers
-      const info = {
-        originalWidth: response.headers.get('X-Original-Width'),
-        originalHeight: response.headers.get('X-Original-Height'),
-        targetWidth: response.headers.get('X-Target-Width'),
-        targetHeight: response.headers.get('X-Target-Height'),
-        aspectRatio: response.headers.get('X-Aspect-Ratio'),
-        originalPixels: response.headers.get('X-Original-Pixels'),
-        actualPixels: response.headers.get('X-Actual-Pixels'),
-      }
-      setResizeInfo(info)
+      // Parse JSON response
+      const data = await response.json()
 
-      // Convert response to blob and create URL
-      const blob = await response.blob()
-      const url = URL.createObjectURL(blob)
+      if (!data.success) {
+        throw new Error('Failed to resize image')
+      }
+      console.log(data)
+
+      // Set resize info from response
+      setResizeInfo({
+        originalWidth: data.info.original_size.width,
+        originalHeight: data.info.original_size.height,
+        targetWidth: data.info.target_size.width,
+        targetHeight: data.info.target_size.height,
+        aspectRatio: data.info.ratio_name,
+        originalPixels: data.info.original_pixels,
+        actualPixels: data.info.actual_pixels,
+      })
 
       // Clean up old URL if exists
       if (resizedImageUrl) {
         URL.revokeObjectURL(resizedImageUrl)
       }
 
-      setResizedImageUrl(url)
+      // Set the base64 image directly
+      setResizedImageUrl(data.image)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')
     } finally {
@@ -104,9 +108,10 @@ function RouteComponent() {
     document.body.removeChild(link)
   }
 
-  const formatNumber = (num: string | null) => {
+  const formatNumber = (num: string | number | null | undefined) => {
     if (!num) return 'N/A'
-    return parseInt(num).toLocaleString()
+    const numValue = typeof num === 'string' ? parseInt(num) : num
+    return numValue.toLocaleString()
   }
 
   return (
@@ -193,6 +198,7 @@ function RouteComponent() {
                 <div>
                   <img src={resizedImageUrl} alt="Resized" className="w-full rounded-md border" />
                 </div>
+                {resizeInfo && console.log(resizeInfo)}
 
                 {resizeInfo && (
                   <div className="space-y-2 text-sm">
