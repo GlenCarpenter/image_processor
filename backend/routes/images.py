@@ -193,7 +193,7 @@ async def get_output_image(filename: str):
     except ValueError:
         raise HTTPException(status_code=403, detail="Access denied")
 
-    return FileResponse(path=str(file_path), media_type="image/jpeg", filename=filename)
+    return FileResponse(path=str(file_path), media_type="image/jpeg")
 
 
 @router.get("/job/{job_id}")
@@ -231,3 +231,40 @@ async def list_recent_jobs(limit: int = 50, job_type: Optional[str] = None):
     jobs = get_recent_jobs(limit=limit, job_type=job_type)
 
     return {"success": True, "jobs": jobs, "count": len(jobs)}
+
+
+@router.delete("/job/{job_id}")
+async def delete_job_endpoint(job_id: int):
+    """
+    Delete a job and its associated output file
+    
+    **Parameters:**
+    - **job_id**: The job ID to delete
+    
+    **Returns:** Success status
+    """
+    from backend.database import delete_job
+    
+    # Get job info before deleting to find the file
+    job = get_job(job_id)
+    
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    
+    # Delete the output file if it exists
+    output_path = Path(job["output_path"])
+    if output_path.exists():
+        try:
+            output_path.unlink()
+        except Exception as e:
+            # Log error but continue with database deletion
+            print(f"Warning: Could not delete file {output_path}: {e}")
+    
+    # Delete from database
+    deleted = delete_job(job_id)
+    
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Job not found")
+    
+    return {"success": True, "message": "Job and file deleted successfully"}
+

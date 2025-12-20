@@ -12,7 +12,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { useImageStore } from '@/store/imageStore'
-import { ImageIcon, Calendar, Ruler } from 'lucide-react'
+import { ImageIcon, Calendar, Ruler, Trash2 } from 'lucide-react'
 
 const API_BASE_URL = 'http://localhost:8000/api'
 
@@ -48,6 +48,7 @@ function RouteComponent() {
   const [error, setError] = useState<string | null>(null)
   const [selectedJob, setSelectedJob] = useState<Job | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     loadJobs()
@@ -112,6 +113,34 @@ function RouteComponent() {
     setEditImage(selectedJob.id, selectedJob.output_filename, info)
     setDialogOpen(false)
     navigate({ to: '/edit' })
+  }
+
+  const handleDelete = async () => {
+    if (!selectedJob) return
+
+    if (!confirm(`Are you sure you want to delete "${selectedJob.original_filename}"? This cannot be undone.`)) {
+      return
+    }
+
+    setDeleting(true)
+    try {
+      const response = await fetch(`${API_BASE_URL}/images/job/${selectedJob.id}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to delete image')
+      }
+
+      // Remove job from local state
+      setJobs(jobs.filter((job) => job.id !== selectedJob.id))
+      setDialogOpen(false)
+      setSelectedJob(null)
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to delete image')
+    } finally {
+      setDeleting(false)
+    }
   }
 
   const formatDate = (dateString: string) => {
@@ -251,6 +280,15 @@ function RouteComponent() {
               </div>
 
               <DialogFooter className="gap-2">
+                <Button 
+                  variant="destructive" 
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  className="mr-auto"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  {deleting ? 'Deleting...' : 'Delete'}
+                </Button>
                 <Button variant="outline" onClick={() => setDialogOpen(false)}>
                   Close
                 </Button>
