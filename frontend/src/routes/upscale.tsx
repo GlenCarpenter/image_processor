@@ -4,10 +4,11 @@ import { Dropzone, DropzoneContent, DropzoneEmptyState } from '@/components/ui/s
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Scissors, Trash2, Download, Undo, ArrowUpCircle, Expand } from 'lucide-react'
 import { useImageStore } from '@/store/imageStore'
 import { extractImageMetadata } from '@/lib/imageUtils'
 import { ImageMetadataDisplay } from '@/components/ImageMetadataDisplay'
+import { OutputCard } from '@/components/OutputCard'
+import { API_BASE_URL } from '@/lib/constants'
 
 type UpscaleSearch = {
   filename?: string
@@ -22,8 +23,6 @@ export const Route = createFileRoute('/upscale')({
   },
 })
 
-const API_BASE_URL = 'http://localhost:8000/api'
-
 function RouteComponent() {
   const navigate = useNavigate()
   const search = Route.useSearch()
@@ -36,7 +35,6 @@ function RouteComponent() {
   const setUpscaleError = useImageStore((state) => state.setUpscaleError)
   const setUpscaleOriginalMetadata = useImageStore((state) => state.setUpscaleOriginalMetadata)
   const setUpscaleResultMetadata = useImageStore((state) => state.setUpscaleResultMetadata)
-  const sendUpscaleToEdit = useImageStore((state) => state.sendUpscaleToEdit)
   const sendUpscaleToUpscale = useImageStore((state) => state.sendUpscaleToUpscale)
   const sendUpscaleToResize = useImageStore((state) => state.sendUpscaleToResize)
   const sendUpscaleToSegment = useImageStore((state) => state.sendUpscaleToSegment)
@@ -47,16 +45,16 @@ function RouteComponent() {
       const imageUrl = `${API_BASE_URL}/images/output/${search.filename}`
 
       fetch(imageUrl)
-        .then(res => res.blob())
-        .then(blob => {
+        .then((res) => res.blob())
+        .then((blob) => {
           const file = new File([blob], search.filename!, { type: blob.type })
           setUpscaleOriginal(file, imageUrl)
 
           extractImageMetadata(file, imageUrl)
             .then(setUpscaleOriginalMetadata)
-            .catch(err => console.error('Failed to extract metadata:', err))
+            .catch((err) => console.error('Failed to extract metadata:', err))
         })
-        .catch(err => {
+        .catch((err) => {
           console.error('Failed to load image:', err)
           setUpscaleError('Failed to load image from URL')
         })
@@ -157,12 +155,6 @@ function RouteComponent() {
     document.body.removeChild(link)
   }
 
-  const handleEditClick = () => {
-    if (!upscaleImage.outputFilename) return
-    sendUpscaleToEdit()
-    navigate({ to: '/edit', search: { filename: upscaleImage.outputFilename } })
-  }
-
   const handleUpscaleAgain = () => {
     if (!upscaleImage.outputFilename) return
     sendUpscaleToUpscale()
@@ -221,7 +213,9 @@ function RouteComponent() {
                   />
                 </div>
 
-                {upscaleImage.originalMetadata && <ImageMetadataDisplay metadata={upscaleImage.originalMetadata} />}
+                {upscaleImage.originalMetadata && (
+                  <ImageMetadataDisplay metadata={upscaleImage.originalMetadata} />
+                )}
               </>
             )}
 
@@ -243,74 +237,46 @@ function RouteComponent() {
         </Card>
 
         {/* Output Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Upscaled Image</CardTitle>
-            <CardDescription>Your upscaled image will appear here</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {upscaleImage.outputFilename ? (
-              <>
-                <div>
-                  <img
-                    src={`${API_BASE_URL}/images/output/${upscaleImage.outputFilename}`}
-                    alt="Upscaled"
-                    className="w-full rounded-md border"
-                  />
-                </div>
+        <OutputCard
+          title="Upscaled Image"
+          description="Your upscaled image will appear here"
+          outputFilename={upscaleImage.outputFilename}
+          downloadButtonText="Download Upscaled Image"
+          emptyStateText="No upscaled image yet. Upload an image to see results."
+          onUpscale={handleUpscaleAgain}
+          onResize={handleResizeClick}
+          onSegment={handleSegmentClick}
+          onDownload={handleDownload}
+          additionalInfo={
+            <>
+              {upscaleImage.resultMetadata && (
+                <ImageMetadataDisplay metadata={upscaleImage.resultMetadata} />
+              )}
 
-                {upscaleImage.resultMetadata && <ImageMetadataDisplay metadata={upscaleImage.resultMetadata} />}
-
-                {upscaleImage.upscaleInfo && (
-                  <div className="space-y-2 text-sm">
-                    <h3 className="font-semibold">Upscale Information</h3>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <span className="text-muted-foreground">Dimensions:</span>
-                        <p className="font-medium">
-                          {upscaleImage.upscaleInfo.outputWidth} ×{' '}
-                          {upscaleImage.upscaleInfo.outputHeight}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {formatNumber(upscaleImage.upscaleInfo.outputPixels)} pixels
-                        </p>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Upscale Factor:</span>
-                        <p className="font-medium">{upscaleImage.upscaleInfo.upscaleFactor}x</p>
-                      </div>
+              {upscaleImage.upscaleInfo && (
+                <div className="space-y-2 text-sm">
+                  <h3 className="font-semibold">Upscale Information</h3>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <span className="text-muted-foreground">Dimensions:</span>
+                      <p className="font-medium">
+                        {upscaleImage.upscaleInfo.outputWidth} ×{' '}
+                        {upscaleImage.upscaleInfo.outputHeight}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatNumber(upscaleImage.upscaleInfo.outputPixels)} pixels
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Upscale Factor:</span>
+                      <p className="font-medium">{upscaleImage.upscaleInfo.upscaleFactor}x</p>
                     </div>
                   </div>
-                )}
-
-                <div className="space-y-2">
-                  <div className="grid grid-cols-3 gap-2">
-                    <Button onClick={handleUpscaleAgain} variant="outline" size="sm">
-                      <ArrowUpCircle className="w-4 h-4 mr-1" />
-                      Upscale
-                    </Button>
-                    <Button onClick={handleResizeClick} variant="outline" size="sm">
-                      <Expand className="w-4 h-4 mr-1" />
-                      Resize
-                    </Button>
-                    <Button onClick={handleSegmentClick} variant="outline" size="sm">
-                      <Scissors className="w-4 h-4 mr-1" />
-                      Segment
-                    </Button>
-                  </div>
-                  <Button onClick={handleDownload} className="w-full">
-                    <Download className="w-4 h-4 mr-2" />
-                    Download Upscaled Image
-                  </Button>
                 </div>
-              </>
-            ) : (
-              <div className="flex items-center justify-center h-64 text-muted-foreground">
-                <p>No upscaled image yet. Upload an image to see results.</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+              )}
+            </>
+          }
+        />
       </div>
     </div>
   )

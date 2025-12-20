@@ -8,6 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useImageStore } from '@/store/imageStore'
 import { extractImageMetadata, type ImageMetadata } from '@/lib/imageUtils'
 import { ImageMetadataDisplay } from '@/components/ImageMetadataDisplay'
+import { OutputCard } from '@/components/OutputCard'
+import { API_BASE_URL } from '@/lib/constants'
 
 type ResizeSearch = {
   filename?: string
@@ -22,8 +24,6 @@ export const Route = createFileRoute('/resize-image')({
   },
 })
 
-const API_BASE_URL = 'http://localhost:8000/api'
-
 function RouteComponent() {
   const navigate = useNavigate()
   const search = Route.useSearch()
@@ -32,7 +32,6 @@ function RouteComponent() {
   const resizeImage = useImageStore((state) => state.resizeImage)
   const setResizeOriginal = useImageStore((state) => state.setResizeOriginal)
   const setResizeResult = useImageStore((state) => state.setResizeResult)
-  const sendResizeToEdit = useImageStore((state) => state.sendResizeToEdit)
   const sendResizeToUpscale = useImageStore((state) => state.sendResizeToUpscale)
   const sendResizeToSegment = useImageStore((state) => state.sendResizeToSegment)
 
@@ -48,16 +47,16 @@ function RouteComponent() {
       const imageUrl = `${API_BASE_URL}/images/output/${search.filename}`
 
       fetch(imageUrl)
-        .then(res => res.blob())
-        .then(blob => {
+        .then((res) => res.blob())
+        .then((blob) => {
           const file = new File([blob], search.filename!, { type: blob.type })
           setResizeOriginal(file, imageUrl)
 
           extractImageMetadata(file, imageUrl)
             .then(setOriginalMetadata)
-            .catch(err => console.error('Failed to extract metadata:', err))
+            .catch((err) => console.error('Failed to extract metadata:', err))
         })
-        .catch(err => {
+        .catch((err) => {
           console.error('Failed to load image:', err)
           setError('Failed to load image from URL')
         })
@@ -159,16 +158,16 @@ function RouteComponent() {
     // Set the resized image as the new original
     const imageUrl = `${API_BASE_URL}/images/output/${resizeImage.outputFilename}`
     fetch(imageUrl)
-      .then(res => res.blob())
-      .then(blob => {
+      .then((res) => res.blob())
+      .then((blob) => {
         const file = new File([blob], resizeImage.outputFilename!, { type: blob.type })
         setResizeOriginal(file, imageUrl)
         setResizeResult(null, null, null)
         extractImageMetadata(file, imageUrl)
           .then(setOriginalMetadata)
-          .catch(err => console.error('Failed to extract metadata:', err))
+          .catch((err) => console.error('Failed to extract metadata:', err))
       })
-      .catch(err => console.error('Failed to load image:', err))
+      .catch((err) => console.error('Failed to load image:', err))
   }
 
   const handleSegmentClick = () => {
@@ -258,78 +257,50 @@ function RouteComponent() {
         </Card>
 
         {/* Output Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Resized Image</CardTitle>
-            <CardDescription>Your resized image will appear here</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {resizeImage.outputFilename ? (
-              <>
+        <OutputCard
+          title="Resized Image"
+          description="Your resized image will appear here"
+          outputFilename={resizeImage.outputFilename}
+          downloadButtonText="Download Resized Image"
+          emptyStateText="No resized image yet. Upload and resize an image to see results."
+          onUpscale={handleUpscaleClick}
+          onResize={handleResizeAgain}
+          onSegment={handleSegmentClick}
+          onDownload={handleDownload}
+          additionalInfo={
+            resizeImage.resizeInfo && (
+              <div className="space-y-2 text-sm">
+                <h3 className="font-semibold">Resize Information</h3>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <span className="text-muted-foreground">Original:</span>
+                    <p className="font-medium">
+                      {resizeImage.resizeInfo.originalWidth} ×{' '}
+                      {resizeImage.resizeInfo.originalHeight}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {formatNumber(resizeImage.resizeInfo.originalPixels)} pixels
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Resized:</span>
+                    <p className="font-medium">
+                      {resizeImage.resizeInfo.targetWidth} ×{' '}
+                      {resizeImage.resizeInfo.targetHeight}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {formatNumber(resizeImage.resizeInfo.actualPixels)} pixels
+                    </p>
+                  </div>
+                </div>
                 <div>
-                  <img
-                    src={`${API_BASE_URL}/images/output/${resizeImage.outputFilename}`}
-                    alt="Resized"
-                    className="w-full rounded-md border"
-                  />
+                  <span className="text-muted-foreground">Aspect Ratio:</span>
+                  <p className="font-medium">{resizeImage.resizeInfo.aspectRatio}</p>
                 </div>
-
-                {resizeImage.resizeInfo && (
-                  <div className="space-y-2 text-sm">
-                    <h3 className="font-semibold">Resize Information</h3>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <span className="text-muted-foreground">Original:</span>
-                        <p className="font-medium">
-                          {resizeImage.resizeInfo.originalWidth} ×{' '}
-                          {resizeImage.resizeInfo.originalHeight}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {formatNumber(resizeImage.resizeInfo.originalPixels)} pixels
-                        </p>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Resized:</span>
-                        <p className="font-medium">
-                          {resizeImage.resizeInfo.targetWidth} ×{' '}
-                          {resizeImage.resizeInfo.targetHeight}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {formatNumber(resizeImage.resizeInfo.actualPixels)} pixels
-                        </p>
-                      </div>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Aspect Ratio:</span>
-                      <p className="font-medium">{resizeImage.resizeInfo.aspectRatio}</p>
-                    </div>
-                  </div>
-                )}
-
-                <div className="space-y-2">
-                  <div className="grid grid-cols-3 gap-2">
-                    <Button onClick={handleUpscaleClick} variant="outline" size="sm">
-                      Upscale
-                    </Button>
-                    <Button onClick={handleResizeAgain} variant="outline" size="sm">
-                      Resize
-                    </Button>
-                    <Button onClick={handleSegmentClick} variant="outline" size="sm">
-                      Segment
-                    </Button>
-                  </div>
-                  <Button onClick={handleDownload} className="w-full">
-                    Download Resized Image
-                  </Button>
-                </div>
-              </>
-            ) : (
-              <div className="flex items-center justify-center h-64 text-muted-foreground">
-                <p>No resized image yet. Upload and resize an image to see results.</p>
               </div>
-            )}
-          </CardContent>
-        </Card>
+            )
+          }
+        />
       </div>
     </div>
   )

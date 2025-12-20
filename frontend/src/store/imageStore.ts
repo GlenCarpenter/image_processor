@@ -225,8 +225,7 @@ export const useImageStore = create<ImageState>()((set, get) => ({
     }),
   setUpscaleUpscaling: (loading) =>
     set((state) => ({ upscaleImage: { ...state.upscaleImage, isUpscaling: loading } })),
-  setUpscaleError: (error) =>
-    set((state) => ({ upscaleImage: { ...state.upscaleImage, error } })),
+  setUpscaleError: (error) => set((state) => ({ upscaleImage: { ...state.upscaleImage, error } })),
   setUpscaleOriginalMetadata: (metadata) =>
     set((state) => ({ upscaleImage: { ...state.upscaleImage, originalMetadata: metadata } })),
   setUpscaleResultMetadata: (metadata) =>
@@ -260,7 +259,9 @@ export const useImageStore = create<ImageState>()((set, get) => ({
   setSegmentSession: (sessionId) =>
     set((state) => ({ segmentImage: { ...state.segmentImage, sessionId } })),
   setSegmentOriginal: (file, url) =>
-    set((state) => ({ segmentImage: { ...state.segmentImage, originalFile: file, originalUrl: url } })),
+    set((state) => ({
+      segmentImage: { ...state.segmentImage, originalFile: file, originalUrl: url },
+    })),
   setSegmentResult: (filename) =>
     set((state) => ({ segmentImage: { ...state.segmentImage, croppedFilename: filename } })),
   setSegmentPoints: (points) =>
@@ -279,8 +280,7 @@ export const useImageStore = create<ImageState>()((set, get) => ({
     set((state) => ({ segmentImage: { ...state.segmentImage, isPredicting: loading } })),
   setSegmentCropping: (loading) =>
     set((state) => ({ segmentImage: { ...state.segmentImage, isCropping: loading } })),
-  setSegmentError: (error) =>
-    set((state) => ({ segmentImage: { ...state.segmentImage, error } })),
+  setSegmentError: (error) => set((state) => ({ segmentImage: { ...state.segmentImage, error } })),
   clearSegmentImages: () =>
     set({
       segmentImage: {
@@ -314,7 +314,6 @@ export const useImageStore = create<ImageState>()((set, get) => ({
     })
   },
   sendHomeToEdit: () => {
-    const { homeImage } = get()
     set({
       editImage: {
         jobId: null,

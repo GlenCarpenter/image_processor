@@ -12,9 +12,17 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { useImageStore } from '@/store/imageStore'
-import { ImageIcon, Calendar, Ruler, Trash2, Download, Check, ArrowUpCircle, Expand, Scissors } from 'lucide-react'
-
-const API_BASE_URL = 'http://localhost:8000/api'
+import {
+  Calendar,
+  Ruler,
+  Trash2,
+  Download,
+  Check,
+  ArrowUpCircle,
+  Expand,
+  Scissors,
+} from 'lucide-react'
+import { API_BASE_URL } from '@/lib/constants'
 
 export const Route = createFileRoute('/history')({
   component: RouteComponent,
@@ -41,7 +49,6 @@ interface Job {
 function RouteComponent() {
   const navigate = useNavigate()
   const setResizeResult = useImageStore((state) => state.setResizeResult)
-  const setEditImage = useImageStore((state) => state.setEditImage)
   const sendResizeToUpscale = useImageStore((state) => state.sendResizeToUpscale)
   const sendResizeToSegment = useImageStore((state) => state.sendResizeToSegment)
 
@@ -96,7 +103,7 @@ function RouteComponent() {
         setLoadingMore(true)
       }
       setError(null)
-      
+
       const currentOffset = initial ? 0 : offset
       const response = await fetch(`${API_BASE_URL}/images/jobs?limit=50&offset=${currentOffset}`)
 
@@ -105,13 +112,13 @@ function RouteComponent() {
       }
 
       const data = await response.json()
-      
+
       if (initial) {
         setJobs(data.jobs || [])
       } else {
-        setJobs(prev => [...prev, ...(data.jobs || [])])
+        setJobs((prev) => [...prev, ...(data.jobs || [])])
       }
-      
+
       setHasMore(data.has_more || false)
       setOffset(currentOffset + (data.jobs?.length || 0))
     } catch (err) {
@@ -149,24 +156,6 @@ function RouteComponent() {
     setResizeResult(selectedJob.id, selectedJob.output_filename, info)
     setDialogOpen(false)
     navigate({ to: '/resize-image', search: { filename: selectedJob.output_filename } })
-  }
-
-  const handleSendToEdit = () => {
-    if (!selectedJob) return
-
-    const info = {
-      originalWidth: selectedJob.original_width,
-      originalHeight: selectedJob.original_height,
-      targetWidth: selectedJob.output_width,
-      targetHeight: selectedJob.output_height,
-      aspectRatio: selectedJob.aspect_ratio,
-      originalPixels: selectedJob.original_pixels,
-      actualPixels: selectedJob.output_pixels,
-    }
-
-    setEditImage(selectedJob.id, selectedJob.output_filename, info)
-    setDialogOpen(false)
-    navigate({ to: '/edit', search: { filename: selectedJob.output_filename } })
   }
 
   const handleSendToUpscale = () => {
@@ -319,16 +308,16 @@ function RouteComponent() {
               Clear
             </Button>
           </div>
-          <div className="text-sm text-muted-foreground">
-            {selectedFilenames.size} selected
-          </div>
+          <div className="text-sm text-muted-foreground">{selectedFilenames.size} selected</div>
           <Button
             onClick={handleBatchDownload}
             disabled={selectedFilenames.size === 0 || downloading}
             className="ml-auto"
           >
             <Download className="w-4 h-4 mr-2" />
-            {downloading ? 'Downloading...' : `Download ${selectedFilenames.size > 0 ? `(${selectedFilenames.size})` : 'Selected'}`}
+            {downloading
+              ? 'Downloading...'
+              : `Download ${selectedFilenames.size > 0 ? `(${selectedFilenames.size})` : 'Selected'}`}
           </Button>
         </div>
       )}
@@ -441,9 +430,7 @@ function RouteComponent() {
 
       {/* End of results message */}
       {!loading && !loadingMore && !hasMore && jobs.length > 0 && (
-        <div className="text-center text-muted-foreground py-8">
-          No more images to load
-        </div>
+        <div className="text-center text-muted-foreground py-8">No more images to load</div>
       )}
 
       {/* Image Detail Dialog */}

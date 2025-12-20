@@ -3,8 +3,7 @@ import { useImageStore } from '@/store/imageStore'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { useState, useEffect } from 'react'
-
-const API_BASE_URL = 'http://localhost:8000/api'
+import { API_BASE_URL } from '@/lib/constants'
 
 type EditSearch = {
   filename?: string
@@ -25,7 +24,7 @@ function RouteComponent() {
   const editImage = useImageStore((state) => state.editImage)
   const setEditImage = useImageStore((state) => state.setEditImage)
   const clearEditImage = useImageStore((state) => state.clearEditImage)
-  const sendEditToUpscale = useImageStore((state) => state.sendEditToUpscale)
+  // const sendEditToUpscale = useImageStore((state) => state.sendEditToUpscale)
   const setUpscaleOriginal = useImageStore((state) => state.setUpscaleOriginal)
   const [isLoading, setIsLoading] = useState(false)
 

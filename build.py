@@ -5,6 +5,7 @@ Handles frontend build, dependency installation, and server startup
 
 import subprocess
 import sys
+import platform
 from pathlib import Path
 import argparse
 
@@ -14,6 +15,14 @@ def run_command(cmd, cwd=None, shell=False):
     print(f"\n{'='*60}")
     print(f"Running: {' '.join(cmd) if isinstance(cmd, list) else cmd}")
     print(f"{'='*60}\n")
+
+    # On Windows, we need shell=True for npm commands
+    if (
+        platform.system() == "Windows"
+        and isinstance(cmd, list)
+        and cmd[0] in ["npm", "node"]
+    ):
+        shell = True
 
     result = subprocess.run(cmd, cwd=cwd, shell=shell, text=True)
 
@@ -26,7 +35,12 @@ def run_command(cmd, cwd=None, shell=False):
 def check_node_installed():
     """Check if Node.js is installed"""
     try:
-        result = subprocess.run(["node", "--version"], capture_output=True, text=True)
+        result = subprocess.run(
+            ["node", "--version"],
+            capture_output=True,
+            text=True,
+            shell=(platform.system() == "Windows"),
+        )
         if result.returncode == 0:
             print(f"✓ Node.js found: {result.stdout.strip()}")
             return True
@@ -110,9 +124,10 @@ def start_server(dev_mode=False):
         # Use uvicorn directly with --reload-dir to ensure venv is used
         # Pass the python executable explicitly to subprocess workers
         import os
+
         env = os.environ.copy()
-        env['PYTHONPATH'] = str(Path(__file__).parent.resolve())
-        
+        env["PYTHONPATH"] = str(Path(__file__).parent.resolve())
+
         subprocess.run(
             [
                 python_exe,
@@ -125,7 +140,7 @@ def start_server(dev_mode=False):
                 "--port",
                 "8000",
             ],
-            env=env
+            env=env,
         )
     else:
         subprocess.run([python_exe, "-m", "backend.main"])

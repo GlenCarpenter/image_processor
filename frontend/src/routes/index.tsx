@@ -102,15 +102,30 @@ function RouteComponent() {
               <div className="space-y-2">
                 <p className="text-sm font-medium">What would you like to do?</p>
                 <div className="grid grid-cols-2 gap-4">
-                  <Button variant="outline" className="w-full" size="lg" onClick={handleUpscaleClick}>
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    size="lg"
+                    onClick={handleUpscaleClick}
+                  >
                     <ArrowUpCircle className="mr-2 h-4 w-4" />
                     Upscale
                   </Button>
-                  <Button variant="outline" className="w-full" size="lg" onClick={handleResizeClick}>
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    size="lg"
+                    onClick={handleResizeClick}
+                  >
                     <Expand className="mr-2 h-4 w-4" />
                     Resize
                   </Button>
-                  <Button variant="outline" className="w-full" size="lg" onClick={handleSegmentClick}>
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    size="lg"
+                    onClick={handleSegmentClick}
+                  >
                     <Scissors className="mr-2 h-4 w-4" />
                     Segment
                   </Button>

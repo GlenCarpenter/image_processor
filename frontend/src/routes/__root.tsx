@@ -34,9 +34,7 @@ const RootLayout = () => {
       <main className="w-full">
         <div className="flex items-center justify-between px-4 py-2 border-b">
           <SidebarTrigger />
-          {pageTitle && (
-            <h1 className="text-xl font-semibold">{pageTitle}</h1>
-          )}
+          {pageTitle && <h1 className="text-xl font-semibold">{pageTitle}</h1>}
           <ModeToggle />
         </div>
         <Outlet />
