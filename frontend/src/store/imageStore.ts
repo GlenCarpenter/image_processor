@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { devtools } from 'zustand/middleware'
 
 export interface ResizeInfo {
   originalWidth: number
@@ -139,25 +140,27 @@ interface ImageState {
   sendSegmentToSegment: () => void
 }
 
-export const useImageStore = create<ImageState>()((set, get) => ({
-  // Initial state
-  homeImage: {
-    file: null,
-    url: null,
-  },
-  segmentImage: {
-    sessionId: null,
-    originalFile: null,
-    originalUrl: null,
-    croppedFilename: null,
-    points: [],
-    maskDataUrl: null,
-    padding: 10,
-    aspectRatio: 'None',
-    sessionEnded: false,
-    isUploading: false,
-    isPredicting: false,
-    isCropping: false,
+export const useImageStore = create<ImageState>()(
+  devtools(
+    (set, get) => ({
+      // Initial state
+      homeImage: {
+        file: null,
+        url: null,
+      },
+      segmentImage: {
+        sessionId: null,
+        originalFile: null,
+        originalUrl: null,
+        croppedFilename: null,
+        points: [],
+        maskDataUrl: null,
+        padding: 10,
+        aspectRatio: 'None',
+        sessionEnded: false,
+        isUploading: false,
+        isPredicting: false,
+        isCropping: false,
     error: null,
   },
   resizeImage: {
@@ -542,4 +545,7 @@ export const useImageStore = create<ImageState>()((set, get) => ({
       },
     })
   },
-}))
+    }),
+    { name: 'ImageStore' }
+  )
+)
