@@ -237,7 +237,9 @@ function RouteComponent() {
           {selectedJob && (
             <>
               <DialogHeader>
-                <DialogTitle>{selectedJob.original_filename}</DialogTitle>
+                <DialogTitle className="break-all overflow-wrap-anywhere max-w-full">
+                  {selectedJob.original_filename}
+                </DialogTitle>
                 <DialogDescription>
                   {selectedJob.job_type.charAt(0).toUpperCase() + selectedJob.job_type.slice(1)} •{' '}
                   {formatDate(selectedJob.created_at)}
