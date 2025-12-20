@@ -107,7 +107,12 @@ def start_server(dev_mode=False):
 
     if dev_mode:
         print("Starting in development mode with auto-reload...")
-        # Use uvicorn directly for better reload
+        # Use uvicorn directly with --reload-dir to ensure venv is used
+        # Pass the python executable explicitly to subprocess workers
+        import os
+        env = os.environ.copy()
+        env['PYTHONPATH'] = str(Path(__file__).parent.resolve())
+        
         subprocess.run(
             [
                 python_exe,
@@ -119,7 +124,8 @@ def start_server(dev_mode=False):
                 "0.0.0.0",
                 "--port",
                 "8000",
-            ]
+            ],
+            env=env
         )
     else:
         subprocess.run([python_exe, "-m", "backend.main"])

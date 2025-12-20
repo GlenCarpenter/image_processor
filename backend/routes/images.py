@@ -237,20 +237,20 @@ async def list_recent_jobs(limit: int = 50, job_type: Optional[str] = None):
 async def delete_job_endpoint(job_id: int):
     """
     Delete a job and its associated output file
-    
+
     **Parameters:**
     - **job_id**: The job ID to delete
-    
+
     **Returns:** Success status
     """
     from backend.database import delete_job
-    
+
     # Get job info before deleting to find the file
     job = get_job(job_id)
-    
+
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
-    
+
     # Delete the output file if it exists
     output_path = Path(job["output_path"])
     if output_path.exists():
@@ -259,12 +259,11 @@ async def delete_job_endpoint(job_id: int):
         except Exception as e:
             # Log error but continue with database deletion
             print(f"Warning: Could not delete file {output_path}: {e}")
-    
+
     # Delete from database
     deleted = delete_job(job_id)
-    
+
     if not deleted:
         raise HTTPException(status_code=404, detail="Job not found")
-    
-    return {"success": True, "message": "Job and file deleted successfully"}
 
+    return {"success": True, "message": "Job and file deleted successfully"}

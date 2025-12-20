@@ -3,7 +3,7 @@ Application Configuration
 Loads settings from environment variables
 """
 from pydantic_settings import BaseSettings
-from typing import List
+from typing import List, Optional
 
 
 class Settings(BaseSettings):
@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     # Script Configuration
     SCRIPTS_DIR: str = "backend/scripts"
     MAX_SCRIPT_TIMEOUT: int = 300  # seconds
+    
+    # Fal AI Configuration
+    FAL_KEY: Optional[str] = None
     
     class Config:
         env_file = ".env"
