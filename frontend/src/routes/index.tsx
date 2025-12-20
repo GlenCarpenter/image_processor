@@ -4,7 +4,7 @@ import { Dropzone, DropzoneContent, DropzoneEmptyState } from '@/components/ui/s
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useImageStore } from '@/store/imageStore'
-import { ImageIcon, Edit } from 'lucide-react'
+import { Edit, ArrowUpCircle, Expand, Scissors } from 'lucide-react'
 import { extractImageMetadata, type ImageMetadata } from '@/lib/imageUtils'
 import { ImageMetadataDisplay } from '@/components/ImageMetadataDisplay'
 
@@ -18,6 +18,8 @@ function RouteComponent() {
   const setHomeImage = useImageStore((state) => state.setHomeImage)
   const sendHomeToResize = useImageStore((state) => state.sendHomeToResize)
   const sendHomeToEdit = useImageStore((state) => state.sendHomeToEdit)
+  const sendHomeToUpscale = useImageStore((state) => state.sendHomeToUpscale)
+  const sendHomeToSegment = useImageStore((state) => state.sendHomeToSegment)
 
   const [metadata, setMetadata] = useState<ImageMetadata | null>(null)
 
@@ -45,6 +47,16 @@ function RouteComponent() {
   const handleEditClick = () => {
     sendHomeToEdit()
     navigate({ to: '/edit' })
+  }
+
+  const handleUpscaleClick = () => {
+    sendHomeToUpscale()
+    navigate({ to: '/upscale' })
+  }
+
+  const handleSegmentClick = () => {
+    sendHomeToSegment()
+    navigate({ to: '/segment' })
   }
 
   console.log('Home Image:', homeImage)
@@ -90,9 +102,17 @@ function RouteComponent() {
               <div className="space-y-2">
                 <p className="text-sm font-medium">What would you like to do?</p>
                 <div className="grid grid-cols-2 gap-4">
-                  <Button className="w-full" size="lg" onClick={handleResizeClick}>
-                    <ImageIcon className="mr-2 h-4 w-4" />
-                    Resize Image
+                  <Button variant="outline" className="w-full" size="lg" onClick={handleUpscaleClick}>
+                    <ArrowUpCircle className="mr-2 h-4 w-4" />
+                    Upscale
+                  </Button>
+                  <Button variant="outline" className="w-full" size="lg" onClick={handleResizeClick}>
+                    <Expand className="mr-2 h-4 w-4" />
+                    Resize
+                  </Button>
+                  <Button variant="outline" className="w-full" size="lg" onClick={handleSegmentClick}>
+                    <Scissors className="mr-2 h-4 w-4" />
+                    Segment
                   </Button>
                   <Button variant="outline" className="w-full" size="lg" onClick={handleEditClick}>
                     <Edit className="mr-2 h-4 w-4" />

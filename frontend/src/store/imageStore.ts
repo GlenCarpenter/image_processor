@@ -124,6 +124,8 @@ interface ImageState {
   // Transfer actions
   sendHomeToResize: () => void
   sendHomeToEdit: () => void
+  sendHomeToUpscale: () => void
+  sendHomeToSegment: () => void
   sendResizeToEdit: () => void
   sendResizeToUpscale: () => void
   sendResizeToSegment: () => void
@@ -318,6 +320,42 @@ export const useImageStore = create<ImageState>()((set, get) => ({
         jobId: null,
         outputFilename: null,
         info: null,
+      },
+    })
+  },
+  sendHomeToUpscale: () => {
+    const { homeImage } = get()
+    set({
+      upscaleImage: {
+        originalFile: homeImage.file,
+        originalUrl: homeImage.url,
+        jobId: null,
+        outputFilename: null,
+        upscaleInfo: null,
+        isUpscaling: false,
+        error: null,
+        originalMetadata: null,
+        resultMetadata: null,
+      },
+    })
+  },
+  sendHomeToSegment: () => {
+    const { homeImage } = get()
+    set({
+      segmentImage: {
+        sessionId: null,
+        originalFile: homeImage.file,
+        originalUrl: homeImage.url,
+        croppedFilename: null,
+        points: [],
+        maskDataUrl: null,
+        padding: 10,
+        aspectRatio: 'None',
+        sessionEnded: false,
+        isUploading: false,
+        isPredicting: false,
+        isCropping: false,
+        error: null,
       },
     })
   },

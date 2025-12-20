@@ -141,6 +141,35 @@ function RouteComponent() {
         }
     }, [search.filename])
 
+    // Handle image from store (uploaded from home page) when no URL param
+    useEffect(() => {
+        if (!search.filename && segmentImage.originalFile && !segmentImage.sessionId) {
+            // Upload the file from store to create a session
+            setSegmentUploading(true)
+            setSegmentError(null)
+
+            const formData = new FormData()
+            formData.append('file', segmentImage.originalFile)
+
+            fetch(`${API_BASE_URL}/segment/upload`, {
+                method: 'POST',
+                body: formData,
+            })
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Session created from store:', data)
+                    setSegmentSession(data.session_id)
+                })
+                .catch(err => {
+                    console.error('Failed to upload image:', err)
+                    setSegmentError('Failed to upload image')
+                })
+                .finally(() => {
+                    setSegmentUploading(false)
+                })
+        }
+    }, [search.filename, segmentImage.originalFile, segmentImage.sessionId])
+
     // Cleanup session on unmount if it hasn't been cropped
     useEffect(() => {
         return () => {
