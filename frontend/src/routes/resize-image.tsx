@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { useImageStore } from '@/store/imageStore'
+import { Link } from '@tanstack/react-router'
 
 export const Route = createFileRoute('/resize-image')({
   component: RouteComponent,
@@ -13,12 +15,21 @@ export const Route = createFileRoute('/resize-image')({
 const API_BASE_URL = 'http://localhost:8000/api'
 
 function RouteComponent() {
-  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  // Get state from Zustand store
+  const selectedFile = useImageStore((state) => state.selectedFile)
+  const originalImageUrl = useImageStore((state) => state.originalImageUrl)
+  const resizedImageUrl = useImageStore((state) => state.resizedImageUrl)
+  const resizeInfo = useImageStore((state) => state.resizeInfo)
+
+  // Get actions from store
+  const setSelectedFile = useImageStore((state) => state.setSelectedFile)
+  const setOriginalImageUrl = useImageStore((state) => state.setOriginalImageUrl)
+  const setResizedImageUrl = useImageStore((state) => state.setResizedImageUrl)
+  const setResizeInfo = useImageStore((state) => state.setResizeInfo)
+
+  // Local state for UI only
   const [targetSize, setTargetSize] = useState<number>(1024)
-  const [resizedImageUrl, setResizedImageUrl] = useState<string | null>(null)
-  const [originalImageUrl, setOriginalImageUrl] = useState<string | null>(null)
   const [isResizing, setIsResizing] = useState(false)
-  const [resizeInfo, setResizeInfo] = useState<any>(null)
   const [error, setError] = useState<string | null>(null)
 
   const handleFileDrop = (acceptedFiles: File[]) => {
@@ -230,9 +241,14 @@ function RouteComponent() {
                   </div>
                 )}
 
-                <Button onClick={handleDownload} variant="outline" className="w-full">
-                  Download Resized Image
-                </Button>
+                <div className="flex gap-2">
+                  <Button onClick={handleDownload} variant="outline" className="flex-1">
+                    Download Resized Image
+                  </Button>
+                  <Link to="/edit" className="flex-1">
+                    <Button className="w-full">Edit Image</Button>
+                  </Link>
+                </div>
               </>
             ) : (
               <div className="flex items-center justify-center h-64 text-muted-foreground">
