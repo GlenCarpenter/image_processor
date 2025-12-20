@@ -116,7 +116,7 @@ function RouteComponent() {
     if (!upscaleImage.outputFilename) return
 
     const link = document.createElement('a')
-    link.href = `${API_BASE_URL}/images/output/${upscaleImage.outputFilename}`
+    link.href = `${API_BASE_URL}/images/output/${upscaleImage.outputFilename}/download`
     link.download = upscaleImage.outputFilename
     document.body.appendChild(link)
     link.click()

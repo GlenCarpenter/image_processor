@@ -3,12 +3,14 @@ Image processing API routes
 Handles image resizing and manipulation
 """
 
-from fastapi import APIRouter, UploadFile, File, HTTPException, Form
-from fastapi.responses import FileResponse
-from typing import Optional
+from fastapi import APIRouter, UploadFile, File, HTTPException, Form, Body
+from fastapi.responses import FileResponse, StreamingResponse
+from typing import Optional, List
 from pathlib import Path
 from datetime import datetime
 import uuid
+import zipfile
+from io import BytesIO
 
 from backend.utils.image_processing import resize_image_bytes
 from backend.database import create_job, get_job, get_recent_jobs
@@ -196,6 +198,35 @@ async def get_output_image(filename: str):
     return FileResponse(path=str(file_path), media_type="image/jpeg")
 
 
+@router.get("/output/{filename}/download")
+async def download_output_image(filename: str):
+    """
+    Download a processed output image by filename (forces download)
+
+    **Parameters:**
+    - **filename**: The output filename from a previous job
+
+    **Returns:** The image file with Content-Disposition: attachment
+    """
+    file_path = OUTPUTS_DIR / filename
+
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Image not found")
+
+    # Security check: ensure the file is within outputs directory
+    try:
+        file_path.resolve().relative_to(OUTPUTS_DIR.resolve())
+    except ValueError:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    return FileResponse(
+        path=str(file_path),
+        media_type="image/jpeg",
+        filename=filename,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+    )
+
+
 @router.get("/job/{job_id}")
 async def get_job_info(job_id: int):
     """
@@ -267,3 +298,53 @@ async def delete_job_endpoint(job_id: int):
         raise HTTPException(status_code=404, detail="Job not found")
 
     return {"success": True, "message": "Job and file deleted successfully"}
+
+
+@router.post("/batch-download")
+async def batch_download_images(filenames: List[str] = Body(..., description="List of filenames to download")):
+    """
+    Download multiple images as a zip file
+
+    **Parameters:**
+    - **filenames**: List of output filenames to include in the zip
+
+    **Returns:** A zip file containing the requested images
+    """
+    if not filenames:
+        raise HTTPException(status_code=400, detail="No filenames provided")
+    
+    if len(filenames) > 100:
+        raise HTTPException(status_code=400, detail="Maximum 100 files can be downloaded at once")
+
+    # Create zip file in memory
+    zip_buffer = BytesIO()
+    
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+        for filename in filenames:
+            file_path = OUTPUTS_DIR / filename
+            
+            # Security check: ensure the file is within outputs directory
+            try:
+                file_path.resolve().relative_to(OUTPUTS_DIR.resolve())
+            except ValueError:
+                # Skip files outside outputs directory
+                continue
+            
+            if file_path.exists():
+                # Add file to zip
+                zip_file.write(file_path, arcname=filename)
+    
+    # Check if any files were added
+    zip_buffer.seek(0)
+    if zip_buffer.getbuffer().nbytes == 0:
+        raise HTTPException(status_code=404, detail="No valid files found")
+    
+    # Generate zip filename with timestamp
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    zip_filename = f"images_{timestamp}.zip"
+    
+    return StreamingResponse(
+        zip_buffer,
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{zip_filename}"'}
+    )

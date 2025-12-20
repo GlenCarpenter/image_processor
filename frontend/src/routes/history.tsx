@@ -12,7 +12,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { useImageStore } from '@/store/imageStore'
-import { ImageIcon, Calendar, Ruler, Trash2 } from 'lucide-react'
+import { ImageIcon, Calendar, Ruler, Trash2, Download, Check } from 'lucide-react'
 
 const API_BASE_URL = 'http://localhost:8000/api'
 
@@ -49,6 +49,8 @@ function RouteComponent() {
   const [selectedJob, setSelectedJob] = useState<Job | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [selectedFilenames, setSelectedFilenames] = useState<Set<string>>(new Set())
+  const [downloading, setDownloading] = useState(false)
 
   useEffect(() => {
     loadJobs()
@@ -152,6 +154,61 @@ function RouteComponent() {
     return date.toLocaleDateString() + ' ' + date.toLocaleTimeString()
   }
 
+  const toggleSelection = (filename: string, event: React.MouseEvent) => {
+    event.stopPropagation()
+    setSelectedFilenames((prev) => {
+      const newSet = new Set(prev)
+      if (newSet.has(filename)) {
+        newSet.delete(filename)
+      } else {
+        newSet.add(filename)
+      }
+      return newSet
+    })
+  }
+
+  const selectAll = () => {
+    setSelectedFilenames(new Set(jobs.map((job) => job.output_filename)))
+  }
+
+  const clearSelection = () => {
+    setSelectedFilenames(new Set())
+  }
+
+  const handleBatchDownload = async () => {
+    if (selectedFilenames.size === 0) return
+
+    setDownloading(true)
+    try {
+      const response = await fetch(`${API_BASE_URL}/images/batch-download`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(Array.from(selectedFilenames)),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to download images')
+      }
+
+      const blob = await response.blob()
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `images_${Date.now()}.zip`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+
+      // Clear selection after successful download
+      clearSelection()
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to download images')
+    } finally {
+      setDownloading(false)
+    }
+  }
+
   return (
     <div className="container mx-auto p-8 max-w-7xl">
       <div className="mb-8">
@@ -160,6 +217,31 @@ function RouteComponent() {
           Browse your previously processed images and reuse them
         </p>
       </div>
+
+      {/* Batch Actions Bar */}
+      {jobs.length > 0 && (
+        <div className="mb-6 flex items-center gap-4 p-4 bg-muted rounded-lg">
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={selectAll}>
+              Select All
+            </Button>
+            <Button variant="outline" size="sm" onClick={clearSelection}>
+              Clear
+            </Button>
+          </div>
+          <div className="text-sm text-muted-foreground">
+            {selectedFilenames.size} selected
+          </div>
+          <Button
+            onClick={handleBatchDownload}
+            disabled={selectedFilenames.size === 0 || downloading}
+            className="ml-auto"
+          >
+            <Download className="w-4 h-4 mr-2" />
+            {downloading ? 'Downloading...' : `Download ${selectedFilenames.size > 0 ? `(${selectedFilenames.size})` : 'Selected'}`}
+          </Button>
+        </div>
+      )}
 
       {error && (
         <Card className="mb-6 border-destructive">
@@ -201,9 +283,27 @@ function RouteComponent() {
           {jobs.map((job) => (
             <Card
               key={job.id}
-              className="overflow-hidden cursor-pointer hover:shadow-lg transition-shadow"
+              className="overflow-hidden cursor-pointer hover:shadow-lg transition-shadow relative"
               onClick={() => handleThumbnailClick(job)}
             >
+              {/* Selection Checkbox */}
+              <div
+                className="absolute top-2 right-2 z-10"
+                onClick={(e) => toggleSelection(job.output_filename, e)}
+              >
+                <div
+                  className={`w-6 h-6 rounded-md border-2 flex items-center justify-center transition-colors ${
+                    selectedFilenames.has(job.output_filename)
+                      ? 'bg-primary border-primary'
+                      : 'bg-background border-muted-foreground/50 hover:border-primary'
+                  }`}
+                >
+                  {selectedFilenames.has(job.output_filename) && (
+                    <Check className="w-4 h-4 text-primary-foreground" />
+                  )}
+                </div>
+              </div>
+
               <CardContent className="p-0">
                 <div className="aspect-square w-full overflow-hidden bg-muted">
                   <img
