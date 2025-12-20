@@ -47,19 +47,31 @@ def upload_bytes_to_fal(file_bytes: bytes, filename: str) -> str:
     Returns:
         URL of the uploaded file in Fal storage
     """
-    with tempfile.NamedTemporaryFile(
+    tmp_file = tempfile.NamedTemporaryFile(
         delete=False, suffix=Path(filename).suffix
-    ) as tmp_file:
+    )
+    tmp_path = tmp_file.name
+    
+    try:
         tmp_file.write(file_bytes)
         tmp_file.flush()
-
+        tmp_file.close()  # Explicitly close before uploading
+        
+        # Pass the file path as string, not file handle
+        url = fal_client.upload_file(tmp_path)
+        return url
+    finally:
+        # Clean up temp file
         try:
-            with open(tmp_file.name, "rb") as f:
-                url = fal_client.upload_file(f)
-            return url
-        finally:
-            # Clean up temp file
-            os.unlink(tmp_file.name)
+            os.unlink(tmp_path)
+        except PermissionError:
+            # On Windows, sometimes there's a delay before file can be deleted
+            import time
+            time.sleep(0.1)
+            try:
+                os.unlink(tmp_path)
+            except Exception:
+                pass  # Ignore if still can't delete, OS will clean up eventually
 
 
 def download_from_url(url: str, output_path: str) -> None:

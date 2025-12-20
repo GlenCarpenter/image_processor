@@ -9,11 +9,17 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as UpscaleRouteImport } from './routes/upscale'
 import { Route as ResizeImageRouteImport } from './routes/resize-image'
 import { Route as HistoryRouteImport } from './routes/history'
 import { Route as EditRouteImport } from './routes/edit'
 import { Route as IndexRouteImport } from './routes/index'
 
+const UpscaleRoute = UpscaleRouteImport.update({
+  id: '/upscale',
+  path: '/upscale',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ResizeImageRoute = ResizeImageRouteImport.update({
   id: '/resize-image',
   path: '/resize-image',
@@ -40,12 +46,14 @@ export interface FileRoutesByFullPath {
   '/edit': typeof EditRoute
   '/history': typeof HistoryRoute
   '/resize-image': typeof ResizeImageRoute
+  '/upscale': typeof UpscaleRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/edit': typeof EditRoute
   '/history': typeof HistoryRoute
   '/resize-image': typeof ResizeImageRoute
+  '/upscale': typeof UpscaleRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -53,13 +61,14 @@ export interface FileRoutesById {
   '/edit': typeof EditRoute
   '/history': typeof HistoryRoute
   '/resize-image': typeof ResizeImageRoute
+  '/upscale': typeof UpscaleRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/edit' | '/history' | '/resize-image'
+  fullPaths: '/' | '/edit' | '/history' | '/resize-image' | '/upscale'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/edit' | '/history' | '/resize-image'
-  id: '__root__' | '/' | '/edit' | '/history' | '/resize-image'
+  to: '/' | '/edit' | '/history' | '/resize-image' | '/upscale'
+  id: '__root__' | '/' | '/edit' | '/history' | '/resize-image' | '/upscale'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -67,10 +76,18 @@ export interface RootRouteChildren {
   EditRoute: typeof EditRoute
   HistoryRoute: typeof HistoryRoute
   ResizeImageRoute: typeof ResizeImageRoute
+  UpscaleRoute: typeof UpscaleRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/upscale': {
+      id: '/upscale'
+      path: '/upscale'
+      fullPath: '/upscale'
+      preLoaderRoute: typeof UpscaleRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/resize-image': {
       id: '/resize-image'
       path: '/resize-image'
@@ -107,6 +124,7 @@ const rootRouteChildren: RootRouteChildren = {
   EditRoute: EditRoute,
   HistoryRoute: HistoryRoute,
   ResizeImageRoute: ResizeImageRoute,
+  UpscaleRoute: UpscaleRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

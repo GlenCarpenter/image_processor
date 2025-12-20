@@ -10,6 +10,15 @@ export interface ResizeInfo {
   actualPixels: number
 }
 
+export interface UpscaleInfo {
+  outputWidth: number
+  outputHeight: number
+  outputPixels: number
+  fileSize: number
+  upscaleMode: string
+  upscaleFactor: number
+}
+
 interface ImageState {
   // Home page image
   homeImage: {
@@ -24,6 +33,15 @@ interface ImageState {
     jobId: number | null
     outputFilename: string | null
     resizeInfo: ResizeInfo | null
+  }
+
+  // Upscale page images
+  upscaleImage: {
+    originalFile: File | null
+    originalUrl: string | null
+    jobId: number | null
+    outputFilename: string | null
+    upscaleInfo: UpscaleInfo | null
   }
 
   // Edit page image
@@ -46,6 +64,15 @@ interface ImageState {
   ) => void
   clearResizeImages: () => void
 
+  // Upscale page actions
+  setUpscaleOriginal: (file: File | null, url: string | null) => void
+  setUpscaleResult: (
+    jobId: number | null,
+    outputFilename: string | null,
+    info: UpscaleInfo | null
+  ) => void
+  clearUpscaleImages: () => void
+
   // Edit page actions
   setEditImage: (
     jobId: number | null,
@@ -58,6 +85,8 @@ interface ImageState {
   sendHomeToResize: () => void
   sendHomeToEdit: () => void
   sendResizeToEdit: () => void
+  sendUpscaleToEdit: () => void
+  sendEditToUpscale: () => void
 }
 
 export const useImageStore = create<ImageState>()((set, get) => ({
@@ -72,6 +101,13 @@ export const useImageStore = create<ImageState>()((set, get) => ({
     jobId: null,
     outputFilename: null,
     resizeInfo: null,
+  },
+  upscaleImage: {
+    originalFile: null,
+    originalUrl: null,
+    jobId: null,
+    outputFilename: null,
+    upscaleInfo: null,
   },
   editImage: {
     jobId: null,
@@ -106,6 +142,26 @@ export const useImageStore = create<ImageState>()((set, get) => ({
         jobId: null,
         outputFilename: null,
         resizeInfo: null,
+      },
+    }),
+
+  // Upscale page actions
+  setUpscaleOriginal: (file, url) =>
+    set({
+      upscaleImage: { ...get().upscaleImage, originalFile: file, originalUrl: url },
+    }),
+  setUpscaleResult: (jobId, outputFilename, info) =>
+    set({
+      upscaleImage: { ...get().upscaleImage, jobId, outputFilename, upscaleInfo: info },
+    }),
+  clearUpscaleImages: () =>
+    set({
+      upscaleImage: {
+        originalFile: null,
+        originalUrl: null,
+        jobId: null,
+        outputFilename: null,
+        upscaleInfo: null,
       },
     }),
 
@@ -149,6 +205,28 @@ export const useImageStore = create<ImageState>()((set, get) => ({
         jobId: resizeImage.jobId,
         outputFilename: resizeImage.outputFilename,
         info: resizeImage.resizeInfo,
+      },
+    })
+  },
+  sendUpscaleToEdit: () => {
+    const { upscaleImage } = get()
+    set({
+      editImage: {
+        jobId: upscaleImage.jobId,
+        outputFilename: upscaleImage.outputFilename,
+        info: null, // Upscale info structure is different
+      },
+    })
+  },
+  sendEditToUpscale: () => {
+    const { editImage } = get()
+    set({
+      upscaleImage: {
+        originalFile: null,
+        originalUrl: null,
+        jobId: editImage.jobId,
+        outputFilename: editImage.outputFilename,
+        upscaleInfo: null,
       },
     })
   },

@@ -1,7 +1,8 @@
-import { createFileRoute, Link } from '@tanstack/react-router'
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { useImageStore } from '@/store/imageStore'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { useState } from 'react'
 
 const API_BASE_URL = 'http://localhost:8000/api'
 
@@ -10,8 +11,38 @@ export const Route = createFileRoute('/edit')({
 })
 
 function RouteComponent() {
+  const navigate = useNavigate()
   const editImage = useImageStore((state) => state.editImage)
   const clearEditImage = useImageStore((state) => state.clearEditImage)
+  const sendEditToUpscale = useImageStore((state) => state.sendEditToUpscale)
+  const setUpscaleOriginal = useImageStore((state) => state.setUpscaleOriginal)
+  const [isLoading, setIsLoading] = useState(false)
+
+  const handleUpscaleClick = async () => {
+    if (!editImage.outputFilename) return
+
+    setIsLoading(true)
+    try {
+      // Fetch the image from the server
+      const imageUrl = `${API_BASE_URL}/images/output/${editImage.outputFilename}`
+      const response = await fetch(imageUrl)
+      const blob = await response.blob()
+
+      // Create a File object from the blob
+      const file = new File([blob], editImage.outputFilename, { type: blob.type })
+      const url = URL.createObjectURL(blob)
+
+      // Set it as the upscale original
+      setUpscaleOriginal(file, url)
+
+      // Navigate to upscale page
+      navigate({ to: '/upscale' })
+    } catch (error) {
+      console.error('Failed to load image for upscaling:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   if (!editImage.outputFilename) {
     return (
@@ -81,6 +112,9 @@ function RouteComponent() {
             <Link to="/resize-image">
               <Button variant="outline">Back to Resize</Button>
             </Link>
+            <Button onClick={handleUpscaleClick} disabled={isLoading}>
+              {isLoading ? 'Loading...' : 'Upscale Image'}
+            </Button>
             <Button variant="destructive" onClick={clearEditImage}>
               Clear Image
             </Button>

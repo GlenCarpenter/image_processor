@@ -9,7 +9,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar'
-import { Home, ImageIcon, Edit, History } from 'lucide-react'
+import { Home, ImageIcon, Edit, History, Sparkles } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
 const menuItems = [
@@ -22,6 +22,11 @@ const menuItems = [
     title: 'Resize Image',
     url: '/resize-image' as const,
     icon: ImageIcon,
+  },
+  {
+    title: 'Upscale',
+    url: '/upscale' as const,
+    icon: Sparkles,
   },
   {
     title: 'Edit',
