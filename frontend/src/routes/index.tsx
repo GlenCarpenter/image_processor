@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { Dropzone, DropzoneContent, DropzoneEmptyState } from '@/components/ui/shadcn-io/dropzone'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -33,6 +33,8 @@ function RouteComponent() {
     sendHomeToEdit()
     navigate({ to: '/edit' })
   }
+
+  console.log('Home Image:', homeImage)
 
   return (
     <div className="container mx-auto p-8 max-w-4xl">
