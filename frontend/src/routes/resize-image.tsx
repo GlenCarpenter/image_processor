@@ -2,16 +2,15 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useState } from 'react'
 import { Dropzone, DropzoneContent, DropzoneEmptyState } from '@/components/ui/shadcn-io/dropzone'
 import { Button } from '@/components/ui/button'
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import "./App.css"
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
 export const Route = createFileRoute('/resize-image')({
   component: RouteComponent,
 })
 
-const API_BASE_URL = 'http://localhost:8000/api';
+const API_BASE_URL = 'http://localhost:8000/api'
 
 function RouteComponent() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
@@ -138,9 +137,7 @@ function RouteComponent() {
             </div>
 
             <div>
-              <Label htmlFor="targetSize">
-                Target Size (pixels = size²)
-              </Label>
+              <Label htmlFor="targetSize">Target Size (pixels = size²)</Label>
               <Input
                 id="targetSize"
                 type="number"
@@ -150,7 +147,9 @@ function RouteComponent() {
                 className="mt-2"
               />
               <p className="text-sm text-muted-foreground mt-1">
-                {targetSize > 0 ? `${targetSize}² = ${(targetSize * targetSize).toLocaleString()} pixels` : ''}
+                {targetSize > 0
+                  ? `${targetSize}² = ${(targetSize * targetSize).toLocaleString()} pixels`
+                  : ''}
               </p>
             </div>
 
@@ -186,19 +185,13 @@ function RouteComponent() {
         <Card>
           <CardHeader>
             <CardTitle>Resized Image</CardTitle>
-            <CardDescription>
-              Your resized image will appear here
-            </CardDescription>
+            <CardDescription>Your resized image will appear here</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {resizedImageUrl ? (
               <>
                 <div>
-                  <img
-                    src={resizedImageUrl}
-                    alt="Resized"
-                    className="w-full rounded-md border"
-                  />
+                  <img src={resizedImageUrl} alt="Resized" className="w-full rounded-md border" />
                 </div>
 
                 {resizeInfo && (
@@ -231,11 +224,7 @@ function RouteComponent() {
                   </div>
                 )}
 
-                <Button
-                  onClick={handleDownload}
-                  variant="outline"
-                  className="w-full"
-                >
+                <Button onClick={handleDownload} variant="outline" className="w-full">
                   Download Resized Image
                 </Button>
               </>
