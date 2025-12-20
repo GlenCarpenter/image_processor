@@ -7,7 +7,7 @@ import { ModeToggle } from '@/components/mode-toggle'
 const getPageTitle = (pathname: string) => {
   switch (pathname) {
     case '/':
-      return 'Home'
+      return 'Image Editor Home'
     case '/segment':
       return 'Interactive Segmentation'
     case '/upscale':

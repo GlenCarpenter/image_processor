@@ -63,13 +63,6 @@ function RouteComponent() {
 
   return (
     <div className="container mx-auto p-4 max-w-4xl">
-      <div className="text-center mb-8">
-        <h1 className="text-4xl font-bold mb-2">Image Editor</h1>
-        <p className="text-muted-foreground">
-          Upload an image to resize, edit, or apply transformations
-        </p>
-      </div>
-
       <Card>
         <CardHeader>
           <CardTitle>Upload an Image to Start</CardTitle>

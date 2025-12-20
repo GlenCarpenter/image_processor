@@ -21,17 +21,25 @@ MODELS_DIR.mkdir(exist_ok=True)
 # Detect GPU availability
 print(f"PyTorch version: {torch.__version__}")
 print(f"CUDA available: {torch.cuda.is_available()}")
-print(f"CUDA version (compiled): {torch.version.cuda if torch.version.cuda else 'None'}")
-print(f"cuDNN version: {torch.backends.cudnn.version() if torch.backends.cudnn.is_available() else 'None'}")
+print(
+    f"CUDA version (compiled): {torch.version.cuda if torch.version.cuda else 'None'}"
+)
+print(
+    f"cuDNN version: {torch.backends.cudnn.version() if torch.backends.cudnn.is_available() else 'None'}"
+)
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 print(f"SAM 2 will use device: {DEVICE}")
 if DEVICE == "cuda":
     print(f"GPU: {torch.cuda.get_device_name(0)}")
-    print(f"GPU Memory: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.2f} GB")
+    print(
+        f"GPU Memory: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.2f} GB"
+    )
 else:
     print("⚠️ Running on CPU - segmentation will be slower")
-    print("To enable GPU: pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121")
+    print(
+        "To enable GPU: pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121"
+    )
 
 
 def get_sam_model(model_name: str = "sam2_b.pt") -> SAM:
@@ -227,3 +235,50 @@ def crop_image_with_mask(
     }
 
     return output_buffer.getvalue(), info
+
+
+def remove_background(
+    image_bytes: bytes,
+    mask: np.ndarray,
+) -> bytes:
+    """
+    Remove background using the provided mask
+
+    Args:
+        image_bytes: Image data as bytes
+        mask: Binary mask (0 or 255) where 255 = keep, 0 = remove
+
+    Returns:
+        PNG image bytes with transparent background
+    """
+    # Load image
+    img = Image.open(BytesIO(image_bytes))
+
+    print(f"Removing background from image: {img.size}")
+    print(f"Mask shape: {mask.shape}, unique values: {np.unique(mask)}")
+
+    # Convert image to RGBA if not already
+    if img.mode != "RGBA":
+        img = img.convert("RGBA")
+
+    # Get image as array
+    img_array = np.array(img)
+
+    # Ensure mask is the same size as image
+    if mask.shape != img_array.shape[:2]:
+        mask_img = Image.fromarray(mask)
+        mask_img = mask_img.resize((img.width, img.height), Image.LANCZOS)
+        mask = np.array(mask_img)
+
+    # Apply mask as alpha channel (255 = keep, 0 = transparent)
+    img_array[:, :, 3] = mask
+
+    # Convert back to PIL Image
+    result_img = Image.fromarray(img_array, "RGBA")
+
+    # Save as PNG (supports transparency)
+    output_buffer = BytesIO()
+    result_img.save(output_buffer, format="PNG", optimize=True)
+    output_buffer.seek(0)
+
+    return output_buffer.getvalue()

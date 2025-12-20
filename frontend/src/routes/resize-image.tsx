@@ -285,8 +285,7 @@ function RouteComponent() {
                   <div>
                     <span className="text-muted-foreground">Resized:</span>
                     <p className="font-medium">
-                      {resizeImage.resizeInfo.targetWidth} ×{' '}
-                      {resizeImage.resizeInfo.targetHeight}
+                      {resizeImage.resizeInfo.targetWidth} × {resizeImage.resizeInfo.targetHeight}
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {formatNumber(resizeImage.resizeInfo.actualPixels)} pixels

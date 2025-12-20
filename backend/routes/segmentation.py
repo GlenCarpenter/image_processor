@@ -18,6 +18,7 @@ from backend.database import create_job
 from backend.utils.sam_segmentation import (
     predict_mask_from_points,
     crop_image_with_mask,
+    remove_background,
 )
 from backend.utils.image_processing import ASPECT_RATIOS
 
@@ -263,3 +264,79 @@ async def cleanup_session(session_id: str):
             )
 
     return {"success": True, "message": "Session not found or already cleaned"}
+
+
+@router.post("/remove-background")
+async def remove_background_endpoint(
+    session_id: str = Form(..., description="Session ID from upload"),
+    mask: str = Form(..., description="Base64-encoded mask PNG"),
+):
+    """
+    Remove background from image using the provided mask
+
+    **Parameters:**
+    - **session_id**: Session ID from upload
+    - **mask**: Base64-encoded mask image (white=keep, black=remove)
+
+    **Returns:** Job metadata with background-removed PNG image
+    """
+    temp_path = TEMP_DIR / f"{session_id}.jpg"
+
+    if not temp_path.exists():
+        raise HTTPException(status_code=404, detail="Session not found or expired")
+
+    try:
+        # Read original image
+        with open(temp_path, "rb") as f:
+            image_bytes = f.read()
+
+        # Decode mask from base64
+        mask_bytes = base64.b64decode(mask)
+        mask_img = Image.open(BytesIO(mask_bytes))
+        mask_array = np.array(mask_img)
+
+        # Remove background using the mask
+        result_bytes = remove_background(image_bytes, mask=mask_array)
+
+        # Generate unique filename
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        unique_id = str(uuid.uuid4())[:8]
+        output_filename = f"no_bg_{timestamp}_{unique_id}.png"
+        output_path = OUTPUTS_DIR / output_filename
+
+        # Save to disk
+        with open(output_path, "wb") as f:
+            f.write(result_bytes)
+
+        # Get file size and dimensions
+        output_size = output_path.stat().st_size
+        result_img = Image.open(BytesIO(result_bytes))
+
+        # Create database record
+        job_id = create_job(
+            job_type="remove_background",
+            original_filename=session_id,
+            output_filename=output_filename,
+            output_path=str(output_path),
+            output_width=result_img.width,
+            output_height=result_img.height,
+            output_pixels=result_img.width * result_img.height,
+            metadata="mask-based background removal",
+        )
+
+        return {
+            "success": True,
+            "job_id": job_id,
+            "output_filename": output_filename,
+            "info": {
+                "width": result_img.width,
+                "height": result_img.height,
+                "file_size": output_size,
+                "format": "PNG",
+            },
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error removing background: {str(e)}"
+        )

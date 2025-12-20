@@ -364,6 +364,42 @@ function RouteComponent() {
     }
   }
 
+  const handleRemoveBackground = async () => {
+    if (!segmentImage.sessionId || !segmentImage.maskDataUrl) return
+
+    setSegmentCropping(true)
+    setSegmentError(null)
+
+    try {
+      // Extract base64 data from data URL
+      const base64Data = segmentImage.maskDataUrl.split(',')[1]
+
+      const formData = new FormData()
+      formData.append('session_id', segmentImage.sessionId)
+      formData.append('mask', base64Data)
+
+      const response = await fetch(`${API_BASE_URL}/segment/remove-background`, {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.detail || 'Failed to remove background')
+      }
+
+      const data = await response.json()
+      setSegmentResult(data.output_filename)
+
+      // Mark session as ended
+      setSegmentSessionEnded(true)
+    } catch (err) {
+      setSegmentError(err instanceof Error ? err.message : 'Failed to remove background')
+    } finally {
+      setSegmentCropping(false)
+    }
+  }
+
   const handleClearPoints = () => {
     setSegmentPoints([])
     setSegmentMask(null)
@@ -591,19 +627,35 @@ function RouteComponent() {
                   </Select>
                 </div>
 
-                <Button
-                  onClick={handleCrop}
-                  disabled={
-                    !segmentImage.maskDataUrl ||
-                    segmentImage.isCropping ||
-                    segmentImage.sessionEnded
-                  }
-                  className="w-full"
-                  size="lg"
-                >
-                  <Scissors className="w-4 h-4 mr-2" />
-                  {segmentImage.isCropping ? 'Cropping...' : 'Crop to Selection'}
-                </Button>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    onClick={handleCrop}
+                    disabled={
+                      !segmentImage.maskDataUrl ||
+                      segmentImage.isCropping ||
+                      segmentImage.sessionEnded
+                    }
+                    className="w-full"
+                    size="lg"
+                  >
+                    <Scissors className="w-4 h-4 mr-2" />
+                    {segmentImage.isCropping ? 'Cropping...' : 'Crop to Selection'}
+                  </Button>
+
+                  <Button
+                    onClick={handleRemoveBackground}
+                    disabled={
+                      !segmentImage.maskDataUrl ||
+                      segmentImage.isCropping ||
+                      segmentImage.sessionEnded
+                    }
+                    variant="secondary"
+                    className="w-full"
+                    size="lg"
+                  >
+                    {segmentImage.isCropping ? 'Processing...' : 'Remove Background'}
+                  </Button>
+                </div>
 
                 {segmentImage.error && (
                   <div className="p-3 bg-destructive/10 text-destructive rounded-md text-sm">
