@@ -1,9 +1,98 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
+import { Dropzone, DropzoneContent, DropzoneEmptyState } from '@/components/ui/shadcn-io/dropzone'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { useImageStore } from '@/store/imageStore'
+import { ImageIcon, Edit } from 'lucide-react'
 
 export const Route = createFileRoute('/')({
   component: RouteComponent,
 })
 
 function RouteComponent() {
-  return <div>Hello "/"!</div>
+  const navigate = useNavigate()
+  const homeImage = useImageStore((state) => state.homeImage)
+  const setHomeImage = useImageStore((state) => state.setHomeImage)
+  const sendHomeToResize = useImageStore((state) => state.sendHomeToResize)
+  const sendHomeToEdit = useImageStore((state) => state.sendHomeToEdit)
+
+  const handleFileDrop = (acceptedFiles: File[]) => {
+    if (acceptedFiles.length > 0) {
+      const file = acceptedFiles[0]
+      const url = URL.createObjectURL(file)
+      setHomeImage(file, url)
+    }
+  }
+
+  const handleResizeClick = () => {
+    sendHomeToResize()
+    navigate({ to: '/resize-image' })
+  }
+
+  const handleEditClick = () => {
+    sendHomeToEdit()
+    navigate({ to: '/edit' })
+  }
+
+  return (
+    <div className="container mx-auto p-8 max-w-4xl">
+      <div className="text-center mb-8">
+        <h1 className="text-4xl font-bold mb-2">Image Editor</h1>
+        <p className="text-muted-foreground">
+          Upload an image to resize, edit, or apply transformations
+        </p>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Upload an Image to Start</CardTitle>
+          <CardDescription>
+            Select or drag and drop an image file to begin working with it
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Dropzone
+            accept={{ 'image/*': ['.jpg', '.jpeg', '.png', '.bmp', '.webp', '.tiff'] }}
+            src={homeImage.file ? [homeImage.file] : undefined}
+            onDrop={handleFileDrop}
+          >
+            <DropzoneEmptyState />
+            <DropzoneContent />
+          </Dropzone>
+
+          {homeImage.url && (
+            <>
+              <div>
+                <img
+                  src={homeImage.url}
+                  alt="Uploaded"
+                  className="w-full max-h-96 object-contain rounded-md border"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <p className="text-sm font-medium">What would you like to do?</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <Button className="w-full" size="lg" onClick={handleResizeClick}>
+                    <ImageIcon className="mr-2 h-4 w-4" />
+                    Resize Image
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    size="lg"
+                    onClick={handleEditClick}
+                  >
+                    <Edit className="mr-2 h-4 w-4" />
+                    Edit Image
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  )
 }
+

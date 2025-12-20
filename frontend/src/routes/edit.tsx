@@ -8,21 +8,25 @@ export const Route = createFileRoute('/edit')({
 })
 
 function RouteComponent() {
-  const resizedImageUrl = useImageStore((state) => state.resizedImageUrl)
-  const resizeInfo = useImageStore((state) => state.resizeInfo)
-  const clearImages = useImageStore((state) => state.clearImages)
+  const editImage = useImageStore((state) => state.editImage)
+  const clearEditImage = useImageStore((state) => state.clearEditImage)
 
-  if (!resizedImageUrl) {
+  if (!editImage.url) {
     return (
       <div className="container mx-auto p-8 max-w-4xl">
         <Card>
           <CardHeader>
             <CardTitle>No Image to Edit</CardTitle>
-            <CardDescription>Please resize an image first</CardDescription>
+            <CardDescription>
+              Please upload an image from the home page or resize page first
+            </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex gap-2">
+            <Link to="/">
+              <Button>Go to Home</Button>
+            </Link>
             <Link to="/resize-image">
-              <Button>Go to Resize Page</Button>
+              <Button variant="outline">Go to Resize</Button>
             </Link>
           </CardContent>
         </Card>
@@ -36,39 +40,42 @@ function RouteComponent() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Your Resized Image</CardTitle>
+          <CardTitle>Your Image</CardTitle>
           <CardDescription>
-            Image persisted from resize page - edit functionality coming soon
+            Image persisted from previous page - edit functionality coming soon
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
-            <img src={resizedImageUrl} alt="Resized" className="w-full rounded-md border" />
+            <img src={editImage.url} alt="Edit" className="w-full rounded-md border" />
           </div>
 
-          {resizeInfo && (
+          {editImage.info && (
             <div className="space-y-2 text-sm">
               <h3 className="font-semibold">Image Information</h3>
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <span className="text-muted-foreground">Dimensions:</span>
                   <p className="font-medium">
-                    {resizeInfo.targetWidth} × {resizeInfo.targetHeight}
+                    {editImage.info.targetWidth} × {editImage.info.targetHeight}
                   </p>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Aspect Ratio:</span>
-                  <p className="font-medium">{resizeInfo.aspectRatio}</p>
+                  <p className="font-medium">{editImage.info.aspectRatio}</p>
                 </div>
               </div>
             </div>
           )}
 
           <div className="flex gap-2">
+            <Link to="/">
+              <Button variant="outline">Back to Home</Button>
+            </Link>
             <Link to="/resize-image">
               <Button variant="outline">Back to Resize</Button>
             </Link>
-            <Button variant="destructive" onClick={clearImages}>
+            <Button variant="destructive" onClick={clearEditImage}>
               Clear Image
             </Button>
           </div>

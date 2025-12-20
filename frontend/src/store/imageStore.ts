@@ -12,49 +12,146 @@ export interface ResizeInfo {
 }
 
 interface ImageState {
-  // Current image being worked on
-  selectedFile: File | null
-  originalImageUrl: string | null
-  resizedImageUrl: string | null
-  resizeInfo: ResizeInfo | null
+  // Home page image
+  homeImage: {
+    file: File | null
+    url: string | null
+  }
 
-  // Actions
-  setSelectedFile: (file: File | null) => void
-  setOriginalImageUrl: (url: string | null) => void
-  setResizedImageUrl: (url: string | null) => void
-  setResizeInfo: (info: ResizeInfo | null) => void
-  clearImages: () => void
+  // Resize page images
+  resizeImage: {
+    originalFile: File | null
+    originalUrl: string | null
+    resizedUrl: string | null
+    resizeInfo: ResizeInfo | null
+  }
+
+  // Edit page image
+  editImage: {
+    url: string | null
+    info: ResizeInfo | null
+  }
+
+  // Home page actions
+  setHomeImage: (file: File | null, url: string | null) => void
+  clearHomeImage: () => void
+
+  // Resize page actions
+  setResizeOriginal: (file: File | null, url: string | null) => void
+  setResizeResult: (url: string | null, info: ResizeInfo | null) => void
+  clearResizeImages: () => void
+
+  // Edit page actions
+  setEditImage: (url: string | null, info: ResizeInfo | null) => void
+  clearEditImage: () => void
+
+  // Transfer actions
+  sendHomeToResize: () => void
+  sendHomeToEdit: () => void
+  sendResizeToEdit: () => void
 }
 
 export const useImageStore = create<ImageState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       // Initial state
-      selectedFile: null,
-      originalImageUrl: null,
-      resizedImageUrl: null,
-      resizeInfo: null,
+      homeImage: {
+        file: null,
+        url: null,
+      },
+      resizeImage: {
+        originalFile: null,
+        originalUrl: null,
+        resizedUrl: null,
+        resizeInfo: null,
+      },
+      editImage: {
+        url: null,
+        info: null,
+      },
 
-      // Actions
-      setSelectedFile: (file) => set({ selectedFile: file }),
-      setOriginalImageUrl: (url) => set({ originalImageUrl: url }),
-      setResizedImageUrl: (url) => set({ resizedImageUrl: url }),
-      setResizeInfo: (info) => set({ resizeInfo: info }),
-      clearImages: () =>
+      // Home page actions
+      setHomeImage: (file, url) =>
         set({
-          selectedFile: null,
-          originalImageUrl: null,
-          resizedImageUrl: null,
-          resizeInfo: null,
+          homeImage: { file, url },
         }),
+      clearHomeImage: () =>
+        set({
+          homeImage: { file: null, url: null },
+        }),
+
+      // Resize page actions
+      setResizeOriginal: (file, url) =>
+        set({
+          resizeImage: { ...get().resizeImage, originalFile: file, originalUrl: url },
+        }),
+      setResizeResult: (url, info) =>
+        set({
+          resizeImage: { ...get().resizeImage, resizedUrl: url, resizeInfo: info },
+        }),
+      clearResizeImages: () =>
+        set({
+          resizeImage: {
+            originalFile: null,
+            originalUrl: null,
+            resizedUrl: null,
+            resizeInfo: null,
+          },
+        }),
+
+      // Edit page actions
+      setEditImage: (url, info) =>
+        set({
+          editImage: { url, info },
+        }),
+      clearEditImage: () =>
+        set({
+          editImage: { url: null, info: null },
+        }),
+
+      // Transfer actions
+      sendHomeToResize: () => {
+        const { homeImage } = get()
+        set({
+          resizeImage: {
+            originalFile: homeImage.file,
+            originalUrl: homeImage.url,
+            resizedUrl: null,
+            resizeInfo: null,
+          },
+        })
+      },
+      sendHomeToEdit: () => {
+        const { homeImage } = get()
+        set({
+          editImage: {
+            url: homeImage.url,
+            info: null,
+          },
+        })
+      },
+      sendResizeToEdit: () => {
+        const { resizeImage } = get()
+        set({
+          editImage: {
+            url: resizeImage.resizedUrl || resizeImage.originalUrl,
+            info: resizeImage.resizeInfo,
+          },
+        })
+      },
     }),
     {
-      name: 'image-store', // unique name for localStorage key
-      // Only persist URLs and info, not the File object (can't serialize)
+      name: 'image-store',
+      // Persist URLs and info, but not File objects
       partialize: (state) => ({
-        originalImageUrl: state.originalImageUrl,
-        resizedImageUrl: state.resizedImageUrl,
-        resizeInfo: state.resizeInfo,
+        homeImage: { file: null, url: state.homeImage.url },
+        resizeImage: {
+          originalFile: null,
+          originalUrl: state.resizeImage.originalUrl,
+          resizedUrl: state.resizeImage.resizedUrl,
+          resizeInfo: state.resizeImage.resizeInfo,
+        },
+        editImage: state.editImage,
       }),
     }
   )

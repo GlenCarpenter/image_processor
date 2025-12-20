@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
 import { Dropzone, DropzoneContent, DropzoneEmptyState } from '@/components/ui/shadcn-io/dropzone'
 import { Button } from '@/components/ui/button'
@@ -6,7 +6,6 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useImageStore } from '@/store/imageStore'
-import { Link } from '@tanstack/react-router'
 
 export const Route = createFileRoute('/resize-image')({
   component: RouteComponent,
@@ -15,17 +14,13 @@ export const Route = createFileRoute('/resize-image')({
 const API_BASE_URL = 'http://localhost:8000/api'
 
 function RouteComponent() {
+  const navigate = useNavigate()
+  
   // Get state from Zustand store
-  const selectedFile = useImageStore((state) => state.selectedFile)
-  const originalImageUrl = useImageStore((state) => state.originalImageUrl)
-  const resizedImageUrl = useImageStore((state) => state.resizedImageUrl)
-  const resizeInfo = useImageStore((state) => state.resizeInfo)
-
-  // Get actions from store
-  const setSelectedFile = useImageStore((state) => state.setSelectedFile)
-  const setOriginalImageUrl = useImageStore((state) => state.setOriginalImageUrl)
-  const setResizedImageUrl = useImageStore((state) => state.setResizedImageUrl)
-  const setResizeInfo = useImageStore((state) => state.setResizeInfo)
+  const resizeImage = useImageStore((state) => state.resizeImage)
+  const setResizeOriginal = useImageStore((state) => state.setResizeOriginal)
+  const setResizeResult = useImageStore((state) => state.setResizeResult)
+  const sendResizeToEdit = useImageStore((state) => state.sendResizeToEdit)
 
   // Local state for UI only
   const [targetSize, setTargetSize] = useState<number>(1024)
@@ -35,19 +30,15 @@ function RouteComponent() {
   const handleFileDrop = (acceptedFiles: File[]) => {
     if (acceptedFiles.length > 0) {
       const file = acceptedFiles[0]
-      setSelectedFile(file)
-      setError(null)
-      setResizedImageUrl(null)
-      setResizeInfo(null)
-
-      // Create preview URL for original image
       const url = URL.createObjectURL(file)
-      setOriginalImageUrl(url)
+      setResizeOriginal(file, url)
+      setResizeResult(null, null)
+      setError(null)
     }
   }
 
   const handleResize = async () => {
-    if (!selectedFile) {
+    if (!resizeImage.originalFile) {
       setError('Please select an image first')
       return
     }
@@ -62,7 +53,7 @@ function RouteComponent() {
 
     try {
       const formData = new FormData()
-      formData.append('file', selectedFile)
+      formData.append('file', resizeImage.originalFile)
       formData.append('size', targetSize.toString())
 
       const response = await fetch(`${API_BASE_URL}/images/resize`, {
@@ -81,10 +72,9 @@ function RouteComponent() {
       if (!data.success) {
         throw new Error('Failed to resize image')
       }
-      console.log(data)
 
-      // Set resize info from response
-      setResizeInfo({
+      // Set resize result in store
+      const info = {
         originalWidth: data.info.original_size.width,
         originalHeight: data.info.original_size.height,
         targetWidth: data.info.target_size.width,
@@ -92,15 +82,9 @@ function RouteComponent() {
         aspectRatio: data.info.ratio_name,
         originalPixels: data.info.original_pixels,
         actualPixels: data.info.actual_pixels,
-      })
-
-      // Clean up old URL if exists
-      if (resizedImageUrl) {
-        URL.revokeObjectURL(resizedImageUrl)
       }
-
-      // Set the base64 image directly
-      setResizedImageUrl(data.image)
+      
+      setResizeResult(data.image, info)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')
     } finally {
@@ -109,14 +93,19 @@ function RouteComponent() {
   }
 
   const handleDownload = () => {
-    if (!resizedImageUrl) return
+    if (!resizeImage.resizedUrl) return
 
     const link = document.createElement('a')
-    link.href = resizedImageUrl
-    link.download = `resized_${selectedFile?.name || 'image.jpg'}`
+    link.href = resizeImage.resizedUrl
+    link.download = `resized_${resizeImage.originalFile?.name || 'image.jpg'}`
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
+  }
+
+  const handleEditClick = () => {
+    sendResizeToEdit()
+    navigate({ to: '/edit' })
   }
 
   const formatNumber = (num: string | number | null | undefined) => {
@@ -143,7 +132,7 @@ function RouteComponent() {
               <Label>Image File</Label>
               <Dropzone
                 accept={{ 'image/*': ['.jpg', '.jpeg', '.png', '.bmp', '.webp', '.tiff'] }}
-                src={selectedFile ? [selectedFile] : undefined}
+                src={resizeImage.originalFile ? [resizeImage.originalFile] : undefined}
                 onDrop={handleFileDrop}
                 className="mt-2"
               >
@@ -169,11 +158,11 @@ function RouteComponent() {
               </p>
             </div>
 
-            {originalImageUrl && (
+            {resizeImage.originalUrl && (
               <div>
                 <Label>Original Image Preview</Label>
                 <img
-                  src={originalImageUrl}
+                  src={resizeImage.originalUrl}
                   alt="Original"
                   className="mt-2 max-h-64 w-full object-contain rounded-md border"
                 />
@@ -182,7 +171,7 @@ function RouteComponent() {
 
             <Button
               onClick={handleResize}
-              disabled={!selectedFile || isResizing}
+              disabled={!resizeImage.originalFile || isResizing}
               className="w-full"
               size="lg"
             >
@@ -204,39 +193,44 @@ function RouteComponent() {
             <CardDescription>Your resized image will appear here</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {resizedImageUrl ? (
+            {resizeImage.resizedUrl ? (
               <>
                 <div>
-                  <img src={resizedImageUrl} alt="Resized" className="w-full rounded-md border" />
+                  <img
+                    src={resizeImage.resizedUrl}
+                    alt="Resized"
+                    className="w-full rounded-md border"
+                  />
                 </div>
-                {resizeInfo && console.log(resizeInfo)}
 
-                {resizeInfo && (
+                {resizeImage.resizeInfo && (
                   <div className="space-y-2 text-sm">
                     <h3 className="font-semibold">Resize Information</h3>
                     <div className="grid grid-cols-2 gap-2">
                       <div>
                         <span className="text-muted-foreground">Original:</span>
                         <p className="font-medium">
-                          {resizeInfo.originalWidth} × {resizeInfo.originalHeight}
+                          {resizeImage.resizeInfo.originalWidth} ×{' '}
+                          {resizeImage.resizeInfo.originalHeight}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {formatNumber(resizeInfo.originalPixels)} pixels
+                          {formatNumber(resizeImage.resizeInfo.originalPixels)} pixels
                         </p>
                       </div>
                       <div>
                         <span className="text-muted-foreground">Resized:</span>
                         <p className="font-medium">
-                          {resizeInfo.targetWidth} × {resizeInfo.targetHeight}
+                          {resizeImage.resizeInfo.targetWidth} ×{' '}
+                          {resizeImage.resizeInfo.targetHeight}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {formatNumber(resizeInfo.actualPixels)} pixels
+                          {formatNumber(resizeImage.resizeInfo.actualPixels)} pixels
                         </p>
                       </div>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Aspect Ratio:</span>
-                      <p className="font-medium">{resizeInfo.aspectRatio}</p>
+                      <p className="font-medium">{resizeImage.resizeInfo.aspectRatio}</p>
                     </div>
                   </div>
                 )}
@@ -245,9 +239,9 @@ function RouteComponent() {
                   <Button onClick={handleDownload} variant="outline" className="flex-1">
                     Download Resized Image
                   </Button>
-                  <Link to="/edit" className="flex-1">
-                    <Button className="w-full">Edit Image</Button>
-                  </Link>
+                  <Button className="flex-1" onClick={handleEditClick}>
+                    Edit Image
+                  </Button>
                 </div>
               </>
             ) : (
