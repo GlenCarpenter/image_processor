@@ -15,10 +15,7 @@ export interface ImageMetadata {
  * @param url - The object URL of the image (optional, will be created if not provided)
  * @returns Promise that resolves with the image metadata
  */
-export const extractImageMetadata = (
-  file: File,
-  url?: string
-): Promise<ImageMetadata> => {
+export const extractImageMetadata = (file: File, url?: string): Promise<ImageMetadata> => {
   return new Promise((resolve, reject) => {
     const imageUrl = url || URL.createObjectURL(file)
     const img = new Image()

@@ -94,12 +94,7 @@ function RouteComponent() {
                     <ImageIcon className="mr-2 h-4 w-4" />
                     Resize Image
                   </Button>
-                  <Button
-                    variant="outline"
-                    className="w-full"
-                    size="lg"
-                    onClick={handleEditClick}
-                  >
+                  <Button variant="outline" className="w-full" size="lg" onClick={handleEditClick}>
                     <Edit className="mr-2 h-4 w-4" />
                     Edit Image
                   </Button>
@@ -112,4 +107,3 @@ function RouteComponent() {
     </div>
   )
 }
-

@@ -118,7 +118,11 @@ function RouteComponent() {
   const handleDelete = async () => {
     if (!selectedJob) return
 
-    if (!confirm(`Are you sure you want to delete "${selectedJob.original_filename}"? This cannot be undone.`)) {
+    if (
+      !confirm(
+        `Are you sure you want to delete "${selectedJob.original_filename}"? This cannot be undone.`
+      )
+    ) {
       return
     }
 
@@ -189,9 +193,7 @@ function RouteComponent() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button onClick={() => navigate({ to: '/resize-image' })}>
-              Resize an Image
-            </Button>
+            <Button onClick={() => navigate({ to: '/resize-image' })}>Resize an Image</Button>
           </CardContent>
         </Card>
       ) : (
@@ -211,9 +213,7 @@ function RouteComponent() {
                   />
                 </div>
                 <div className="p-4 space-y-2">
-                  <h3 className="font-semibold truncate text-sm">
-                    {job.original_filename}
-                  </h3>
+                  <h3 className="font-semibold truncate text-sm">{job.original_filename}</h3>
                   <div className="flex items-center gap-1 text-xs text-muted-foreground">
                     <Ruler className="w-3 h-3" />
                     <span>
@@ -282,8 +282,8 @@ function RouteComponent() {
               </div>
 
               <DialogFooter className="gap-2">
-                <Button 
-                  variant="destructive" 
+                <Button
+                  variant="destructive"
                   onClick={handleDelete}
                   disabled={deleting}
                   className="mr-auto"
@@ -298,9 +298,7 @@ function RouteComponent() {
                   <ImageIcon className="w-4 h-4 mr-2" />
                   Send to Resize
                 </Button>
-                <Button onClick={handleSendToEdit}>
-                  Send to Edit
-                </Button>
+                <Button onClick={handleSendToEdit}>Send to Edit</Button>
               </DialogFooter>
             </>
           )}

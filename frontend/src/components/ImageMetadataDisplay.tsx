@@ -20,9 +20,7 @@ export function ImageMetadataDisplay({ metadata }: ImageMetadataDisplayProps) {
         </div>
         <div>
           <span className="text-muted-foreground">Total Pixels:</span>
-          <p className="font-medium">
-            {(metadata.width * metadata.height).toLocaleString()}
-          </p>
+          <p className="font-medium">{(metadata.width * metadata.height).toLocaleString()}</p>
         </div>
         <div>
           <span className="text-muted-foreground">File Size:</span>

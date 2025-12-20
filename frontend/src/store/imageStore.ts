@@ -39,11 +39,19 @@ interface ImageState {
 
   // Resize page actions
   setResizeOriginal: (file: File | null, url: string | null) => void
-  setResizeResult: (jobId: number | null, outputFilename: string | null, info: ResizeInfo | null) => void
+  setResizeResult: (
+    jobId: number | null,
+    outputFilename: string | null,
+    info: ResizeInfo | null
+  ) => void
   clearResizeImages: () => void
 
   // Edit page actions
-  setEditImage: (jobId: number | null, outputFilename: string | null, info: ResizeInfo | null) => void
+  setEditImage: (
+    jobId: number | null,
+    outputFilename: string | null,
+    info: ResizeInfo | null
+  ) => void
   clearEditImage: () => void
 
   // Transfer actions

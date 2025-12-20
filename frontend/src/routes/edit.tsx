@@ -49,10 +49,10 @@ function RouteComponent() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
-            <img 
-              src={`${API_BASE_URL}/images/output/${editImage.outputFilename}`} 
-              alt="Edit" 
-              className="w-full rounded-md border" 
+            <img
+              src={`${API_BASE_URL}/images/output/${editImage.outputFilename}`}
+              alt="Edit"
+              className="w-full rounded-md border"
             />
           </div>
 
