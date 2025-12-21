@@ -357,6 +357,8 @@ export const useImageStore = create<ImageState>()(
       // Transfer actions - simplified, navigation passes filename via query params
       sendToResize: () => {
         const { homeImage } = get()
+        // Transfer homeImage.file only when navigating from home
+        // Other pages use filename query params and will load from server
         set({
           resizeImage: {
             originalFile: homeImage.file,
@@ -365,6 +367,10 @@ export const useImageStore = create<ImageState>()(
             resizeInfo: null,
           },
         })
+        // Clear home image after transferring to prevent stale data
+        if (homeImage.file) {
+          set({ homeImage: { file: null, url: null } })
+        }
       },
       sendToEdit: () => {
         set({
@@ -383,6 +389,8 @@ export const useImageStore = create<ImageState>()(
       },
       sendToUpscale: () => {
         const { homeImage } = get()
+        // Transfer homeImage.file only when navigating from home
+        // Other pages use filename query params and will load from server
         set({
           upscaleImage: {
             originalFile: homeImage.file,
@@ -395,9 +403,15 @@ export const useImageStore = create<ImageState>()(
             resultMetadata: null,
           },
         })
+        // Clear home image after transferring to prevent stale data
+        if (homeImage.file) {
+          set({ homeImage: { file: null, url: null } })
+        }
       },
       sendToSegment: () => {
         const { homeImage } = get()
+        // Transfer homeImage.file only when navigating from home
+        // Other pages use filename query params and will load from server
         set({
           segmentImage: {
             sessionId: null,
@@ -414,6 +428,10 @@ export const useImageStore = create<ImageState>()(
             error: null,
           },
         })
+        // Clear home image after transferring to prevent stale data
+        if (homeImage.file) {
+          set({ homeImage: { file: null, url: null } })
+        }
       },
     }),
     { name: 'ImageStore' }
