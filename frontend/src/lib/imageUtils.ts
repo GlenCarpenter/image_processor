@@ -183,10 +183,7 @@ export const fetchExifData = async (
  * @param apiBaseUrl - API base URL
  * @returns Promise with prompt string or null
  */
-export const fetchPrompt = async (
-  filename: string,
-  apiBaseUrl: string
-): Promise<string | null> => {
+export const fetchPrompt = async (filename: string, apiBaseUrl: string): Promise<string | null> => {
   try {
     const response = await fetch(`${apiBaseUrl}/images/output/${filename}/exif`)
     if (!response.ok) return null

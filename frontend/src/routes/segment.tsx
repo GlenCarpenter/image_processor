@@ -526,7 +526,13 @@ function RouteComponent() {
                   <div className="mt-2 relative border rounded-md overflow-hidden">
                     <img
                       ref={imageRef}
-                      src={segmentImage.originalFile ? URL.createObjectURL(segmentImage.originalFile) : search.filename ? `${API_BASE_URL}/images/output/${search.filename}` : ''}
+                      src={
+                        segmentImage.originalFile
+                          ? URL.createObjectURL(segmentImage.originalFile)
+                          : search.filename
+                            ? `${API_BASE_URL}/images/output/${search.filename}`
+                            : ''
+                      }
                       alt="Original"
                       className="w-full"
                       style={{ display: 'block' }}

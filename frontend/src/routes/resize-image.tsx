@@ -6,7 +6,13 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useImageStore } from '@/store/imageStore'
-import { extractImageMetadata, fetchExifData, fetchPrompt, fetchImageInfo, type ImageMetadata } from '@/lib/imageUtils'
+import {
+  extractImageMetadata,
+  fetchExifData,
+  fetchPrompt,
+  fetchImageInfo,
+  type ImageMetadata,
+} from '@/lib/imageUtils'
 import { ImageMetadataDisplay } from '@/components/ImageMetadataDisplay'
 import { OutputCard } from '@/components/OutputCard'
 import { API_BASE_URL } from '@/lib/constants'

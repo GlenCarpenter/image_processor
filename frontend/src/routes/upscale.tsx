@@ -248,14 +248,14 @@ function RouteComponent() {
             </div>
 
             {upscaleImage.originalFile && (
-                <div>
-                  <Label>Original Image Preview</Label>
-                  <img
-                    src={URL.createObjectURL(upscaleImage.originalFile)}
-                    alt="Original"
-                    className="mt-2 max-h-64 w-full object-contain rounded-md border"
-                  />
-                </div>
+              <div>
+                <Label>Original Image Preview</Label>
+                <img
+                  src={URL.createObjectURL(upscaleImage.originalFile)}
+                  alt="Original"
+                  className="mt-2 max-h-64 w-full object-contain rounded-md border"
+                />
+              </div>
             )}
 
             <Button

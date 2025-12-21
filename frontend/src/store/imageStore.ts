@@ -263,12 +263,10 @@ export const useImageStore = create<ImageState>()(
         set({
           editImage: { ...get().editImage, jobId, outputFilename, info },
         }),
-      setEditPrompt: (prompt) =>
-        set((state) => ({ editImage: { ...state.editImage, prompt } })),
+      setEditPrompt: (prompt) => set((state) => ({ editImage: { ...state.editImage, prompt } })),
       setEditEditing: (loading) =>
         set((state) => ({ editImage: { ...state.editImage, isEditing: loading } })),
-      setEditError: (error) =>
-        set((state) => ({ editImage: { ...state.editImage, error } })),
+      setEditError: (error) => set((state) => ({ editImage: { ...state.editImage, error } })),
       setEditOriginalMetadata: (metadata) =>
         set((state) => ({ editImage: { ...state.editImage, originalMetadata: metadata } })),
       setEditResultMetadata: (metadata) =>
@@ -293,7 +291,7 @@ export const useImageStore = create<ImageState>()(
             ...get().editImage,
             jobId,
             outputFilename,
-            info: info ? { outputWidth: info.targetWidth, outputHeight: info.targetHeight } : null
+            info: info ? { outputWidth: info.targetWidth, outputHeight: info.targetHeight } : null,
           },
         }),
       clearEditImage: () =>

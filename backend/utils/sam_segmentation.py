@@ -54,8 +54,18 @@ def get_sam_model(model_name: str = "sam2_b.pt") -> SAM:
     """
     if model_name not in _model_cache:
         model_path = MODELS_DIR / model_name
-        print(f"Loading SAM model: {model_path} on {DEVICE}")
-        model = SAM(str(model_path))
+        
+        # If model doesn't exist locally, ultralytics will auto-download it
+        # Just use the model name without .pt extension for auto-download
+        if not model_path.exists():
+            print(f"Model not found at {model_path}")
+            print(f"Ultralytics will auto-download {model_name} to cache...")
+            # Use just the model name (e.g., 'sam2_b.pt') - ultralytics handles download
+            model = SAM(model_name)
+        else:
+            print(f"Loading SAM model from: {model_path} on {DEVICE}")
+            model = SAM(str(model_path))
+        
         # Move model to GPU if available
         if DEVICE == "cuda":
             model.to(DEVICE)

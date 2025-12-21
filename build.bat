@@ -1,8 +1,8 @@
 @echo off
-REM Build and run Segment Markup project
+REM Build Segment Markup project (install requirements and build frontend)
 
 echo Starting build process...
-python build.py %*
+python build.py --no-server %*
 
 if errorlevel 1 (
     echo.
@@ -10,3 +10,9 @@ if errorlevel 1 (
     pause
     exit /b 1
 )
+
+echo.
+echo ✅ Build complete!
+echo.
+echo To start the server, run: dev.bat (development) or Windows_Start_App.bat (production)
+pause

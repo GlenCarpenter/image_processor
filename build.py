@@ -1,5 +1,5 @@
 """
-Build script for Segment Markup project
+Build script for Image Processor project
 Handles frontend build, dependency installation, and server startup
 """
 
@@ -95,19 +95,27 @@ def build_frontend():
 
 
 def install_requirements():
-    """Install Python requirements"""
+    """Install Python requirements using setup_environment.py for CUDA support"""
     print("\n📦 Installing Python Dependencies...")
 
-    requirements_file = Path("requirements.txt")
-    if not requirements_file.exists():
-        print("⚠ requirements.txt not found. Skipping.")
-        return True
+    setup_script = Path("setup_environment.py")
+    if not setup_script.exists():
+        print("⚠ setup_environment.py not found. Falling back to requirements.txt")
+        requirements_file = Path("requirements.txt")
+        if not requirements_file.exists():
+            print("⚠ requirements.txt not found. Skipping.")
+            return True
 
-    # Use the current Python interpreter
-    python_exe = sys.executable
-
-    if not run_command([python_exe, "-m", "pip", "install", "-r", "requirements.txt"]):
-        return False
+        python_exe = sys.executable
+        if not run_command(
+            [python_exe, "-m", "pip", "install", "-r", "requirements.txt"]
+        ):
+            return False
+    else:
+        # Use setup_environment.py for proper CUDA support
+        python_exe = sys.executable
+        if not run_command([python_exe, "setup_environment.py"]):
+            return False
 
     print("\n✅ Python dependencies installed!")
     return True
@@ -148,7 +156,7 @@ def start_server(dev_mode=False):
 
 def main():
     """Main build process"""
-    parser = argparse.ArgumentParser(description="Build and run Segment Markup")
+    parser = argparse.ArgumentParser(description="Build and run Image Processor")
     parser.add_argument(
         "--skip-frontend", action="store_true", help="Skip frontend build"
     )
@@ -168,7 +176,7 @@ def main():
 
     args = parser.parse_args()
 
-    print("🏗️  Segment Markup Build Script")
+    print("Image Processor Build Script")
     print("=" * 60)
 
     # Build frontend

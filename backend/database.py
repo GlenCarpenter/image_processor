@@ -2,6 +2,7 @@
 SQLite Database for tracking image processing jobs
 Simple and easily recreatable database for tracking image operations
 """
+
 import sqlite3
 from pathlib import Path
 from typing import Optional, List, Dict, Any
@@ -31,9 +32,10 @@ def init_db():
     """Initialize the database with required tables"""
     with get_db() as conn:
         cursor = conn.cursor()
-        
+
         # Create image_jobs table
-        cursor.execute("""
+        cursor.execute(
+            """
             CREATE TABLE IF NOT EXISTS image_jobs (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 job_type TEXT NOT NULL,
@@ -60,19 +62,24 @@ def init_db():
                 -- Additional metadata (JSON-serializable)
                 metadata TEXT
             )
-        """)
-        
+        """
+        )
+
         # Create index on created_at for efficient queries
-        cursor.execute("""
+        cursor.execute(
+            """
             CREATE INDEX IF NOT EXISTS idx_created_at 
             ON image_jobs(created_at DESC)
-        """)
-        
+        """
+        )
+
         # Create index on job_type for filtering
-        cursor.execute("""
+        cursor.execute(
+            """
             CREATE INDEX IF NOT EXISTS idx_job_type 
             ON image_jobs(job_type)
-        """)
+        """
+        )
 
 
 def create_job(
@@ -93,25 +100,38 @@ def create_job(
 ) -> int:
     """
     Create a new image job record
-    
+
     Returns:
         int: The ID of the created job
     """
     with get_db() as conn:
         cursor = conn.cursor()
-        cursor.execute("""
+        cursor.execute(
+            """
             INSERT INTO image_jobs (
                 job_type, original_filename, output_filename, output_path,
                 original_width, original_height, original_pixels,
                 output_width, output_height, output_pixels,
                 aspect_ratio, quality, target_pixels, metadata
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            job_type, original_filename, output_filename, output_path,
-            original_width, original_height, original_pixels,
-            output_width, output_height, output_pixels,
-            aspect_ratio, quality, target_pixels, metadata
-        ))
+        """,
+            (
+                job_type,
+                original_filename,
+                output_filename,
+                output_path,
+                original_width,
+                original_height,
+                original_pixels,
+                output_width,
+                output_height,
+                output_pixels,
+                aspect_ratio,
+                quality,
+                target_pixels,
+                metadata,
+            ),
+        )
         return cursor.lastrowid
 
 
@@ -124,41 +144,49 @@ def get_job(job_id: int) -> Optional[Dict[str, Any]]:
         return dict(row) if row else None
 
 
-def get_recent_jobs(limit: int = 50, offset: int = 0, job_type: Optional[str] = None) -> List[Dict[str, Any]]:
+def get_recent_jobs(
+    limit: int = 50, offset: int = 0, job_type: Optional[str] = None
+) -> List[Dict[str, Any]]:
     """
     Get recent jobs, optionally filtered by type
-    
+
     Args:
         limit: Maximum number of jobs to return
         offset: Number of jobs to skip (for pagination)
         job_type: Optional job type filter (e.g., 'resize', 'crop')
-    
+
     Returns:
         List of job dictionaries
     """
     with get_db() as conn:
         cursor = conn.cursor()
         if job_type:
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT * FROM image_jobs 
                 WHERE job_type = ?
                 ORDER BY created_at DESC 
                 LIMIT ? OFFSET ?
-            """, (job_type, limit, offset))
+            """,
+                (job_type, limit, offset),
+            )
         else:
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT * FROM image_jobs 
                 ORDER BY created_at DESC 
                 LIMIT ? OFFSET ?
-            """, (limit, offset))
-        
+            """,
+                (limit, offset),
+            )
+
         return [dict(row) for row in cursor.fetchall()]
 
 
 def delete_job(job_id: int) -> bool:
     """
     Delete a job record
-    
+
     Returns:
         bool: True if job was deleted, False if not found
     """
@@ -171,7 +199,7 @@ def delete_job(job_id: int) -> bool:
 def clear_all_jobs() -> int:
     """
     Clear all job records from the database
-    
+
     Returns:
         int: Number of jobs deleted
     """

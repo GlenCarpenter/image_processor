@@ -66,9 +66,7 @@ export function ImageMetadataDisplay({ metadata }: ImageMetadataDisplayProps) {
 
           <div className="space-y-2 bg-primary/5 p-3 rounded-md border border-primary/20">
             <Label className="text-xs font-medium text-primary">Prompt</Label>
-            <p className="text-sm font-medium break-words whitespace-pre-wrap">
-              {metadata.prompt}
-            </p>
+            <p className="text-sm font-medium break-words whitespace-pre-wrap">{metadata.prompt}</p>
           </div>
         </>
       )}
@@ -83,9 +81,7 @@ export function ImageMetadataDisplay({ metadata }: ImageMetadataDisplayProps) {
 
           {metadata.exif?.other?.AIPrompt && (
             <div className="space-y-2 bg-primary/5 p-3 rounded-md border border-primary/20">
-              <Label className="text-xs font-medium text-primary">
-                AI Generation Prompt
-              </Label>
+              <Label className="text-xs font-medium text-primary">AI Generation Prompt</Label>
               <p className="text-sm font-medium break-words whitespace-pre-wrap">
                 {metadata.exif.other.AIPrompt}
               </p>
@@ -172,7 +168,7 @@ export function ImageMetadataDisplay({ metadata }: ImageMetadataDisplayProps) {
                 const stringValue = String(value)
                 const isLong = typeof value === 'string' && value.length > 200
                 const isExpanded = expandedKeys.has(key)
-                
+
                 return (
                   <div key={key} className="break-words">
                     <span className="text-muted-foreground font-medium">{key}:</span>
