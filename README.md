@@ -176,11 +176,34 @@ Options:
 - FastAPI - Modern Python web framework
 - Uvicorn - ASGI server
 - Pydantic - Data validation
+- SAM2 (Ultralytics) - Interactive image segmentation
+- PyTorch with CUDA - GPU acceleration
 
-**Frontend (Planned):**
+**Frontend:**
 - React - UI library
 - TypeScript - Type safety
 - Vite - Build tool and dev server
+- TanStack Router - Type-safe routing
+- Zustand - State management
+
+## External Services
+
+### Fal AI Integration
+
+The **Upscale** and **Edit** features use the [Fal AI API](https://fal.ai/) for advanced image processing:
+
+- **Upscale Tool**: Uses Fal's image upscaling models to enhance image resolution and quality
+- **Edit Tool**: Uses Fal's Qwen image editing models for AI-powered image modifications based on text prompts
+
+**Setup Required:**
+1. Sign up for a Fal AI account at [fal.ai](https://fal.ai/)
+2. Get your API key from the Fal dashboard
+3. Add your API key to the `.env` file:
+   ```bash
+   FAL_KEY=your_fal_api_key_here
+   ```
+
+**Note:** These features require an active Fal AI subscription and will consume API credits based on usage.
 
 ## License
 
