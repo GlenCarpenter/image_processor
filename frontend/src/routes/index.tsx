@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useImageStore } from '@/store/imageStore'
 import { Edit, ArrowUpCircle, Expand, Scissors } from 'lucide-react'
 import { extractImageMetadata, type ImageMetadata } from '@/lib/imageUtils'
-import { ImageMetadataDisplay } from '@/components/ImageMetadataDisplay'
+import { ImageMetadataDisplay } from '@/components/image-metadata-display'
 
 export const Route = createFileRoute('/')({
   component: RouteComponent,

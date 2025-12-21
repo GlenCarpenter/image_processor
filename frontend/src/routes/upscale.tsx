@@ -6,8 +6,8 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useImageStore } from '@/store/imageStore'
 import { extractImageMetadata, fetchExifData, fetchPrompt, fetchImageInfo } from '@/lib/imageUtils'
-import { ImageMetadataDisplay } from '@/components/ImageMetadataDisplay'
-import { OutputCard } from '@/components/OutputCard'
+import { ImageMetadataDisplay } from '@/components/image-metadata-display'
+import { OutputCard } from '@/components/output-card'
 import { API_BASE_URL } from '@/lib/constants'
 
 type UpscaleSearch = {

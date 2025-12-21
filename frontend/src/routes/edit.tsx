@@ -7,10 +7,10 @@ import { Textarea } from '@/components/ui/textarea'
 import { Dropzone, DropzoneContent, DropzoneEmptyState } from '@/components/ui/shadcn-io/dropzone'
 import { useEffect } from 'react'
 import { extractImageMetadata, fetchExifData, fetchPrompt, fetchImageInfo } from '@/lib/imageUtils'
-import { ImageMetadataDisplay } from '@/components/ImageMetadataDisplay'
+import { ImageMetadataDisplay } from '@/components/image-metadata-display'
 
 import { API_BASE_URL } from '@/lib/constants'
-import { OutputCard } from '@/components/OutputCard'
+import { OutputCard } from '@/components/output-card'
 
 type EditSearch = {
   filename?: string

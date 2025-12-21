@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/select'
 import { Scissors, Trash2, Undo } from 'lucide-react'
 import { useImageStore } from '@/store/imageStore'
-import { OutputCard } from '@/components/OutputCard'
+import { OutputCard } from '@/components/output-card'
 import { API_BASE_URL, ASPECT_RATIOS } from '@/lib/constants'
 
 type SegmentSearch = {

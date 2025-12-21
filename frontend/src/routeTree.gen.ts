@@ -74,10 +74,23 @@ export interface FileRoutesById {
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/edit' | '/history' | '/resize-image' | '/segment' | '/upscale'
+  fullPaths:
+    | '/'
+    | '/edit'
+    | '/history'
+    | '/resize-image'
+    | '/segment'
+    | '/upscale'
   fileRoutesByTo: FileRoutesByTo
   to: '/' | '/edit' | '/history' | '/resize-image' | '/segment' | '/upscale'
-  id: '__root__' | '/' | '/edit' | '/history' | '/resize-image' | '/segment' | '/upscale'
+  id:
+    | '__root__'
+    | '/'
+    | '/edit'
+    | '/history'
+    | '/resize-image'
+    | '/segment'
+    | '/upscale'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {

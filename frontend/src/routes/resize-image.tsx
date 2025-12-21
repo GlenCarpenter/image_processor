@@ -13,8 +13,8 @@ import {
   fetchImageInfo,
   type ImageMetadata,
 } from '@/lib/imageUtils'
-import { ImageMetadataDisplay } from '@/components/ImageMetadataDisplay'
-import { OutputCard } from '@/components/OutputCard'
+import { ImageMetadataDisplay } from '@/components/image-metadata-display'
+import { OutputCard } from '@/components/output-card'
 import { API_BASE_URL } from '@/lib/constants'
 
 type ResizeSearch = {

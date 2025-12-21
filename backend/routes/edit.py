@@ -110,7 +110,7 @@ async def edit_image(
         if total_pixels > target_pixels:
             # Use resize_image_bytes to downscale
             downscaled_bytes, resize_info = resize_image_bytes(
-                image_bytes, target_size=1024
+                image_bytes, target_pixels=target_pixels
             )
             print(
                 f"Downscaled image from {width}x{height} to {resize_info['target_width']}x{resize_info['target_height']}"
