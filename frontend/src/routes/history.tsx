@@ -329,7 +329,7 @@ function RouteComponent() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button onClick={() => navigate({ to: '/resize-image' })}>Resize an Image</Button>
+            <Button onClick={() => navigate({ to: '/' })}>Do Something Cool</Button>
           </CardContent>
         </Card>
       ) : (

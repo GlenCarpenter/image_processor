@@ -153,27 +153,11 @@ async def resize_image(
         with open(output_path, "wb") as f:
             f.write(resized_bytes)
 
-        # Create database record
-        job_id = create_job(
-            job_type="resize",
-            original_filename=file.filename or "unknown",
-            output_filename=output_filename,
-            output_path=str(output_path),
-            original_width=info["original_size"]["width"],
-            original_height=info["original_size"]["height"],
-            original_pixels=info["original_pixels"],
-            output_width=info["target_size"]["width"],
-            output_height=info["target_size"]["height"],
-            output_pixels=info["actual_pixels"],
-            aspect_ratio=info["ratio_name"],
-            quality=quality,
-            target_pixels=target_pixels,
-        )
+        # No job tracking for synchronous resize operations
 
         # Return job metadata
         return {
             "success": True,
-            "job_id": job_id,
             "output_filename": output_filename,
             "info": info,
         }

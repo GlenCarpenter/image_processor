@@ -3,15 +3,16 @@ Image editing API routes using Fal AI Qwen
 Handles image editing with configurable parameters
 """
 
-from fastapi import APIRouter, UploadFile, File, HTTPException, Form
+from fastapi import APIRouter, UploadFile, File, HTTPException, Form, BackgroundTasks
 from typing import Optional, Literal
 from pathlib import Path
 from datetime import datetime
 import uuid
+import asyncio
 
 from backend.database import create_job
 from backend.utils.fal_upscale import upload_bytes_to_fal, download_from_url
-from backend.utils.fal_edit import edit_image_with_fal
+from backend.utils.fal_edit import submit_edit_image
 from backend.utils.image_processing import resize_image_bytes
 from PIL import Image
 from io import BytesIO
@@ -69,6 +70,14 @@ async def edit_image(
 
     **Returns:** Job metadata with ID to retrieve the edited image
     """
+    # Check if FAL_KEY is configured
+    import os
+    if not os.getenv("FAL_KEY"):
+        raise HTTPException(
+            status_code=500,
+            detail="FAL_KEY not configured. Please set FAL_KEY environment variable in .env file"
+        )
+    
     # Validate file type
     if not file.content_type or not file.content_type.startswith("image/"):
         raise HTTPException(
@@ -113,7 +122,7 @@ async def edit_image(
                 image_bytes, target_pixels=target_pixels
             )
             print(
-                f"Downscaled image from {width}x{height} to {resize_info['target_width']}x{resize_info['target_height']}"
+                f"Downscaled image from {width}x{height} to {resize_info['target_size']['width']}x{resize_info['target_size']['height']}"
             )
             # Use the downscaled version
             image_bytes = downscaled_bytes
@@ -123,11 +132,11 @@ async def edit_image(
         image_url = upload_bytes_to_fal(image_bytes, file.filename)
         print(f"Image uploaded: {image_url}")
 
-        # Call Fal AI edit service
+        # Submit async job to Fal AI
         print(
-            f"Calling Fal AI edit service with prompt: '{prompt}' (guidance: {guidance_scale}, steps: {num_inference_steps})"
+            f"Submitting Fal AI edit job with prompt: '{prompt}' (guidance: {guidance_scale}, steps: {num_inference_steps})"
         )
-        result = edit_image_with_fal(
+        request_id, endpoint = submit_edit_image(
             image_url=image_url,
             prompt=prompt,
             guidance_scale=guidance_scale,
@@ -138,48 +147,39 @@ async def edit_image(
             output_format=output_format,
             num_images=1,
             lora_scale=lora_scale,
-            with_logs=True,
+            webhook_url=None,  # Not supported for local apps
         )
+        print(f"Job submitted with request_id: {request_id}")
 
-        # Get the result image URL
-        result_image_url = result["images"][0]["url"]
-        print(f"Edit completed, result URL: {result_image_url}")
-
-        # Generate output filename
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_filename = f"edited_{timestamp}_{uuid.uuid4().hex[:8]}.{output_format}"
-        output_path = OUTPUTS_DIR / output_filename
-
-        # Download the result
-        print(f"Downloading result to {output_path}")
-        download_from_url(result_image_url, str(output_path))
-
-        # Get output image dimensions
-        output_img = Image.open(output_path)
-        output_width, output_height = output_img.size
-
-        # Create a database job record
+        # Create database job record with pending status
         job_id = create_job(
             job_type="edit",
             original_filename=file.filename or "unknown",
-            output_filename=output_filename,
-            output_path=str(output_path),
-            output_width=output_width,
-            output_height=output_height,
-            output_pixels=output_width * output_height,
-            metadata=f"prompt:{prompt},guidance:{guidance_scale},steps:{num_inference_steps},acceleration:{acceleration},format:{output_format}",
+            fal_request_id=request_id,
+            job_status="pending",
+            original_width=width,
+            original_height=height,
+            original_pixels=total_pixels,
+            metadata=f"prompt:{prompt},guidance:{guidance_scale},steps:{num_inference_steps},acceleration:{acceleration},format:{output_format},endpoint:{endpoint}",
         )
         print(f"Job created with ID: {job_id}")
+
+        # Import and start background polling
+        from backend.routes.upscale import poll_fal_job
+        asyncio.create_task(poll_fal_job(job_id, request_id, endpoint, "edit"))
+        print(f"Started background polling for job {job_id}")
 
         return {
             "success": True,
             "job_id": job_id,
-            "output_filename": output_filename,
-            "output_width": output_width,
-            "output_height": output_height,
-            "message": "Image edited successfully",
+            "request_id": request_id,
+            "status": "pending",
+            "message": "Image edit job submitted successfully. Use /api/jobs/{job_id}/poll to check status.",
         }
 
     except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
         print(f"Error during image editing: {str(e)}")
+        print(f"Full traceback:\n{error_details}")
         raise HTTPException(status_code=500, detail=f"Error editing image: {str(e)}")

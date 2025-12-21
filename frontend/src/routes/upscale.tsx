@@ -1,4 +1,5 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { createFileRoute } from '@tanstack/react-router'
+import { useNavigate } from '@tanstack/react-router'
 import { useEffect } from 'react'
 import { Dropzone, DropzoneContent, DropzoneEmptyState } from '@/components/ui/shadcn-io/dropzone'
 import { Button } from '@/components/ui/button'
@@ -152,33 +153,10 @@ function RouteComponent() {
         throw new Error('Failed to upscale image')
       }
 
-      // Set upscale result in store with job ID and filename
-      const info = {
-        outputWidth: data.info.output_width,
-        outputHeight: data.info.output_height,
-        outputPixels: data.info.output_pixels,
-        fileSize: data.info.file_size,
-        upscaleMode: data.info.upscale_mode,
-        upscaleFactor: data.info.upscale_factor,
-      }
-
-      setUpscaleResult(data.job_id, data.output_filename, info)
-
-      // Extract metadata from upscaled image
-      const imageUrl = `${API_BASE_URL}/images/output/${data.output_filename}`
-      const response2 = await fetch(imageUrl)
-      const blob = await response2.blob()
-      const file = new File([blob], data.output_filename, { type: blob.type })
-
-      extractImageMetadata(file, imageUrl)
-        .then(setUpscaleResultMetadata)
-        .catch((err) => {
-          console.error('Failed to extract result metadata:', err)
-          setUpscaleResultMetadata(null)
-        })
+      // Job will be tracked globally, no local polling needed
+      console.log(`Upscale job submitted: ${data.job_id}`)
     } catch (err) {
       setUpscaleError(err instanceof Error ? err.message : 'An error occurred')
-    } finally {
       setUpscaleUpscaling(false)
     }
   }
@@ -264,8 +242,14 @@ function RouteComponent() {
               className="w-full"
               size="lg"
             >
-              {upscaleImage.isUpscaling ? 'Upscaling...' : 'Upscale Image (2x)'}
+              {upscaleImage.isUpscaling ? 'Upscaling Image...' : 'Upscale Image (2x)'}
             </Button>
+
+            {upscaleImage.isUpscaling && (
+              <div className="text-sm text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950 p-3 rounded-md">
+                Job submitted - you can navigate away and will be notified when complete
+              </div>
+            )}
 
             {upscaleImage.originalMetadata && (
               <ImageMetadataDisplay metadata={upscaleImage.originalMetadata} />

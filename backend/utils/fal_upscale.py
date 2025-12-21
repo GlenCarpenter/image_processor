@@ -6,7 +6,7 @@ Provides reusable functions for interacting with Fal AI's upscaling service
 import os
 import tempfile
 from pathlib import Path
-from typing import Optional, Literal, Dict, Any, Callable
+from typing import Optional, Literal, Dict, Any, Callable, Tuple
 import fal_client
 import requests
 from dotenv import load_dotenv
@@ -47,16 +47,14 @@ def upload_bytes_to_fal(file_bytes: bytes, filename: str) -> str:
     Returns:
         URL of the uploaded file in Fal storage
     """
-    tmp_file = tempfile.NamedTemporaryFile(
-        delete=False, suffix=Path(filename).suffix
-    )
+    tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=Path(filename).suffix)
     tmp_path = tmp_file.name
-    
+
     try:
         tmp_file.write(file_bytes)
         tmp_file.flush()
         tmp_file.close()  # Explicitly close before uploading
-        
+
         # Pass the file path as string, not file handle
         url = fal_client.upload_file(tmp_path)
         return url
@@ -67,6 +65,7 @@ def upload_bytes_to_fal(file_bytes: bytes, filename: str) -> str:
         except PermissionError:
             # On Windows, sometimes there's a delay before file can be deleted
             import time
+
             time.sleep(0.1)
             try:
                 os.unlink(tmp_path)
@@ -88,6 +87,60 @@ def download_from_url(url: str, output_path: str) -> None:
     with open(output_path, "wb") as f:
         for chunk in response.iter_content(chunk_size=8192):
             f.write(chunk)
+
+
+def submit_upscale_image(
+    image_url: str,
+    upscale_mode: Literal["factor", "target"] = "factor",
+    upscale_factor: float = 2.0,
+    target_resolution: Literal["720p", "1080p", "1440p", "2160p"] = "1080p",
+    noise_scale: float = 0.1,
+    output_format: Literal["png", "jpg", "webp"] = "jpg",
+    seed: Optional[int] = None,
+    webhook_url: Optional[str] = None,
+) -> Tuple[str, str]:
+    """
+    Submit an async upscale job to Fal AI
+
+    Args:
+        image_url: URL of the image to upscale (from Fal storage)
+        upscale_mode: 'factor' or 'target'
+        upscale_factor: Upscaling factor (for 'factor' mode)
+        target_resolution: Target resolution (for 'target' mode)
+        noise_scale: Noise scale for generation process
+        output_format: Output image format
+        seed: Optional random seed
+        webhook_url: Optional webhook URL for result notification
+
+    Returns:
+        Tuple of (request_id, endpoint) for later retrieval
+    """
+    # Prepare API arguments
+    arguments = {
+        "image_url": image_url,
+        "upscale_mode": upscale_mode,
+        "noise_scale": noise_scale,
+        "output_format": output_format,
+    }
+
+    if upscale_mode == "factor":
+        arguments["upscale_factor"] = upscale_factor
+    else:
+        arguments["target_resolution"] = target_resolution
+
+    if seed is not None:
+        arguments["seed"] = seed
+
+    endpoint = "fal-ai/seedvr/upscale/image"
+
+    # Submit the job asynchronously
+    handler = fal_client.submit(
+        endpoint,
+        arguments=arguments,
+        webhook_url=webhook_url,
+    )
+
+    return handler.request_id, endpoint
 
 
 def upscale_image_with_fal(

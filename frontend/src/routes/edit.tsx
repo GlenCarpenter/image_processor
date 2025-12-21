@@ -1,11 +1,11 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { useImageStore } from '@/store/imageStore'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { useEffect } from 'react'
+import { Dropzone, DropzoneContent, DropzoneEmptyState } from '@/components/ui/shadcn-io/dropzone'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Dropzone, DropzoneContent, DropzoneEmptyState } from '@/components/ui/shadcn-io/dropzone'
-import { useEffect } from 'react'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { useImageStore } from '@/store/imageStore'
 import { extractImageMetadata, fetchExifData, fetchPrompt, fetchImageInfo } from '@/lib/imageUtils'
 import { ImageMetadataDisplay } from '@/components/image-metadata-display'
 
@@ -162,29 +162,10 @@ function RouteComponent() {
         throw new Error('Failed to edit image')
       }
 
-      // Set edit result in store with job ID and filename
-      const info = {
-        outputWidth: data.output_width,
-        outputHeight: data.output_height,
-      }
-
-      setEditResult(data.job_id, data.output_filename, info)
-
-      // Extract metadata from edited image
-      const imageUrl = `${API_BASE_URL}/images/output/${data.output_filename}`
-      const response2 = await fetch(imageUrl)
-      const blob = await response2.blob()
-      const file = new File([blob], data.output_filename, { type: blob.type })
-
-      extractImageMetadata(file, imageUrl)
-        .then(setEditResultMetadata)
-        .catch((err) => {
-          console.error('Failed to extract result metadata:', err)
-          setEditResultMetadata(null)
-        })
+      // Job will be tracked globally, no local polling needed
+      console.log(`Edit job submitted: ${data.job_id}`)
     } catch (err) {
       setEditError(err instanceof Error ? err.message : 'An error occurred')
-    } finally {
       setEditEditing(false)
     }
   }
@@ -282,8 +263,14 @@ function RouteComponent() {
                   className="w-full"
                   size="lg"
                 >
-                  {editImage.isEditing ? 'Editing...' : 'Edit Image'}
+                  {editImage.isEditing ? 'Editing Image...' : 'Edit Image'}
                 </Button>
+
+                {editImage.isEditing && (
+                  <div className="text-sm text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950 p-3 rounded-md">
+                    Job submitted - you can navigate away and will be notified when complete
+                  </div>
+                )}
 
                 {editImage.originalMetadata && (
                   <ImageMetadataDisplay metadata={editImage.originalMetadata} />

@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as UpscaleRouteImport } from './routes/upscale'
 import { Route as SegmentRouteImport } from './routes/segment'
 import { Route as ResizeImageRouteImport } from './routes/resize-image'
+import { Route as JobsRouteImport } from './routes/jobs'
 import { Route as HistoryRouteImport } from './routes/history'
 import { Route as EditRouteImport } from './routes/edit'
 import { Route as IndexRouteImport } from './routes/index'
@@ -29,6 +30,11 @@ const SegmentRoute = SegmentRouteImport.update({
 const ResizeImageRoute = ResizeImageRouteImport.update({
   id: '/resize-image',
   path: '/resize-image',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const JobsRoute = JobsRouteImport.update({
+  id: '/jobs',
+  path: '/jobs',
   getParentRoute: () => rootRouteImport,
 } as any)
 const HistoryRoute = HistoryRouteImport.update({
@@ -51,6 +57,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/edit': typeof EditRoute
   '/history': typeof HistoryRoute
+  '/jobs': typeof JobsRoute
   '/resize-image': typeof ResizeImageRoute
   '/segment': typeof SegmentRoute
   '/upscale': typeof UpscaleRoute
@@ -59,6 +66,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/edit': typeof EditRoute
   '/history': typeof HistoryRoute
+  '/jobs': typeof JobsRoute
   '/resize-image': typeof ResizeImageRoute
   '/segment': typeof SegmentRoute
   '/upscale': typeof UpscaleRoute
@@ -68,6 +76,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/edit': typeof EditRoute
   '/history': typeof HistoryRoute
+  '/jobs': typeof JobsRoute
   '/resize-image': typeof ResizeImageRoute
   '/segment': typeof SegmentRoute
   '/upscale': typeof UpscaleRoute
@@ -78,16 +87,25 @@ export interface FileRouteTypes {
     | '/'
     | '/edit'
     | '/history'
+    | '/jobs'
     | '/resize-image'
     | '/segment'
     | '/upscale'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/edit' | '/history' | '/resize-image' | '/segment' | '/upscale'
+  to:
+    | '/'
+    | '/edit'
+    | '/history'
+    | '/jobs'
+    | '/resize-image'
+    | '/segment'
+    | '/upscale'
   id:
     | '__root__'
     | '/'
     | '/edit'
     | '/history'
+    | '/jobs'
     | '/resize-image'
     | '/segment'
     | '/upscale'
@@ -97,6 +115,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   EditRoute: typeof EditRoute
   HistoryRoute: typeof HistoryRoute
+  JobsRoute: typeof JobsRoute
   ResizeImageRoute: typeof ResizeImageRoute
   SegmentRoute: typeof SegmentRoute
   UpscaleRoute: typeof UpscaleRoute
@@ -123,6 +142,13 @@ declare module '@tanstack/react-router' {
       path: '/resize-image'
       fullPath: '/resize-image'
       preLoaderRoute: typeof ResizeImageRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/jobs': {
+      id: '/jobs'
+      path: '/jobs'
+      fullPath: '/jobs'
+      preLoaderRoute: typeof JobsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/history': {
@@ -153,6 +179,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   EditRoute: EditRoute,
   HistoryRoute: HistoryRoute,
+  JobsRoute: JobsRoute,
   ResizeImageRoute: ResizeImageRoute,
   SegmentRoute: SegmentRoute,
   UpscaleRoute: UpscaleRoute,

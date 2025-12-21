@@ -202,17 +202,7 @@ async def crop_to_selection(
         # Get file size
         output_size = output_path.stat().st_size
 
-        # Create database record
-        job_id = create_job(
-            job_type="segment",
-            original_filename=session_id,
-            output_filename=output_filename,
-            output_path=str(output_path),
-            output_width=info["final_size"]["width"],
-            output_height=info["final_size"]["height"],
-            output_pixels=info["final_size"]["width"] * info["final_size"]["height"],
-            metadata=f"padding:{padding}%,aspect_ratio:{aspect_ratio or 'auto'}",
-        )
+        # No job tracking for synchronous segment operations
 
         # Clean up temp file
         try:
@@ -226,7 +216,6 @@ async def crop_to_selection(
 
         return {
             "success": True,
-            "job_id": job_id,
             "output_filename": output_filename,
             "info": {
                 **info,
@@ -312,21 +301,10 @@ async def remove_background_endpoint(
         output_size = output_path.stat().st_size
         result_img = Image.open(BytesIO(result_bytes))
 
-        # Create database record
-        job_id = create_job(
-            job_type="remove_background",
-            original_filename=session_id,
-            output_filename=output_filename,
-            output_path=str(output_path),
-            output_width=result_img.width,
-            output_height=result_img.height,
-            output_pixels=result_img.width * result_img.height,
-            metadata="mask-based background removal",
-        )
+        # No job tracking for synchronous remove background operations
 
         return {
             "success": True,
-            "job_id": job_id,
             "output_filename": output_filename,
             "info": {
                 "width": result_img.width,

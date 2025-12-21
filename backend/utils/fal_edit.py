@@ -4,7 +4,7 @@ Provides reusable functions for interacting with Fal AI's image editing service
 """
 
 import os
-from typing import Optional, Literal, Dict, Any, Callable
+from typing import Optional, Literal, Dict, Any, Callable, Tuple
 import fal_client
 from dotenv import load_dotenv
 
@@ -15,6 +15,64 @@ load_dotenv()
 FAL_KEY = os.getenv("FAL_KEY")
 if FAL_KEY:
     os.environ["FAL_KEY"] = FAL_KEY
+
+
+def submit_edit_image(
+    image_url: str,
+    prompt: str = "Remove all text from the image",
+    guidance_scale: float = 1.0,
+    num_inference_steps: int = 6,
+    acceleration: Literal["regular", "fast"] = "regular",
+    negative_prompt: str = " ",
+    enable_safety_checker: bool = False,
+    output_format: Literal["png", "jpg", "webp"] = "png",
+    num_images: int = 1,
+    lora_scale: float = 1.0,
+    webhook_url: Optional[str] = None,
+) -> Tuple[str, str]:
+    """
+    Submit an async image edit job to Fal AI
+    
+    Args:
+        image_url: URL of the image to edit (from Fal storage)
+        prompt: Editing instruction
+        guidance_scale: How closely to follow the prompt
+        num_inference_steps: Number of denoising steps
+        acceleration: Generation speed mode
+        negative_prompt: What to avoid in the output
+        enable_safety_checker: Whether to enable safety filtering
+        output_format: Output image format
+        num_images: Number of images to generate
+        lora_scale: LoRA strength
+        webhook_url: Optional webhook URL for result notification
+    
+    Returns:
+        Tuple of (request_id, endpoint) for later retrieval
+    """
+    # Prepare API arguments
+    arguments = {
+        "image_urls": [image_url],
+        "prompt": prompt,
+        "guidance_scale": guidance_scale,
+        "num_inference_steps": num_inference_steps,
+        "acceleration": acceleration,
+        "negative_prompt": negative_prompt,
+        "enable_safety_checker": enable_safety_checker,
+        "output_format": output_format,
+        "num_images": num_images,
+        "lora_scale": lora_scale,
+    }
+    
+    endpoint = "fal-ai/qwen-image-edit-plus-lora-gallery/remove-element"
+    
+    # Submit the job asynchronously
+    handler = fal_client.submit(
+        endpoint,
+        arguments=arguments,
+        webhook_url=webhook_url,
+    )
+    
+    return handler.request_id, endpoint
 
 
 def edit_image_with_fal(
@@ -32,7 +90,7 @@ def edit_image_with_fal(
     on_queue_update: Optional[Callable] = None,
 ) -> Dict[str, Any]:
     """
-    Call Fal AI Qwen image edit API with the given parameters
+    Call Fal AI Qwen image edit API with the given parameters (synchronous)
 
     Args:
         image_url: URL of the image to edit (from Fal storage)

@@ -40,9 +40,15 @@ def init_db():
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 job_type TEXT NOT NULL,
                 original_filename TEXT NOT NULL,
-                output_filename TEXT NOT NULL,
-                output_path TEXT NOT NULL,
+                output_filename TEXT,
+                output_path TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                
+                -- Async job tracking
+                fal_request_id TEXT,
+                job_status TEXT DEFAULT 'pending',
+                error_message TEXT,
                 
                 -- Original image info
                 original_width INTEGER,
@@ -80,13 +86,31 @@ def init_db():
             ON image_jobs(job_type)
         """
         )
+        
+        # Create index on fal_request_id for webhook lookups
+        cursor.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_fal_request_id 
+            ON image_jobs(fal_request_id)
+        """
+        )
+        
+        # Create index on job_status for filtering active jobs
+        cursor.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_job_status 
+            ON image_jobs(job_status)
+        """
+        )
 
 
 def create_job(
     job_type: str,
     original_filename: str,
-    output_filename: str,
-    output_path: str,
+    output_filename: Optional[str] = None,
+    output_path: Optional[str] = None,
+    fal_request_id: Optional[str] = None,
+    job_status: str = "pending",
     original_width: Optional[int] = None,
     original_height: Optional[int] = None,
     original_pixels: Optional[int] = None,
@@ -110,16 +134,19 @@ def create_job(
             """
             INSERT INTO image_jobs (
                 job_type, original_filename, output_filename, output_path,
+                fal_request_id, job_status,
                 original_width, original_height, original_pixels,
                 output_width, output_height, output_pixels,
                 aspect_ratio, quality, target_pixels, metadata
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
             (
                 job_type,
                 original_filename,
                 output_filename,
                 output_path,
+                fal_request_id,
+                job_status,
                 original_width,
                 original_height,
                 original_pixels,
@@ -207,6 +234,83 @@ def clear_all_jobs() -> int:
         cursor = conn.cursor()
         cursor.execute("DELETE FROM image_jobs")
         return cursor.rowcount
+
+
+def update_job_status(
+    job_id: int,
+    job_status: str,
+    output_filename: Optional[str] = None,
+    output_path: Optional[str] = None,
+    output_width: Optional[int] = None,
+    output_height: Optional[int] = None,
+    output_pixels: Optional[int] = None,
+    error_message: Optional[str] = None,
+) -> bool:
+    """
+    Update job status and optionally output information
+    
+    Returns:
+        bool: True if job was updated, False if not found
+    """
+    with get_db() as conn:
+        cursor = conn.cursor()
+        
+        # Build dynamic update query based on provided parameters
+        updates = ["job_status = ?", "updated_at = CURRENT_TIMESTAMP"]
+        params = [job_status]
+        
+        if output_filename is not None:
+            updates.append("output_filename = ?")
+            params.append(output_filename)
+        
+        if output_path is not None:
+            updates.append("output_path = ?")
+            params.append(output_path)
+        
+        if output_width is not None:
+            updates.append("output_width = ?")
+            params.append(output_width)
+        
+        if output_height is not None:
+            updates.append("output_height = ?")
+            params.append(output_height)
+        
+        if output_pixels is not None:
+            updates.append("output_pixels = ?")
+            params.append(output_pixels)
+        
+        if error_message is not None:
+            updates.append("error_message = ?")
+            params.append(error_message)
+        
+        params.append(job_id)
+        
+        query = f"UPDATE image_jobs SET {', '.join(updates)} WHERE id = ?"
+        cursor.execute(query, params)
+        return cursor.rowcount > 0
+
+
+def get_job_by_request_id(request_id: str) -> Optional[Dict[str, Any]]:
+    """Get a job by its Fal request ID"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM image_jobs WHERE fal_request_id = ?", (request_id,))
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+
+def get_active_jobs() -> List[Dict[str, Any]]:
+    """Get all jobs that are pending or processing"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT * FROM image_jobs 
+            WHERE job_status IN ('pending', 'processing', 'queued')
+            ORDER BY created_at DESC
+            """
+        )
+        return [dict(row) for row in cursor.fetchall()]
 
 
 def destroy_db():
