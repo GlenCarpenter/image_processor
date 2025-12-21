@@ -57,6 +57,7 @@ function RouteComponent() {
   const sendToUpscale = useImageStore((state) => state.sendToUpscale)
   const sendToResize = useImageStore((state) => state.sendToResize)
   const sendToSegment = useImageStore((state) => state.sendToSegment)
+  const sendToEdit = useImageStore((state) => state.sendToEdit)
 
   // Local refs only (not persisted)
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -451,8 +452,9 @@ function RouteComponent() {
   }
 
   const handleEdit = () => {
-    // Edit functionality can be implemented here if needed
-    console.log('Edit clicked')
+    if (!segmentImage.croppedFilename) return
+    sendToEdit()
+    navigate({ to: '/edit', search: { filename: segmentImage.croppedFilename } })
   }
 
   const handleNewSegmentation = () => {
