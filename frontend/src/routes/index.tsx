@@ -7,6 +7,7 @@ import { useImageStore } from '@/store/imageStore'
 import { Edit, ArrowUpCircle, Expand, Scissors } from 'lucide-react'
 import { extractImageMetadata, type ImageMetadata } from '@/lib/imageUtils'
 import { ImageMetadataDisplay } from '@/components/image-metadata-display'
+import { API_BASE_URL } from '@/lib/constants'
 
 export const Route = createFileRoute('/')({
   component: RouteComponent,
@@ -31,7 +32,34 @@ function RouteComponent() {
 
       // Extract image metadata
       extractImageMetadata(file, url)
-        .then(setMetadata)
+        .then(async (metadata) => {
+          // Upload file temporarily to extract EXIF data, prompt, and image info
+          const formData = new FormData()
+          formData.append('file', file)
+
+          try {
+            const response = await fetch(`${API_BASE_URL}/images/upload-temp`, {
+              method: 'POST',
+              body: formData,
+            })
+
+            if (response.ok) {
+              const data = await response.json()
+              setMetadata({
+                ...metadata,
+                exif: data.has_exif ? data.exif : undefined,
+                prompt: data.has_prompt ? data.prompt : undefined,
+                imageInfo: data.has_image_info ? data.image_info : undefined,
+              })
+              return
+            }
+          } catch (err) {
+            console.error('Failed to fetch EXIF/prompt data:', err)
+          }
+
+          // If EXIF/prompt fetch fails, set metadata without them
+          setMetadata(metadata)
+        })
         .catch((err) => {
           console.error('Failed to extract image metadata:', err)
           setMetadata(null)
@@ -90,8 +118,6 @@ function RouteComponent() {
                 />
               </div>
 
-              {metadata && <ImageMetadataDisplay metadata={metadata} />}
-
               <div className="space-y-2">
                 <p className="text-sm font-medium">What would you like to do?</p>
                 <div className="grid grid-cols-2 gap-4">
@@ -128,6 +154,8 @@ function RouteComponent() {
                   </Button>
                 </div>
               </div>
+
+              {metadata && <ImageMetadataDisplay metadata={metadata} />}
             </>
           )}
         </CardContent>
