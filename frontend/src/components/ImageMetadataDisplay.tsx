@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Label } from '@/components/ui/label'
 import {
   formatFileSize,
@@ -14,6 +15,20 @@ interface ImageMetadataDisplayProps {
 export function ImageMetadataDisplay({ metadata }: ImageMetadataDisplayProps) {
   const hasExif = metadata.exif && Object.keys(metadata.exif).length > 0
   const hasPrompt = !!metadata.prompt
+  const hasImageInfo = !!metadata.imageInfo && Object.keys(metadata.imageInfo).length > 0
+  const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set())
+
+  const toggleExpanded = (key: string) => {
+    setExpandedKeys((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) {
+        next.delete(key)
+      } else {
+        next.add(key)
+      }
+      return next
+    })
+  }
 
   return (
     <div className="bg-muted/50 p-3 rounded-md space-y-3">
@@ -140,6 +155,57 @@ export function ImageMetadataDisplay({ metadata }: ImageMetadataDisplayProps) {
               </div>
             </div>
           )}
+        </>
+      )}
+
+      {hasImageInfo && (
+        <>
+          <div className="border-t border-border pt-3">
+            <Label className="text-xs font-semibold uppercase text-muted-foreground">
+              Image Info (PNG Metadata)
+            </Label>
+          </div>
+
+          <div className="space-y-2 bg-muted/30 p-3 rounded-md">
+            <div className="grid grid-cols-1 gap-2 text-sm">
+              {Object.entries(metadata.imageInfo!).map(([key, value]) => {
+                const stringValue = String(value)
+                const isLong = typeof value === 'string' && value.length > 200
+                const isExpanded = expandedKeys.has(key)
+                
+                return (
+                  <div key={key} className="break-words">
+                    <span className="text-muted-foreground font-medium">{key}:</span>
+                    <p className="font-mono text-xs mt-1 whitespace-pre-wrap">
+                      {isLong && !isExpanded ? (
+                        <>
+                          {value.substring(0, 200)}
+                          <button
+                            onClick={() => toggleExpanded(key)}
+                            className="text-primary hover:underline ml-1"
+                          >
+                            ... (click to expand)
+                          </button>
+                        </>
+                      ) : isLong && isExpanded ? (
+                        <>
+                          {value}
+                          <button
+                            onClick={() => toggleExpanded(key)}
+                            className="text-primary hover:underline ml-1 block mt-1"
+                          >
+                            (click to collapse)
+                          </button>
+                        </>
+                      ) : (
+                        stringValue
+                      )}
+                    </p>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
         </>
       )}
     </div>

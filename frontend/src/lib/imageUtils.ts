@@ -18,6 +18,7 @@ export interface ImageMetadata {
   type: string
   exif?: ExifData
   prompt?: string
+  imageInfo?: Record<string, any>
 }
 
 /**
@@ -194,6 +195,28 @@ export const fetchPrompt = async (
     return data.has_prompt ? data.prompt : null
   } catch (error) {
     console.error('Failed to fetch prompt:', error)
+    return null
+  }
+}
+
+/**
+ * Fetch image info metadata from backend for an output image
+ * @param filename - Output filename
+ * @param apiBaseUrl - API base URL
+ * @returns Promise with image info object or null
+ */
+export const fetchImageInfo = async (
+  filename: string,
+  apiBaseUrl: string
+): Promise<Record<string, any> | null> => {
+  try {
+    const response = await fetch(`${apiBaseUrl}/images/output/${filename}/exif`)
+    if (!response.ok) return null
+
+    const data = await response.json()
+    return data.has_image_info ? data.image_info : null
+  } catch (error) {
+    console.error('Failed to fetch image info:', error)
     return null
   }
 }

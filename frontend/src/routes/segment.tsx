@@ -54,9 +54,9 @@ function RouteComponent() {
   const setSegmentPredicting = useImageStore((state) => state.setSegmentPredicting)
   const setSegmentCropping = useImageStore((state) => state.setSegmentCropping)
   const setSegmentError = useImageStore((state) => state.setSegmentError)
-  const sendSegmentToUpscale = useImageStore((state) => state.sendSegmentToUpscale)
-  const sendSegmentToResize = useImageStore((state) => state.sendSegmentToResize)
-  const sendSegmentToSegment = useImageStore((state) => state.sendSegmentToSegment)
+  const sendToUpscale = useImageStore((state) => state.sendToUpscale)
+  const sendToResize = useImageStore((state) => state.sendToResize)
+  const sendToSegment = useImageStore((state) => state.sendToSegment)
 
   // Local refs only (not persisted)
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -96,7 +96,7 @@ function RouteComponent() {
         .then((res) => res.blob())
         .then((blob) => {
           const file = new File([blob], search.filename!, { type: blob.type })
-          setSegmentOriginal(file, imageUrl)
+          setSegmentOriginal(file)
           // Upload to get a new session
           const formData = new FormData()
           formData.append('file', file)
@@ -170,7 +170,13 @@ function RouteComponent() {
   }, [segmentImage.croppedFilename, segmentImage.sessionId, setSegmentSessionEnded])
 
   useEffect(() => {
-    if (segmentImage.originalUrl && canvasRef.current && imageRef.current) {
+    const imageUrl = segmentImage.originalFile
+      ? URL.createObjectURL(segmentImage.originalFile)
+      : search.filename
+        ? `${API_BASE_URL}/images/output/${search.filename}`
+        : null
+
+    if (imageUrl && canvasRef.current && imageRef.current) {
       const canvas = canvasRef.current
       const ctx = canvas.getContext('2d')
       const img = imageRef.current
@@ -203,7 +209,7 @@ function RouteComponent() {
         img.onload = redrawCanvas
       }
     }
-  }, [segmentImage.originalUrl, segmentImage.points, segmentImage.maskDataUrl])
+  }, [segmentImage.originalFile, segmentImage.points, segmentImage.maskDataUrl, search.filename])
 
   const drawPoints = (ctx: CanvasRenderingContext2D, img: HTMLImageElement) => {
     const canvas = canvasRef.current
@@ -228,8 +234,7 @@ function RouteComponent() {
   const handleFileDrop = async (acceptedFiles: File[]) => {
     if (acceptedFiles.length > 0) {
       const file = acceptedFiles[0]
-      const url = URL.createObjectURL(file)
-      setSegmentOriginal(file, url)
+      setSegmentOriginal(file)
       setSegmentPoints([])
       setSegmentMask(null)
       setSegmentResult(null)
@@ -429,20 +434,25 @@ function RouteComponent() {
 
   const handleUpscale = () => {
     if (!segmentImage.croppedFilename) return
-    sendSegmentToUpscale()
+    sendToUpscale()
     navigate({ to: '/upscale', search: { filename: segmentImage.croppedFilename } })
   }
 
   const handleResize = () => {
     if (!segmentImage.croppedFilename) return
-    sendSegmentToResize()
+    sendToResize()
     navigate({ to: '/resize-image', search: { filename: segmentImage.croppedFilename } })
   }
 
   const handleSegment = () => {
     if (!segmentImage.croppedFilename) return
-    sendSegmentToSegment()
+    sendToSegment()
     navigate({ to: '/segment', search: { filename: segmentImage.croppedFilename } })
+  }
+
+  const handleEdit = () => {
+    // Edit functionality can be implemented here if needed
+    console.log('Edit clicked')
   }
 
   const handleNewSegmentation = () => {
@@ -509,14 +519,14 @@ function RouteComponent() {
               </Dropzone>
             </div>
 
-            {segmentImage.originalUrl && (
+            {segmentImage.originalFile && (
               <>
                 <div className="relative">
                   <Label>Click on image to segment</Label>
                   <div className="mt-2 relative border rounded-md overflow-hidden">
                     <img
                       ref={imageRef}
-                      src={segmentImage.originalUrl}
+                      src={segmentImage.originalFile ? URL.createObjectURL(segmentImage.originalFile) : search.filename ? `${API_BASE_URL}/images/output/${search.filename}` : ''}
                       alt="Original"
                       className="w-full"
                       style={{ display: 'block' }}
@@ -677,6 +687,7 @@ function RouteComponent() {
           onUpscale={handleUpscale}
           onResize={handleResize}
           onSegment={handleSegment}
+          onEdit={handleEdit}
           onDownload={handleDownload}
         />
       </div>

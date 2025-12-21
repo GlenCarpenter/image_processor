@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useImageStore } from '@/store/imageStore'
-import { extractImageMetadata, fetchExifData, fetchPrompt } from '@/lib/imageUtils'
+import { extractImageMetadata, fetchExifData, fetchPrompt, fetchImageInfo } from '@/lib/imageUtils'
 import { ImageMetadataDisplay } from '@/components/ImageMetadataDisplay'
 import { OutputCard } from '@/components/OutputCard'
 import { API_BASE_URL } from '@/lib/constants'
@@ -35,9 +35,10 @@ function RouteComponent() {
   const setUpscaleError = useImageStore((state) => state.setUpscaleError)
   const setUpscaleOriginalMetadata = useImageStore((state) => state.setUpscaleOriginalMetadata)
   const setUpscaleResultMetadata = useImageStore((state) => state.setUpscaleResultMetadata)
-  const sendUpscaleToUpscale = useImageStore((state) => state.sendUpscaleToUpscale)
-  const sendUpscaleToResize = useImageStore((state) => state.sendUpscaleToResize)
-  const sendUpscaleToSegment = useImageStore((state) => state.sendUpscaleToSegment)
+  const sendToUpscale = useImageStore((state) => state.sendToUpscale)
+  const sendToResize = useImageStore((state) => state.sendToResize)
+  const sendToSegment = useImageStore((state) => state.sendToSegment)
+  const sendToEdit = useImageStore((state) => state.sendToEdit)
 
   // Load image from URL query param on mount
   useEffect(() => {
@@ -48,17 +49,19 @@ function RouteComponent() {
         .then((res) => res.blob())
         .then((blob) => {
           const file = new File([blob], search.filename!, { type: blob.type })
-          setUpscaleOriginal(file, imageUrl)
+          setUpscaleOriginal(file)
 
           extractImageMetadata(file, imageUrl)
             .then(async (metadata) => {
-              // Fetch EXIF data and prompt for the output image
+              // Fetch EXIF data, prompt, and image info for the output image
               const exifData = await fetchExifData(search.filename!, API_BASE_URL)
               const prompt = await fetchPrompt(search.filename!, API_BASE_URL)
+              const imageInfo = await fetchImageInfo(search.filename!, API_BASE_URL)
               setUpscaleOriginalMetadata({
                 ...metadata,
                 exif: exifData || undefined,
                 prompt: prompt || undefined,
+                imageInfo: imageInfo || undefined,
               })
             })
             .catch((err) => console.error('Failed to extract metadata:', err))
@@ -73,13 +76,13 @@ function RouteComponent() {
   const handleFileDrop = (acceptedFiles: File[]) => {
     if (acceptedFiles.length > 0) {
       const file = acceptedFiles[0]
-      const url = URL.createObjectURL(file)
-      setUpscaleOriginal(file, url)
+      setUpscaleOriginal(file)
       setUpscaleResult(null, null, null)
       setUpscaleError(null)
       setUpscaleResultMetadata(null)
 
       // Extract image metadata
+      const url = URL.createObjectURL(file)
       extractImageMetadata(file, url)
         .then(async (metadata) => {
           // Upload file temporarily to extract EXIF data and prompt
@@ -98,6 +101,7 @@ function RouteComponent() {
                 ...metadata,
                 exif: data.has_exif ? data.exif : undefined,
                 prompt: data.has_prompt ? data.prompt : undefined,
+                imageInfo: data.has_image_info ? data.image_info : undefined,
               })
               return
             }
@@ -192,20 +196,26 @@ function RouteComponent() {
 
   const handleUpscaleAgain = () => {
     if (!upscaleImage.outputFilename) return
-    sendUpscaleToUpscale()
+    sendToUpscale()
     navigate({ to: '/upscale', search: { filename: upscaleImage.outputFilename } })
   }
 
   const handleResizeClick = () => {
     if (!upscaleImage.outputFilename) return
-    sendUpscaleToResize()
+    sendToResize()
     navigate({ to: '/resize-image', search: { filename: upscaleImage.outputFilename } })
   }
 
   const handleSegmentClick = () => {
     if (!upscaleImage.outputFilename) return
-    sendUpscaleToSegment()
+    sendToSegment()
     navigate({ to: '/segment', search: { filename: upscaleImage.outputFilename } })
+  }
+
+  const handleEditClick = () => {
+    if (!upscaleImage.outputFilename) return
+    sendToEdit()
+    navigate({ to: '/edit', search: { filename: upscaleImage.outputFilename } })
   }
 
   const formatNumber = (num: string | number | null | undefined) => {
@@ -237,21 +247,15 @@ function RouteComponent() {
               </Dropzone>
             </div>
 
-            {upscaleImage.originalUrl && (
-              <>
+            {upscaleImage.originalFile && (
                 <div>
                   <Label>Original Image Preview</Label>
                   <img
-                    src={upscaleImage.originalUrl}
+                    src={URL.createObjectURL(upscaleImage.originalFile)}
                     alt="Original"
                     className="mt-2 max-h-64 w-full object-contain rounded-md border"
                   />
                 </div>
-
-                {upscaleImage.originalMetadata && (
-                  <ImageMetadataDisplay metadata={upscaleImage.originalMetadata} />
-                )}
-              </>
             )}
 
             <Button
@@ -262,6 +266,10 @@ function RouteComponent() {
             >
               {upscaleImage.isUpscaling ? 'Upscaling...' : 'Upscale Image (2x)'}
             </Button>
+
+            {upscaleImage.originalMetadata && (
+              <ImageMetadataDisplay metadata={upscaleImage.originalMetadata} />
+            )}
 
             {upscaleImage.error && (
               <div className="p-3 bg-destructive/10 text-destructive rounded-md text-sm">
@@ -281,6 +289,7 @@ function RouteComponent() {
           onUpscale={handleUpscaleAgain}
           onResize={handleResizeClick}
           onSegment={handleSegmentClick}
+          onEdit={handleEditClick}
           onDownload={handleDownload}
           additionalInfo={
             <>

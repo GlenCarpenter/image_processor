@@ -1,6 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Download, ArrowBigUpDash, Expand, Scissors } from 'lucide-react'
+import { Download, ArrowBigUpDash, Expand, Scissors, Pencil } from 'lucide-react'
 import { API_BASE_URL } from '@/lib/constants'
 import type { ReactNode } from 'react'
 
@@ -13,6 +13,7 @@ interface OutputCardProps {
   onUpscale: () => void
   onResize: () => void
   onSegment: () => void
+  onEdit: () => void
   onDownload: () => void
   additionalInfo?: ReactNode
 }
@@ -26,6 +27,7 @@ export function OutputCard({
   onUpscale,
   onResize,
   onSegment,
+  onEdit,
   onDownload,
   additionalInfo,
 }: OutputCardProps) {
@@ -49,7 +51,7 @@ export function OutputCard({
             {additionalInfo}
 
             <div className="space-y-2">
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-4 gap-2">
                 <Button onClick={onResize} variant="outline" size="sm">
                   <Expand className="w-4 h-4 mr-1" />
                   Resize
@@ -61,6 +63,10 @@ export function OutputCard({
                 <Button onClick={onSegment} variant="outline" size="sm">
                   <Scissors className="w-4 h-4 mr-1" />
                   Segment
+                </Button>
+                <Button onClick={onEdit} variant="outline" size="sm">
+                  <Pencil className="w-4 h-4 mr-1" />
+                  Edit
                 </Button>
               </div>
               <Button onClick={onDownload} className="w-full">

@@ -16,10 +16,10 @@ function RouteComponent() {
   const navigate = useNavigate()
   const homeImage = useImageStore((state) => state.homeImage)
   const setHomeImage = useImageStore((state) => state.setHomeImage)
-  const sendHomeToResize = useImageStore((state) => state.sendHomeToResize)
-  const sendHomeToEdit = useImageStore((state) => state.sendHomeToEdit)
-  const sendHomeToUpscale = useImageStore((state) => state.sendHomeToUpscale)
-  const sendHomeToSegment = useImageStore((state) => state.sendHomeToSegment)
+  const sendToResize = useImageStore((state) => state.sendToResize)
+  const sendToEdit = useImageStore((state) => state.sendToEdit)
+  const sendToUpscale = useImageStore((state) => state.sendToUpscale)
+  const sendToSegment = useImageStore((state) => state.sendToSegment)
 
   const [metadata, setMetadata] = useState<ImageMetadata | null>(null)
 
@@ -40,22 +40,22 @@ function RouteComponent() {
   }
 
   const handleResizeClick = () => {
-    sendHomeToResize()
+    sendToResize()
     navigate({ to: '/resize-image' })
   }
 
   const handleEditClick = () => {
-    sendHomeToEdit()
+    sendToEdit()
     navigate({ to: '/edit' })
   }
 
   const handleUpscaleClick = () => {
-    sendHomeToUpscale()
+    sendToUpscale()
     navigate({ to: '/upscale' })
   }
 
   const handleSegmentClick = () => {
-    sendHomeToSegment()
+    sendToSegment()
     navigate({ to: '/segment' })
   }
 

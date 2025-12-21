@@ -32,10 +32,10 @@ async def upload_temp_for_exif(
 ):
     """
     Temporarily upload an image to extract EXIF metadata
-    
+
     **Parameters:**
     - **file**: Image file
-    
+
     **Returns:** EXIF metadata
     """
     # Validate file type
@@ -44,33 +44,35 @@ async def upload_temp_for_exif(
             status_code=400,
             detail=f"Invalid file type: {file.content_type}. Must be an image.",
         )
-    
+
     try:
         # Read the uploaded file
         image_bytes = await file.read()
-        
+
         # Generate temporary filename
         temp_id = str(uuid.uuid4())
         temp_path = TEMP_DIR / f"exif_{temp_id}.tmp"
-        
+
         # Save temporarily
         with open(temp_path, "wb") as f:
             f.write(image_bytes)
-        
+
         # Extract EXIF data and prompt
         result = extract_exif_data(str(temp_path))
-        
+
         # Delete the temporary file immediately
         temp_path.unlink()
-        
+
         return {
             "success": True,
             "exif": result.get("exif", {}),
             "prompt": result.get("prompt"),
+            "image_info": result.get("image_info", {}),
             "has_exif": len(result.get("exif", {})) > 0,
-            "has_prompt": result.get("prompt") is not None
+            "has_prompt": result.get("prompt") is not None,
+            "has_image_info": len(result.get("image_info", {})) > 0,
         }
-        
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error extracting EXIF: {str(e)}")
 
@@ -255,7 +257,7 @@ async def get_output_image(filename: str):
             "Access-Control-Allow-Origin": "*",
             "Access-Control-Allow-Methods": "GET, OPTIONS",
             "Access-Control-Allow-Headers": "*",
-        }
+        },
     )
 
 
@@ -263,32 +265,34 @@ async def get_output_image(filename: str):
 async def get_image_exif(filename: str):
     """
     Extract and return EXIF metadata from an output image
-    
+
     **Parameters:**
     - **filename**: The output filename from a previous job
-    
+
     **Returns:** EXIF metadata organized by category
     """
     file_path = OUTPUTS_DIR / filename
-    
+
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="Image not found")
-    
+
     # Security check: ensure the file is within outputs directory
     try:
         file_path.resolve().relative_to(OUTPUTS_DIR.resolve())
     except ValueError:
         raise HTTPException(status_code=403, detail="Access denied")
-    
+
     result = extract_exif_data(str(file_path))
-    
+
     return {
         "success": True,
         "filename": filename,
         "exif": result.get("exif", {}),
         "prompt": result.get("prompt"),
+        "image_info": result.get("image_info", {}),
         "has_exif": len(result.get("exif", {})) > 0,
-        "has_prompt": result.get("prompt") is not None
+        "has_prompt": result.get("prompt") is not None,
+        "has_image_info": len(result.get("image_info", {})) > 0,
     }
 
 
@@ -317,7 +321,7 @@ async def download_output_image(filename: str):
         path=str(file_path),
         media_type="image/jpeg",
         filename=filename,
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 
@@ -340,7 +344,9 @@ async def get_job_info(job_id: int):
 
 
 @router.get("/jobs")
-async def list_recent_jobs(limit: int = 50, offset: int = 0, job_type: Optional[str] = None):
+async def list_recent_jobs(
+    limit: int = 50, offset: int = 0, job_type: Optional[str] = None
+):
     """
     List recent jobs, optionally filtered by type
 
@@ -353,19 +359,19 @@ async def list_recent_jobs(limit: int = 50, offset: int = 0, job_type: Optional[
     """
     if limit < 1 or limit > 200:
         raise HTTPException(status_code=400, detail="Limit must be between 1 and 200")
-    
+
     if offset < 0:
         raise HTTPException(status_code=400, detail="Offset must be non-negative")
 
     jobs = get_recent_jobs(limit=limit, offset=offset, job_type=job_type)
 
     return {
-        "success": True, 
-        "jobs": jobs, 
+        "success": True,
+        "jobs": jobs,
         "count": len(jobs),
         "limit": limit,
         "offset": offset,
-        "has_more": len(jobs) == limit  # If we got a full page, there might be more
+        "has_more": len(jobs) == limit,  # If we got a full page, there might be more
     }
 
 
@@ -406,7 +412,9 @@ async def delete_job_endpoint(job_id: int):
 
 
 @router.post("/batch-download")
-async def batch_download_images(filenames: List[str] = Body(..., description="List of filenames to download")):
+async def batch_download_images(
+    filenames: List[str] = Body(..., description="List of filenames to download")
+):
     """
     Download multiple images as a zip file
 
@@ -417,39 +425,41 @@ async def batch_download_images(filenames: List[str] = Body(..., description="Li
     """
     if not filenames:
         raise HTTPException(status_code=400, detail="No filenames provided")
-    
+
     if len(filenames) > 100:
-        raise HTTPException(status_code=400, detail="Maximum 100 files can be downloaded at once")
+        raise HTTPException(
+            status_code=400, detail="Maximum 100 files can be downloaded at once"
+        )
 
     # Create zip file in memory
     zip_buffer = BytesIO()
-    
-    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
         for filename in filenames:
             file_path = OUTPUTS_DIR / filename
-            
+
             # Security check: ensure the file is within outputs directory
             try:
                 file_path.resolve().relative_to(OUTPUTS_DIR.resolve())
             except ValueError:
                 # Skip files outside outputs directory
                 continue
-            
+
             if file_path.exists():
                 # Add file to zip
                 zip_file.write(file_path, arcname=filename)
-    
+
     # Check if any files were added
     zip_buffer.seek(0)
     if zip_buffer.getbuffer().nbytes == 0:
         raise HTTPException(status_code=404, detail="No valid files found")
-    
+
     # Generate zip filename with timestamp
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     zip_filename = f"images_{timestamp}.zip"
-    
+
     return StreamingResponse(
         zip_buffer,
         media_type="application/zip",
-        headers={"Content-Disposition": f'attachment; filename="{zip_filename}"'}
+        headers={"Content-Disposition": f'attachment; filename="{zip_filename}"'},
     )

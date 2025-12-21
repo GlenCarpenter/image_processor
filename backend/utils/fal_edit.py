@@ -1,0 +1,150 @@
+"""
+Fal AI utilities for image editing using Qwen
+Provides reusable functions for interacting with Fal AI's image editing service
+"""
+
+import os
+from typing import Optional, Literal, Dict, Any, Callable
+import fal_client
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+# Configure Fal API key
+FAL_KEY = os.getenv("FAL_KEY")
+if FAL_KEY:
+    os.environ["FAL_KEY"] = FAL_KEY
+
+
+def edit_image_with_fal(
+    image_url: str,
+    prompt: str = "Remove all text from the image",
+    guidance_scale: float = 1.0,
+    num_inference_steps: int = 6,
+    acceleration: Literal["regular", "fast"] = "regular",
+    negative_prompt: str = " ",
+    enable_safety_checker: bool = False,
+    output_format: Literal["png", "jpg", "webp"] = "png",
+    num_images: int = 1,
+    lora_scale: float = 1.0,
+    with_logs: bool = False,
+    on_queue_update: Optional[Callable] = None,
+) -> Dict[str, Any]:
+    """
+    Call Fal AI Qwen image edit API with the given parameters
+
+    Args:
+        image_url: URL of the image to edit (from Fal storage)
+        prompt: Editing instruction (e.g., "Remove all text from the image")
+        guidance_scale: How closely to follow the prompt (default: 1.0)
+        num_inference_steps: Number of denoising steps (default: 6)
+        acceleration: Generation speed mode (default: "regular")
+        negative_prompt: What to avoid in the output (default: " ")
+        enable_safety_checker: Whether to enable safety filtering (default: False)
+        output_format: Output image format (default: "png")
+        num_images: Number of images to generate (default: 1)
+        lora_scale: LoRA strength (default: 1.0)
+        with_logs: Whether to include logs in the response
+        on_queue_update: Optional callback for queue updates
+
+    Returns:
+        Dictionary containing the result from Fal AI, including image URL
+
+    Raises:
+        Exception: If the API call fails or returns no image URL
+    """
+    # Prepare API arguments
+    arguments = {
+        "image_urls": [image_url],
+        "prompt": prompt,
+        "guidance_scale": guidance_scale,
+        "num_inference_steps": num_inference_steps,
+        "acceleration": acceleration,
+        "negative_prompt": negative_prompt,
+        "enable_safety_checker": enable_safety_checker,
+        "output_format": output_format,
+        "num_images": num_images,
+        "lora_scale": lora_scale,
+    }
+
+    # Call the Fal AI edit API
+    result = fal_client.subscribe(
+        "fal-ai/qwen-image-edit-plus-lora-gallery/remove-element",
+        arguments=arguments,
+        with_logs=with_logs,
+        on_queue_update=on_queue_update,
+    )
+
+    # Validate result
+    if not result or "images" not in result or len(result["images"]) == 0:
+        raise Exception("No images in Fal AI response")
+
+    if "url" not in result["images"][0]:
+        raise Exception("No image URL in Fal AI response")
+
+    return result
+
+
+def edit_image_end_to_end(
+    input_path: str,
+    output_path: str,
+    prompt: str = "Remove all text from the image",
+    guidance_scale: float = 1.0,
+    num_inference_steps: int = 6,
+    acceleration: Literal["regular", "fast"] = "regular",
+    negative_prompt: str = " ",
+    enable_safety_checker: bool = False,
+    output_format: Literal["png", "jpg", "webp"] = "png",
+    num_images: int = 1,
+    lora_scale: float = 1.0,
+    with_logs: bool = False,
+    on_queue_update: Optional[Callable] = None,
+) -> Dict[str, Any]:
+    """
+    Complete editing pipeline: upload -> edit -> download
+
+    Args:
+        input_path: Path to input image file
+        output_path: Path where edited image will be saved
+        prompt: Editing instruction
+        guidance_scale: How closely to follow the prompt
+        num_inference_steps: Number of denoising steps
+        acceleration: Generation speed mode
+        negative_prompt: What to avoid in the output
+        enable_safety_checker: Whether to enable safety filtering
+        output_format: Output format
+        num_images: Number of images to generate
+        lora_scale: LoRA strength
+        with_logs: Whether to show logs
+        on_queue_update: Optional callback for progress updates
+
+    Returns:
+        Dictionary with result information including image URL
+    """
+    from backend.utils.fal_upscale import upload_file_to_fal, download_from_url
+
+    # Upload the input image
+    image_url = upload_file_to_fal(input_path)
+
+    # Edit the image
+    result = edit_image_with_fal(
+        image_url=image_url,
+        prompt=prompt,
+        guidance_scale=guidance_scale,
+        num_inference_steps=num_inference_steps,
+        acceleration=acceleration,
+        negative_prompt=negative_prompt,
+        enable_safety_checker=enable_safety_checker,
+        output_format=output_format,
+        num_images=num_images,
+        lora_scale=lora_scale,
+        with_logs=with_logs,
+        on_queue_update=on_queue_update,
+    )
+
+    # Download the result
+    result_url = result["images"][0]["url"]
+    download_from_url(result_url, output_path)
+
+    return result

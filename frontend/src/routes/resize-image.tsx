@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useImageStore } from '@/store/imageStore'
-import { extractImageMetadata, fetchExifData, fetchPrompt, type ImageMetadata } from '@/lib/imageUtils'
+import { extractImageMetadata, fetchExifData, fetchPrompt, fetchImageInfo, type ImageMetadata } from '@/lib/imageUtils'
 import { ImageMetadataDisplay } from '@/components/ImageMetadataDisplay'
 import { OutputCard } from '@/components/OutputCard'
 import { API_BASE_URL } from '@/lib/constants'
@@ -32,8 +32,9 @@ function RouteComponent() {
   const resizeImage = useImageStore((state) => state.resizeImage)
   const setResizeOriginal = useImageStore((state) => state.setResizeOriginal)
   const setResizeResult = useImageStore((state) => state.setResizeResult)
-  const sendResizeToUpscale = useImageStore((state) => state.sendResizeToUpscale)
-  const sendResizeToSegment = useImageStore((state) => state.sendResizeToSegment)
+  const sendToUpscale = useImageStore((state) => state.sendToUpscale)
+  const sendToSegment = useImageStore((state) => state.sendToSegment)
+  const sendToEdit = useImageStore((state) => state.sendToEdit)
 
   // Local state for UI only
   const [targetSize, setTargetSize] = useState<number>(1024)
@@ -50,17 +51,19 @@ function RouteComponent() {
         .then((res) => res.blob())
         .then((blob) => {
           const file = new File([blob], search.filename!, { type: blob.type })
-          setResizeOriginal(file, imageUrl)
+          setResizeOriginal(file)
 
           extractImageMetadata(file, imageUrl)
             .then(async (metadata) => {
-              // Fetch EXIF data and prompt for the output image
+              // Fetch EXIF data, prompt, and image info for the output image
               const exifData = await fetchExifData(search.filename!, API_BASE_URL)
               const prompt = await fetchPrompt(search.filename!, API_BASE_URL)
+              const imageInfo = await fetchImageInfo(search.filename!, API_BASE_URL)
               setOriginalMetadata({
                 ...metadata,
                 exif: exifData || undefined,
                 prompt: prompt || undefined,
+                imageInfo: imageInfo || undefined,
               })
             })
             .catch((err) => console.error('Failed to extract metadata:', err))
@@ -75,12 +78,12 @@ function RouteComponent() {
   const handleFileDrop = (acceptedFiles: File[]) => {
     if (acceptedFiles.length > 0) {
       const file = acceptedFiles[0]
-      const url = URL.createObjectURL(file)
-      setResizeOriginal(file, url)
+      setResizeOriginal(file)
       setResizeResult(null, null, null)
       setError(null)
 
       // Extract image metadata
+      const url = URL.createObjectURL(file)
       extractImageMetadata(file, url)
         .then(async (metadata) => {
           // Upload file temporarily to extract EXIF data and prompt
@@ -99,6 +102,7 @@ function RouteComponent() {
                 ...metadata,
                 exif: data.has_exif ? data.exif : undefined,
                 prompt: data.has_prompt ? data.prompt : undefined,
+                imageInfo: data.has_image_info ? data.image_info : undefined,
               })
               return
             }
@@ -184,7 +188,7 @@ function RouteComponent() {
 
   const handleUpscaleClick = () => {
     if (!resizeImage.outputFilename) return
-    sendResizeToUpscale()
+    sendToUpscale()
     navigate({ to: '/upscale', search: { filename: resizeImage.outputFilename } })
   }
 
@@ -196,7 +200,7 @@ function RouteComponent() {
       .then((res) => res.blob())
       .then((blob) => {
         const file = new File([blob], resizeImage.outputFilename!, { type: blob.type })
-        setResizeOriginal(file, imageUrl)
+        setResizeOriginal(file)
         setResizeResult(null, null, null)
         extractImageMetadata(file, imageUrl)
           .then(setOriginalMetadata)
@@ -207,8 +211,14 @@ function RouteComponent() {
 
   const handleSegmentClick = () => {
     if (!resizeImage.outputFilename) return
-    sendResizeToSegment()
+    sendToSegment()
     navigate({ to: '/segment', search: { filename: resizeImage.outputFilename } })
+  }
+
+  const handleEditClick = () => {
+    if (!resizeImage.outputFilename) return
+    sendToEdit()
+    navigate({ to: '/edit', search: { filename: resizeImage.outputFilename } })
   }
 
   const formatNumber = (num: string | number | null | undefined) => {
@@ -259,19 +269,15 @@ function RouteComponent() {
               </p>
             </div>
 
-            {resizeImage.originalUrl && (
-              <>
-                <div>
-                  <Label>Original Image Preview</Label>
-                  <img
-                    src={resizeImage.originalUrl}
-                    alt="Original"
-                    className="mt-2 max-h-64 w-full object-contain rounded-md border"
-                  />
-                </div>
-
-                {originalMetadata && <ImageMetadataDisplay metadata={originalMetadata} />}
-              </>
+            {resizeImage.originalFile && (
+              <div>
+                <Label>Original Image Preview</Label>
+                <img
+                  src={URL.createObjectURL(resizeImage.originalFile)}
+                  alt="Original"
+                  className="mt-2 max-h-64 w-full object-contain rounded-md border"
+                />
+              </div>
             )}
 
             <Button
@@ -282,6 +288,7 @@ function RouteComponent() {
             >
               {isResizing ? 'Resizing...' : 'Resize Image'}
             </Button>
+            {originalMetadata && <ImageMetadataDisplay metadata={originalMetadata} />}
 
             {error && (
               <div className="p-3 bg-destructive/10 text-destructive rounded-md text-sm">
@@ -301,6 +308,7 @@ function RouteComponent() {
           onUpscale={handleUpscaleClick}
           onResize={handleResizeAgain}
           onSegment={handleSegmentClick}
+          onEdit={handleEditClick}
           onDownload={handleDownload}
           additionalInfo={
             resizeImage.resizeInfo && (

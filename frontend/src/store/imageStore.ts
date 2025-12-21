@@ -30,7 +30,6 @@ interface ImageState {
   // Resize page images
   resizeImage: {
     originalFile: File | null
-    originalUrl: string | null
     jobId: number | null
     outputFilename: string | null
     resizeInfo: ResizeInfo | null
@@ -39,7 +38,6 @@ interface ImageState {
   // Upscale page images
   upscaleImage: {
     originalFile: File | null
-    originalUrl: string | null
     jobId: number | null
     outputFilename: string | null
     upscaleInfo: UpscaleInfo | null
@@ -51,16 +49,21 @@ interface ImageState {
 
   // Edit page image
   editImage: {
+    originalFile: File | null
     jobId: number | null
     outputFilename: string | null
-    info: ResizeInfo | null
+    info: { outputWidth: number; outputHeight: number } | null
+    prompt: string
+    isEditing: boolean
+    error: string | null
+    originalMetadata: any | null
+    resultMetadata: any | null
   }
 
   // Segment page state
   segmentImage: {
     sessionId: string | null
     originalFile: File | null
-    originalUrl: string | null
     croppedFilename: string | null
     points: Array<{ x: number; y: number; label: number }>
     maskDataUrl: string | null
@@ -78,7 +81,7 @@ interface ImageState {
   clearHomeImage: () => void
 
   // Resize page actions
-  setResizeOriginal: (file: File | null, url: string | null) => void
+  setResizeOriginal: (file: File | null) => void
   setResizeResult: (
     jobId: number | null,
     outputFilename: string | null,
@@ -87,7 +90,7 @@ interface ImageState {
   clearResizeImages: () => void
 
   // Upscale page actions
-  setUpscaleOriginal: (file: File | null, url: string | null) => void
+  setUpscaleOriginal: (file: File | null) => void
   setUpscaleResult: (
     jobId: number | null,
     outputFilename: string | null,
@@ -100,6 +103,18 @@ interface ImageState {
   clearUpscaleImages: () => void
 
   // Edit page actions
+  setEditOriginal: (file: File | null) => void
+  setEditResult: (
+    jobId: number | null,
+    outputFilename: string | null,
+    info: { outputWidth: number; outputHeight: number } | null
+  ) => void
+  setEditPrompt: (prompt: string) => void
+  setEditEditing: (loading: boolean) => void
+  setEditError: (error: string | null) => void
+  setEditOriginalMetadata: (metadata: any) => void
+  setEditResultMetadata: (metadata: any) => void
+  clearEditImages: () => void
   setEditImage: (
     jobId: number | null,
     outputFilename: string | null,
@@ -109,7 +124,7 @@ interface ImageState {
 
   // Segment page actions
   setSegmentSession: (sessionId: string | null) => void
-  setSegmentOriginal: (file: File | null, url: string | null) => void
+  setSegmentOriginal: (file: File | null) => void
   setSegmentResult: (filename: string | null) => void
   setSegmentPoints: (points: Array<{ x: number; y: number; label: number }>) => void
   setSegmentMask: (maskDataUrl: string | null) => void
@@ -122,22 +137,11 @@ interface ImageState {
   setSegmentError: (error: string | null) => void
   clearSegmentImages: () => void
 
-  // Transfer actions
-  sendHomeToResize: () => void
-  sendHomeToEdit: () => void
-  sendHomeToUpscale: () => void
-  sendHomeToSegment: () => void
-  sendResizeToEdit: () => void
-  sendResizeToUpscale: () => void
-  sendResizeToSegment: () => void
-  sendUpscaleToEdit: () => void
-  sendEditToUpscale: () => void
-  sendSegmentToUpscale: () => void
-  sendSegmentToResize: () => void
-  sendUpscaleToUpscale: () => void
-  sendUpscaleToResize: () => void
-  sendUpscaleToSegment: () => void
-  sendSegmentToSegment: () => void
+  // Transfer actions - simplified single functions
+  sendToResize: () => void
+  sendToEdit: () => void
+  sendToUpscale: () => void
+  sendToSegment: () => void
 }
 
 export const useImageStore = create<ImageState>()(
@@ -151,7 +155,6 @@ export const useImageStore = create<ImageState>()(
       segmentImage: {
         sessionId: null,
         originalFile: null,
-        originalUrl: null,
         croppedFilename: null,
         points: [],
         maskDataUrl: null,
@@ -165,14 +168,12 @@ export const useImageStore = create<ImageState>()(
       },
       resizeImage: {
         originalFile: null,
-        originalUrl: null,
         jobId: null,
         outputFilename: null,
         resizeInfo: null,
       },
       upscaleImage: {
         originalFile: null,
-        originalUrl: null,
         jobId: null,
         outputFilename: null,
         upscaleInfo: null,
@@ -182,9 +183,15 @@ export const useImageStore = create<ImageState>()(
         resultMetadata: null,
       },
       editImage: {
+        originalFile: null,
         jobId: null,
         outputFilename: null,
         info: null,
+        prompt: '',
+        isEditing: false,
+        error: null,
+        originalMetadata: null,
+        resultMetadata: null,
       },
 
       // Home page actions
@@ -198,9 +205,9 @@ export const useImageStore = create<ImageState>()(
         }),
 
       // Resize page actions
-      setResizeOriginal: (file, url) =>
+      setResizeOriginal: (file) =>
         set({
-          resizeImage: { ...get().resizeImage, originalFile: file, originalUrl: url },
+          resizeImage: { ...get().resizeImage, originalFile: file },
         }),
       setResizeResult: (jobId, outputFilename, info) =>
         set({
@@ -210,7 +217,6 @@ export const useImageStore = create<ImageState>()(
         set({
           resizeImage: {
             originalFile: null,
-            originalUrl: null,
             jobId: null,
             outputFilename: null,
             resizeInfo: null,
@@ -218,9 +224,9 @@ export const useImageStore = create<ImageState>()(
         }),
 
       // Upscale page actions
-      setUpscaleOriginal: (file, url) =>
+      setUpscaleOriginal: (file) =>
         set({
-          upscaleImage: { ...get().upscaleImage, originalFile: file, originalUrl: url },
+          upscaleImage: { ...get().upscaleImage, originalFile: file },
         }),
       setUpscaleResult: (jobId, outputFilename, info) =>
         set({
@@ -238,7 +244,6 @@ export const useImageStore = create<ImageState>()(
         set({
           upscaleImage: {
             originalFile: null,
-            originalUrl: null,
             jobId: null,
             outputFilename: null,
             upscaleInfo: null,
@@ -250,21 +255,68 @@ export const useImageStore = create<ImageState>()(
         }),
 
       // Edit page actions
+      setEditOriginal: (file) =>
+        set({
+          editImage: { ...get().editImage, originalFile: file },
+        }),
+      setEditResult: (jobId, outputFilename, info) =>
+        set({
+          editImage: { ...get().editImage, jobId, outputFilename, info },
+        }),
+      setEditPrompt: (prompt) =>
+        set((state) => ({ editImage: { ...state.editImage, prompt } })),
+      setEditEditing: (loading) =>
+        set((state) => ({ editImage: { ...state.editImage, isEditing: loading } })),
+      setEditError: (error) =>
+        set((state) => ({ editImage: { ...state.editImage, error } })),
+      setEditOriginalMetadata: (metadata) =>
+        set((state) => ({ editImage: { ...state.editImage, originalMetadata: metadata } })),
+      setEditResultMetadata: (metadata) =>
+        set((state) => ({ editImage: { ...state.editImage, resultMetadata: metadata } })),
+      clearEditImages: () =>
+        set({
+          editImage: {
+            originalFile: null,
+            jobId: null,
+            outputFilename: null,
+            info: null,
+            prompt: '',
+            isEditing: false,
+            error: null,
+            originalMetadata: null,
+            resultMetadata: null,
+          },
+        }),
       setEditImage: (jobId, outputFilename, info) =>
         set({
-          editImage: { jobId, outputFilename, info },
+          editImage: {
+            ...get().editImage,
+            jobId,
+            outputFilename,
+            info: info ? { outputWidth: info.targetWidth, outputHeight: info.targetHeight } : null
+          },
         }),
       clearEditImage: () =>
         set({
-          editImage: { jobId: null, outputFilename: null, info: null },
+          editImage: {
+            originalFile: null,
+            jobId: null,
+            outputFilename: null,
+            info: null,
+            prompt: '',
+            isEditing: false,
+            error: null,
+            originalMetadata: null,
+            resultMetadata: null,
+          },
         }),
 
       // Segment page actions
       setSegmentSession: (sessionId) =>
         set((state) => ({ segmentImage: { ...state.segmentImage, sessionId } })),
-      setSegmentOriginal: (file, url) =>
+      setSegmentOriginal: (file) =>
         set((state) => ({
-          segmentImage: { ...state.segmentImage, originalFile: file, originalUrl: url },
+          segmentImage: { ...state.segmentImage, originalFile: file },
         })),
       setSegmentResult: (filename) =>
         set((state) => ({ segmentImage: { ...state.segmentImage, croppedFilename: filename } })),
@@ -291,7 +343,6 @@ export const useImageStore = create<ImageState>()(
           segmentImage: {
             sessionId: null,
             originalFile: null,
-            originalUrl: null,
             croppedFilename: null,
             points: [],
             maskDataUrl: null,
@@ -305,34 +356,38 @@ export const useImageStore = create<ImageState>()(
           },
         }),
 
-      // Transfer actions
-      sendHomeToResize: () => {
+      // Transfer actions - simplified, navigation passes filename via query params
+      sendToResize: () => {
         const { homeImage } = get()
         set({
           resizeImage: {
             originalFile: homeImage.file,
-            originalUrl: homeImage.url,
             jobId: null,
             outputFilename: null,
             resizeInfo: null,
           },
         })
       },
-      sendHomeToEdit: () => {
+      sendToEdit: () => {
         set({
           editImage: {
+            originalFile: null,
             jobId: null,
             outputFilename: null,
             info: null,
+            prompt: '',
+            isEditing: false,
+            error: null,
+            originalMetadata: null,
+            resultMetadata: null,
           },
         })
       },
-      sendHomeToUpscale: () => {
+      sendToUpscale: () => {
         const { homeImage } = get()
         set({
           upscaleImage: {
             originalFile: homeImage.file,
-            originalUrl: homeImage.url,
             jobId: null,
             outputFilename: null,
             upscaleInfo: null,
@@ -343,197 +398,12 @@ export const useImageStore = create<ImageState>()(
           },
         })
       },
-      sendHomeToSegment: () => {
+      sendToSegment: () => {
         const { homeImage } = get()
         set({
           segmentImage: {
             sessionId: null,
             originalFile: homeImage.file,
-            originalUrl: homeImage.url,
-            croppedFilename: null,
-            points: [],
-            maskDataUrl: null,
-            padding: 10,
-            aspectRatio: 'None',
-            sessionEnded: false,
-            isUploading: false,
-            isPredicting: false,
-            isCropping: false,
-            error: null,
-          },
-        })
-      },
-      sendResizeToEdit: () => {
-        const { resizeImage } = get()
-        set({
-          editImage: {
-            jobId: resizeImage.jobId,
-            outputFilename: resizeImage.outputFilename,
-            info: resizeImage.resizeInfo,
-          },
-        })
-      },
-      sendResizeToUpscale: () => {
-        const { resizeImage } = get()
-        set({
-          upscaleImage: {
-            originalFile: null,
-            originalUrl: resizeImage.outputFilename
-              ? `http://localhost:8000/api/images/output/${resizeImage.outputFilename}`
-              : null,
-            jobId: null,
-            outputFilename: null,
-            upscaleInfo: null,
-            isUpscaling: false,
-            error: null,
-            originalMetadata: null,
-            resultMetadata: null,
-          },
-        })
-      },
-      sendResizeToSegment: () => {
-        const { resizeImage } = get()
-        set({
-          segmentImage: {
-            sessionId: null,
-            originalFile: null,
-            originalUrl: resizeImage.outputFilename
-              ? `http://localhost:8000/api/images/output/${resizeImage.outputFilename}`
-              : null,
-            croppedFilename: null,
-            points: [],
-            maskDataUrl: null,
-            padding: 10,
-            aspectRatio: 'None',
-            sessionEnded: false,
-            isUploading: false,
-            isPredicting: false,
-            isCropping: false,
-            error: null,
-          },
-        })
-      },
-      sendUpscaleToEdit: () => {
-        const { upscaleImage } = get()
-        set({
-          editImage: {
-            jobId: upscaleImage.jobId,
-            outputFilename: upscaleImage.outputFilename,
-            info: null, // Upscale info structure is different
-          },
-        })
-      },
-      sendEditToUpscale: () => {
-        const { editImage } = get()
-        set({
-          upscaleImage: {
-            originalFile: null,
-            originalUrl: null,
-            jobId: editImage.jobId,
-            outputFilename: editImage.outputFilename,
-            upscaleInfo: null,
-            isUpscaling: false,
-            error: null,
-            originalMetadata: null,
-            resultMetadata: null,
-          },
-        })
-      },
-      sendSegmentToUpscale: () => {
-        const { segmentImage } = get()
-        set({
-          upscaleImage: {
-            originalFile: null,
-            originalUrl: segmentImage.croppedFilename
-              ? `http://localhost:8000/api/images/output/${segmentImage.croppedFilename}`
-              : null,
-            jobId: null,
-            outputFilename: null,
-            upscaleInfo: null,
-            isUpscaling: false,
-            error: null,
-            originalMetadata: null,
-            resultMetadata: null,
-          },
-        })
-      },
-      sendSegmentToResize: () => {
-        const { segmentImage } = get()
-        set({
-          resizeImage: {
-            originalFile: null,
-            originalUrl: segmentImage.croppedFilename
-              ? `http://localhost:8000/api/images/output/${segmentImage.croppedFilename}`
-              : null,
-            jobId: null,
-            outputFilename: null,
-            resizeInfo: null,
-          },
-        })
-      },
-      sendUpscaleToUpscale: () => {
-        const { upscaleImage } = get()
-        set({
-          upscaleImage: {
-            originalFile: null,
-            originalUrl: upscaleImage.outputFilename
-              ? `http://localhost:8000/api/images/output/${upscaleImage.outputFilename}`
-              : null,
-            jobId: null,
-            outputFilename: null,
-            upscaleInfo: null,
-            isUpscaling: false,
-            error: null,
-            originalMetadata: null,
-            resultMetadata: null,
-          },
-        })
-      },
-      sendUpscaleToResize: () => {
-        const { upscaleImage } = get()
-        set({
-          resizeImage: {
-            originalFile: null,
-            originalUrl: upscaleImage.outputFilename
-              ? `http://localhost:8000/api/images/output/${upscaleImage.outputFilename}`
-              : null,
-            jobId: null,
-            outputFilename: null,
-            resizeInfo: null,
-          },
-        })
-      },
-      sendUpscaleToSegment: () => {
-        const { upscaleImage } = get()
-        set({
-          segmentImage: {
-            sessionId: null,
-            originalFile: null,
-            originalUrl: upscaleImage.outputFilename
-              ? `http://localhost:8000/api/images/output/${upscaleImage.outputFilename}`
-              : null,
-            croppedFilename: null,
-            points: [],
-            maskDataUrl: null,
-            padding: 10,
-            aspectRatio: 'None',
-            sessionEnded: false,
-            isUploading: false,
-            isPredicting: false,
-            isCropping: false,
-            error: null,
-          },
-        })
-      },
-      sendSegmentToSegment: () => {
-        const { segmentImage } = get()
-        set({
-          segmentImage: {
-            sessionId: null,
-            originalFile: null,
-            originalUrl: segmentImage.croppedFilename
-              ? `http://localhost:8000/api/images/output/${segmentImage.croppedFilename}`
-              : null,
             croppedFilename: null,
             points: [],
             maskDataUrl: null,

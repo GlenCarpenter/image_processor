@@ -278,21 +278,54 @@ def extract_prompt_from_metadata(img: Image.Image) -> str | None:
     return None
 
 
+def extract_image_metadata(img) -> Dict[str, Any]:
+    """
+    Extract all metadata from image.info attribute (PNG chunks, etc.)
+
+    Args:
+        img: PIL Image object
+
+    Returns:
+        Dictionary with all image metadata key/value pairs
+    """
+    metadata = {}
+
+    if hasattr(img, "info"):
+        for key, value in img.info.items():
+            # Try to keep values as their original type when possible
+            if isinstance(value, (str, int, float, bool)):
+                metadata[key] = value
+            elif isinstance(value, bytes):
+                # Try to decode bytes to string
+                try:
+                    metadata[key] = value.decode("utf-8", errors="ignore")
+                except Exception:
+                    metadata[key] = str(value)
+            else:
+                # Convert everything else to string
+                metadata[key] = str(value)
+
+    return metadata
+
+
 def extract_exif_data(image_path: str) -> Dict[str, Any]:
     """
-    Extract EXIF metadata and AI prompt from an image file
+    Extract EXIF metadata, AI prompt, and all image info from an image file
 
     Args:
         image_path: Path to the image file
 
     Returns:
-        Dictionary with separate exif data and prompt
+        Dictionary with separate exif data, prompt, and image_info
     """
     try:
         img = Image.open(image_path)
-        
+
         # Extract AI generation prompt first (works for PNG metadata)
         prompt = extract_prompt_from_metadata(img)
+
+        # Extract all image metadata (PNG info chunks, etc.)
+        image_metadata = extract_image_metadata(img)
 
         # Organize EXIF data into categories
         camera_info = {}
@@ -332,15 +365,15 @@ def extract_exif_data(image_path: str) -> Dict[str, Any]:
                 # Skip empty or invalid values
                 if value == "" or value is None:
                     continue
-                
+
                 # Convert IFDRational (PIL's rational number type) to float
-                if hasattr(value, 'numerator') and hasattr(value, 'denominator'):
+                if hasattr(value, "numerator") and hasattr(value, "denominator"):
                     # It's a rational number (like exposure time, aperture, etc.)
                     try:
                         value = float(value)
                     except Exception:
                         value = str(value)
-                
+
                 # Convert tuples to strings for JSON serialization
                 if isinstance(value, tuple):
                     value = str(value)
@@ -428,12 +461,9 @@ def extract_exif_data(image_path: str) -> Dict[str, Any]:
         if other_info:
             exif_result["other"] = other_info
 
-        # Return both EXIF and prompt separately
-        return {
-            "exif": exif_result,
-            "prompt": prompt
-        }
+        # Return EXIF, prompt, and all image metadata separately
+        return {"exif": exif_result, "prompt": prompt, "image_info": image_metadata}
 
     except Exception as e:
         print(f"Error extracting EXIF data: {str(e)}")
-        return {"exif": {}, "prompt": None}
+        return {"exif": {}, "prompt": None, "image_info": {}}

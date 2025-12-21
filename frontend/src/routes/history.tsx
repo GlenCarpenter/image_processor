@@ -21,6 +21,7 @@ import {
   ArrowUpCircle,
   Expand,
   Scissors,
+  Pencil,
 } from 'lucide-react'
 import { API_BASE_URL } from '@/lib/constants'
 
@@ -48,9 +49,9 @@ interface Job {
 
 function RouteComponent() {
   const navigate = useNavigate()
-  const setResizeResult = useImageStore((state) => state.setResizeResult)
-  const sendResizeToUpscale = useImageStore((state) => state.sendResizeToUpscale)
-  const sendResizeToSegment = useImageStore((state) => state.sendResizeToSegment)
+  const sendToUpscale = useImageStore((state) => state.sendToUpscale)
+  const sendToSegment = useImageStore((state) => state.sendToSegment)
+  const sendToEdit = useImageStore((state) => state.sendToEdit)
 
   const [jobs, setJobs] = useState<Job[]>([])
   const [loading, setLoading] = useState(true)
@@ -142,18 +143,6 @@ function RouteComponent() {
   const handleSendToResize = () => {
     if (!selectedJob) return
 
-    // Set the result in the resize page with this job's data
-    const info = {
-      originalWidth: selectedJob.original_width,
-      originalHeight: selectedJob.original_height,
-      targetWidth: selectedJob.output_width,
-      targetHeight: selectedJob.output_height,
-      aspectRatio: selectedJob.aspect_ratio,
-      originalPixels: selectedJob.original_pixels,
-      actualPixels: selectedJob.output_pixels,
-    }
-
-    setResizeResult(selectedJob.id, selectedJob.output_filename, info)
     setDialogOpen(false)
     navigate({ to: '/resize-image', search: { filename: selectedJob.output_filename } })
   }
@@ -161,18 +150,7 @@ function RouteComponent() {
   const handleSendToUpscale = () => {
     if (!selectedJob) return
 
-    const info = {
-      originalWidth: selectedJob.original_width,
-      originalHeight: selectedJob.original_height,
-      targetWidth: selectedJob.output_width,
-      targetHeight: selectedJob.output_height,
-      aspectRatio: selectedJob.aspect_ratio,
-      originalPixels: selectedJob.original_pixels,
-      actualPixels: selectedJob.output_pixels,
-    }
-
-    setResizeResult(selectedJob.id, selectedJob.output_filename, info)
-    sendResizeToUpscale()
+    sendToUpscale()
     setDialogOpen(false)
     navigate({ to: '/upscale', search: { filename: selectedJob.output_filename } })
   }
@@ -180,20 +158,17 @@ function RouteComponent() {
   const handleSendToSegment = () => {
     if (!selectedJob) return
 
-    const info = {
-      originalWidth: selectedJob.original_width,
-      originalHeight: selectedJob.original_height,
-      targetWidth: selectedJob.output_width,
-      targetHeight: selectedJob.output_height,
-      aspectRatio: selectedJob.aspect_ratio,
-      originalPixels: selectedJob.original_pixels,
-      actualPixels: selectedJob.output_pixels,
-    }
-
-    setResizeResult(selectedJob.id, selectedJob.output_filename, info)
-    sendResizeToSegment()
+    sendToSegment()
     setDialogOpen(false)
     navigate({ to: '/segment', search: { filename: selectedJob.output_filename } })
+  }
+
+  const handleSendToEdit = () => {
+    if (!selectedJob) return
+
+    sendToEdit()
+    setDialogOpen(false)
+    navigate({ to: '/edit', search: { filename: selectedJob.output_filename } })
   }
 
   const handleDelete = async () => {
@@ -493,7 +468,7 @@ function RouteComponent() {
                   <Trash2 className="w-4 h-4 mr-2" />
                   {deleting ? 'Deleting...' : 'Delete'}
                 </Button>
-                <div className="grid grid-cols-3 gap-2 w-full sm:w-auto">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 w-full sm:w-auto">
                   <Button variant="outline" size="sm" onClick={handleSendToUpscale}>
                     <ArrowUpCircle className="w-4 h-4 mr-1" />
                     Upscale
@@ -505,6 +480,10 @@ function RouteComponent() {
                   <Button variant="outline" size="sm" onClick={handleSendToSegment}>
                     <Scissors className="w-4 h-4 mr-1" />
                     Segment
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={handleSendToEdit}>
+                    <Pencil className="w-4 h-4 mr-1" />
+                    Edit
                   </Button>
                 </div>
               </DialogFooter>
