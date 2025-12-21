@@ -300,25 +300,23 @@ function RouteComponent() {
         </Card>
 
         {/* Output Section */}
-        {editImage.outputFilename && (
-          <OutputCard
-            title="Edited Image"
-            description="AI-edited result"
-            outputFilename={editImage.outputFilename}
-            downloadButtonText="Download Edited Image"
-            emptyStateText="No edited image yet"
-            onUpscale={handleUpscaleClick}
-            onResize={handleResizeClick}
-            onSegment={handleSegmentClick}
-            onEdit={handleEditAgain}
-            onDownload={handleDownload}
-            additionalInfo={
-              editImage.resultMetadata ? (
-                <ImageMetadataDisplay metadata={editImage.resultMetadata} />
-              ) : undefined
-            }
-          />
-        )}
+        <OutputCard
+          title="Edited Image"
+          description="AI-edited result"
+          outputFilename={editImage.outputFilename}
+          downloadButtonText="Download Edited Image"
+          emptyStateText="No edited image yet"
+          onUpscale={handleUpscaleClick}
+          onResize={handleResizeClick}
+          onSegment={handleSegmentClick}
+          onEdit={handleEditAgain}
+          onDownload={handleDownload}
+          additionalInfo={
+            editImage.resultMetadata ? (
+              <ImageMetadataDisplay metadata={editImage.resultMetadata} />
+            ) : undefined
+          }
+        />
       </div>
     </div>
   )
