@@ -77,7 +77,7 @@ export const Dropzone = ({
     >
       <Button
         className={cn(
-          'relative h-auto w-full flex-col overflow-hidden p-8',
+          'relative h-auto w-full !flex flex-col p-8',
           isDragActive && 'outline-none ring-1 ring-ring',
           className
         )}
@@ -122,11 +122,11 @@ export const DropzoneContent = ({ children, className }: DropzoneContentProps) =
   }
 
   return (
-    <div className={cn('flex flex-col items-center justify-center', className)}>
+    <div className={cn('flex w-full flex-col items-center justify-center', className)}>
       <div className="flex size-8 items-center justify-center rounded-md bg-muted text-muted-foreground">
         <UploadIcon size={16} />
       </div>
-      <p className="my-2 w-full truncate font-medium text-sm">
+      <p className="my-2 w-full whitespace-normal break-all font-medium text-sm">
         {src.length > maxLabelItems
           ? `${new Intl.ListFormat('en').format(
               src.slice(0, maxLabelItems).map((file) => file.name)
