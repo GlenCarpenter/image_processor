@@ -9,7 +9,12 @@ if exist venv\Scripts\activate.bat (
     call venv\Scripts\activate.bat
 )
 
-python build.py --skip-frontend --skip-requirements --dev
+REM Use venv Python directly if it exists
+if exist venv\Scripts\python.exe (
+    venv\Scripts\python.exe build.py --skip-frontend --skip-requirements --dev
+) else (
+    python build.py --skip-frontend --skip-requirements --dev
+)
 
 if errorlevel 1 (
     echo.
