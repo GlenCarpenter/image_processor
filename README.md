@@ -31,6 +31,10 @@ This will automatically:
 2. Install Python dependencies with GPU support
 3. Build the frontend
 
+**macOS/Linux user:**
+
+Currently not supported due to incompatibilities with Pydantic, this will be fixed on a later release.
+
 ### Manual Setup
 
 If you prefer to set up manually or need more control:
