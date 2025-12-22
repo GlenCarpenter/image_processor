@@ -5,92 +5,135 @@ Run this instead of: pip install -r requirements.txt
 
 import subprocess
 import sys
+import platform
 
 
-def run_command(command, description):
+def run_command(command, description, shell=False):
     """Run a command and handle errors"""
     print(f"\n{'='*60}")
-    print(f"📦 {description}")
+    print(f"{description}")
     print(f"{'='*60}")
-    print(f"Command: {command}\n")
+    if isinstance(command, list):
+        print(f"Command: {' '.join(command)}\n")
+    else:
+        print(f"Command: {command}\n")
 
-    result = subprocess.run(command, shell=True)
+    result = subprocess.run(command, shell=shell)
     if result.returncode != 0:
-        print(f"\n❌ Error: {description} failed")
+        print(f"\n[ERROR] {description} failed")
         sys.exit(1)
-    print(f"\n✅ {description} completed successfully")
+    print(f"\n[OK] {description} completed successfully")
 
 
 def main():
-    import platform
-    print("🚀 Setting up segment_markup environment with GPU support (cross-platform)")
+    print("=" * 60)
+    print("Setting up environment with GPU support")
+    print("=" * 60)
+
+    # Debug: Show which Python we're using
+    print(f"\nPython executable: {sys.executable}")
+    print(f"Python version: {sys.version.split()[0]}")
+
+    # Check if we're in a virtual environment
+    in_venv = hasattr(sys, "real_prefix") or (
+        hasattr(sys, "base_prefix") and sys.base_prefix != sys.prefix
+    )
+    print(f"In virtual environment: {in_venv}")
+    if in_venv:
+        print(f"Virtual env path: {sys.prefix}")
 
     system = platform.system()
-    pytorch_command = None
+    python_exec = sys.executable
+
+    # Build pip command as a list for better reliability
+    pytorch_packages = ["torch", "torchvision", "torchaudio"]
 
     if system == "Windows":
-        # Default to CUDA 12.1 build for Windows
-        pytorch_command = (
-            "pip install torch torchvision torchaudio "
-            "--index-url https://download.pytorch.org/whl/cu121"
+        # CUDA 12.1 build for Windows
+        pip_command = (
+            [python_exec, "-m", "pip", "install"]
+            + pytorch_packages
+            + ["--index-url", "https://download.pytorch.org/whl/cu121"]
         )
     elif system == "Linux":
-        # Try CUDA 12.1 build for Linux, fallback to CPU if fails
-        try:
-            import torch
-            cuda_available = torch.cuda.is_available()
-        except ImportError:
-            cuda_available = False
-        if cuda_available:
-            pytorch_command = (
-                "pip install torch torchvision torchaudio "
-                "--index-url https://download.pytorch.org/whl/cu121"
-            )
-        else:
-            pytorch_command = "pip install torch torchvision torchaudio"
+        # CUDA 12.1 build for Linux
+        pip_command = (
+            [python_exec, "-m", "pip", "install"]
+            + pytorch_packages
+            + ["--index-url", "https://download.pytorch.org/whl/cu121"]
+        )
     elif system == "Darwin":
-        # MacOS: install default (CPU/Metal) build
-        pytorch_command = "pip install torch torchvision torchaudio"
+        # MacOS: default (CPU/Metal) build
+        pip_command = [python_exec, "-m", "pip", "install"] + pytorch_packages
     else:
         print(f"Unknown OS: {system}. Attempting default PyTorch install.")
-        pytorch_command = "pip install torch torchvision torchaudio"
+        pip_command = [python_exec, "-m", "pip", "install"] + pytorch_packages
 
-    run_command(pytorch_command, f"Installing PyTorch for {system}")
+    run_command(pip_command, f"Installing PyTorch for {system}", shell=False)
 
     # Step 2: Install remaining dependencies
-    # Read requirements.txt and filter out torch/torchvision lines
-    with open("requirements.txt", "r") as f:
-        requirements = [
-            line.strip()
-            for line in f
-            if line.strip()
-            and not line.startswith("#")
-            and not line.startswith("torch")
-        ]
+    try:
+        with open("requirements.txt", "r") as f:
+            requirements = [
+                line.strip()
+                for line in f
+                if line.strip()
+                and not line.startswith("#")
+                and not line.startswith("torch")
+            ]
 
-    if requirements:
-        requirements_str = " ".join(f'"{req}"' for req in requirements)
-        other_deps_command = f"pip install {requirements_str}"
-        run_command(other_deps_command, "Installing other dependencies")
+        if requirements:
+            print(f"\nFound {len(requirements)} additional dependencies to install")
+            # Install each requirement
+            for req in requirements:
+                req_command = [python_exec, "-m", "pip", "install", req]
+                run_command(req_command, f"Installing {req}", shell=False)
+    except FileNotFoundError:
+        print("\n[WARNING] requirements.txt not found, skipping other dependencies")
 
     # Step 3: Verify installation
     print("\n" + "=" * 60)
-    print("🔍 Verifying installation")
+    print("Verifying PyTorch installation")
     print("=" * 60)
 
-    verify_command = (
-        "python -c \"import torch; print(f'PyTorch: {torch.__version__}'); "
-        "print(f'CUDA available: {getattr(torch.cuda, 'is_available', lambda: False)()}'); "
-        "print(f'CUDA version: {getattr(getattr(torch, 'version', None), 'cuda', None)}')\" "
+    verify_script = """
+import torch
+import sys
+print(f'Python executable: {sys.executable}')
+print(f'PyTorch version: {torch.__version__}')
+print(f'CUDA available: {torch.cuda.is_available()}')
+print(f'CUDA version: {torch.version.cuda}')
+if torch.cuda.is_available():
+    print(f'CUDA device count: {torch.cuda.device_count()}')
+    print(f'CUDA device name: {torch.cuda.get_device_name(0)}')
+"""
+
+    result = subprocess.run(
+        [python_exec, "-c", verify_script], capture_output=True, text=True
     )
-    run_command(verify_command, "Checking PyTorch installation")
+
+    print(result.stdout)
+    if result.stderr:
+        print("Stderr:", result.stderr)
+
+    if result.returncode != 0:
+        print("\n[ERROR] PyTorch verification failed")
+        sys.exit(1)
+
+    # Check if we got CUDA support
+    if "CUDA available: True" in result.stdout:
+        print("\n[OK] CUDA support detected and working!")
+    elif "CUDA available: False" in result.stdout:
+        print("\n[WARNING] CUDA support not detected!")
+        print("Possible reasons:")
+        print("  1. No NVIDIA GPU present")
+        print("  2. NVIDIA GPU drivers not installed")
+        print("  3. CUDA toolkit version mismatch")
+        print("\nThe application will still work, but will use CPU (slower)")
 
     print("\n" + "=" * 60)
-    print("✨ Setup complete!")
+    print("Setup complete!")
     print("=" * 60)
-    print("\nYou can now run:")
-    print("  - Frontend: cd frontend && npm run dev")
-    print("  - Backend:  python -m uvicorn backend.main:app --reload")
 
 
 if __name__ == "__main__":

@@ -27,7 +27,7 @@ def run_command(cmd, cwd=None, shell=False):
     result = subprocess.run(cmd, cwd=cwd, shell=shell, text=True)
 
     if result.returncode != 0:
-        print(f"\n❌ Command failed with exit code {result.returncode}")
+        print(f"\n[ERROR] Command failed with exit code {result.returncode}")
         return False
     return True
 
@@ -42,12 +42,12 @@ def check_node_installed():
             shell=(platform.system() == "Windows"),
         )
         if result.returncode == 0:
-            print(f"✓ Node.js found: {result.stdout.strip()}")
+            print(f"[OK] Node.js found: {result.stdout.strip()}")
             return True
     except FileNotFoundError:
         pass
 
-    print("❌ Node.js not found. Please install Node.js to build the frontend.")
+    print("[ERROR] Node.js not found. Please install Node.js to build the frontend.")
     return False
 
 
@@ -57,11 +57,11 @@ def check_frontend_exists():
     package_json = frontend_dir / "package.json"
 
     if not frontend_dir.exists():
-        print("⚠ Frontend directory not found. Skipping frontend build.")
+        print("[WARNING] Frontend directory not found. Skipping frontend build.")
         return False
 
     if not package_json.exists():
-        print("⚠ package.json not found in frontend. Skipping frontend build.")
+        print("[WARNING] package.json not found in frontend. Skipping frontend build.")
         return False
 
     return True
@@ -69,7 +69,7 @@ def check_frontend_exists():
 
 def build_frontend():
     """Build the React frontend"""
-    print("\n📦 Building Frontend...")
+    print("\nBuilding Frontend...")
 
     if not check_frontend_exists():
         return True  # Not an error, just skip
@@ -81,29 +81,31 @@ def build_frontend():
 
     # Check if node_modules exists
     if not (frontend_dir / "node_modules").exists():
-        print("\n📥 Installing frontend dependencies...")
+        print("\nInstalling frontend dependencies...")
         if not run_command(["npm", "install"], cwd=frontend_dir):
             return False
 
     # Build the frontend
-    print("\n🔨 Building React app...")
+    print("\nBuilding React app...")
     if not run_command(["npm", "run", "build"], cwd=frontend_dir):
         return False
 
-    print("\n✅ Frontend build complete!")
+    print("\n[OK] Frontend build complete!")
     return True
 
 
 def install_requirements():
     """Install Python requirements using setup_environment.py for CUDA support"""
-    print("\n📦 Installing Python Dependencies...")
+    print("\nInstalling Python Dependencies...")
 
     setup_script = Path("setup_environment.py")
     if not setup_script.exists():
-        print("⚠ setup_environment.py not found. Falling back to requirements.txt")
+        print(
+            "[WARNING] setup_environment.py not found. Falling back to requirements.txt"
+        )
         requirements_file = Path("requirements.txt")
         if not requirements_file.exists():
-            print("⚠ requirements.txt not found. Skipping.")
+            print("[WARNING] requirements.txt not found. Skipping.")
             return True
 
         python_exe = sys.executable
@@ -117,24 +119,26 @@ def install_requirements():
         if not run_command([python_exe, "setup_environment.py"]):
             return False
 
-    print("\n✅ Python dependencies installed!")
+    print("\n[OK] Python dependencies installed!")
     return True
 
 
 def format_python():
     """Format Python code using black"""
-    print("\n🎨 Formatting Python code with black...")
+    print("\nFormatting Python code with black...")
 
     python_exe = sys.executable
     backend_dir = Path("backend")
 
     if not backend_dir.exists():
-        print("⚠ Backend directory not found. Skipping formatting.")
+        print("[WARNING] Backend directory not found. Skipping formatting.")
         return True
 
     # Format backend directory
     if not run_command([python_exe, "-m", "black", "backend"]):
-        print("⚠ Black formatting encountered issues (may not be installed yet)")
+        print(
+            "[WARNING] Black formatting encountered issues (may not be installed yet)"
+        )
         return True  # Don't fail the build
 
     # Format root Python files
@@ -143,16 +147,16 @@ def format_python():
         if not run_command(
             [python_exe, "-m", "black"] + [str(f) for f in root_py_files]
         ):
-            print("⚠ Black formatting encountered issues")
+            print("[WARNING] Black formatting encountered issues")
             return True
 
-    print("\n✅ Python code formatted!")
+    print("\n[OK] Python code formatted!")
     return True
 
 
 def start_server(dev_mode=False):
     """Start the FastAPI server"""
-    print("\n🚀 Starting Server...")
+    print("\nStarting Server...")
 
     python_exe = sys.executable
 
@@ -212,34 +216,37 @@ def main():
 
     print("Image Processor Build Script")
     print("=" * 60)
+    print(f"Using Python: {sys.executable}\n")
 
     # Format Python code if requested
     if args.format:
         if not format_python():
-            print("\n❌ Python formatting failed!")
+            print("\n[ERROR] Python formatting failed!")
             sys.exit(1)
 
     # Build frontend
     if not args.skip_frontend:
         if not build_frontend():
-            print("\n❌ Frontend build failed!")
+            print("\n[ERROR] Frontend build failed!")
             sys.exit(1)
     else:
-        print("\n⏭️  Skipping frontend build")
+        print("\nSkipping frontend build")
 
     # Install Python requirements
     if not args.skip_requirements:
         if not install_requirements():
-            print("\n❌ Requirements installation failed!")
+            print("\n[ERROR] Requirements installation failed!")
             sys.exit(1)
     else:
-        print("\n⏭️  Skipping requirements installation")
+        print("\nSkipping requirements installation")
 
     # Start server
     if not args.no_server:
         start_server(dev_mode=args.dev)
     else:
-        print("\n✅ Build complete! Run 'python -m backend.main' to start the server.")
+        print(
+            "\n[OK] Build complete! Run 'python -m backend.main' to start the server."
+        )
 
 
 if __name__ == "__main__":

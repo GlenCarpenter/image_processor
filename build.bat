@@ -19,20 +19,21 @@ if not exist "venv\" (
     echo [OK] Virtual environment already exists
 )
 
-REM Activate the virtual environment
-echo.
-echo Activating virtual environment...
-call venv\Scripts\activate.bat
+REM Use venv python directly instead of relying on activation
+set VENV_PYTHON=venv\Scripts\python.exe
 
-if errorlevel 1 (
+if not exist "%VENV_PYTHON%" (
     echo.
-    echo [ERROR] Failed to activate virtual environment!
+    echo [ERROR] Virtual environment Python not found at %VENV_PYTHON%!
     pause
     exit /b 1
 )
 
-REM Run the build script from within the venv
-python build.py --no-server %*
+echo.
+echo Using Python: %VENV_PYTHON%
+
+REM Run the build script using the venv python directly
+"%VENV_PYTHON%" build.py --no-server %*
 
 if errorlevel 1 (
     echo.
