@@ -5,11 +5,11 @@ import { Dropzone, DropzoneContent, DropzoneEmptyState } from '@/components/ui/s
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useImageStore } from '@/store/imageStore'
 import { extractImageMetadata, fetchExifData, fetchPrompt, fetchImageInfo } from '@/lib/imageUtils'
 import { ImageMetadataDisplay } from '@/components/image-metadata-display'
-
+import { InputCard } from '@/components/input-card'
+import { OriginalImagePreview } from '@/components/original-image-preview'
 import { API_BASE_URL } from '@/lib/constants'
 import { OutputCard } from '@/components/output-card'
 
@@ -212,12 +212,10 @@ function RouteComponent() {
     <div className="container mx-auto p-4 max-w-6xl">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Input Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Upload Image</CardTitle>
-            <CardDescription>Select an image to edit using AI</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
+        <InputCard
+          title="Upload And Configure"
+          description="Select an image to edit using AI"
+        >
             <div>
               <Label>Image File</Label>
               <Dropzone
@@ -233,18 +231,11 @@ function RouteComponent() {
 
             {(editImage.originalFile || search.filename) && (
               <>
-                <div>
-                  <Label>Original Image Preview</Label>
-                  <img
-                    src={
-                      editImage.originalFile
-                        ? URL.createObjectURL(editImage.originalFile)
-                        : `${API_BASE_URL}/images/output/${search.filename}`
-                    }
-                    alt="Original"
-                    className="mt-2 max-h-64 w-full object-contain rounded-md border"
-                  />
-                </div>
+                <OriginalImagePreview
+                  file={editImage.originalFile}
+                  filename={search.filename}
+                  apiBaseUrl={API_BASE_URL}
+                />
 
                 <div>
                   <Label htmlFor="prompt">Editing Prompt</Label>
@@ -280,10 +271,8 @@ function RouteComponent() {
                 )}
               </>
             )}
-          </CardContent>
-        </Card>
+        </InputCard>
 
-        {/* Output Section */}
         <OutputCard
           title="Edited Image"
           description="AI-edited result"

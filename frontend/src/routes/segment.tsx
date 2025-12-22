@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/select'
 import { Scissors, Trash2, Undo } from 'lucide-react'
 import { useImageStore } from '@/store/imageStore'
+import { InputCard } from '@/components/input-card'
 import { OutputCard } from '@/components/output-card'
 import { API_BASE_URL, ASPECT_RATIOS } from '@/lib/constants'
 
@@ -686,15 +687,10 @@ function RouteComponent() {
     <div className="container mx-auto p-4 max-w-7xl">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Input Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Upload & Segment</CardTitle>
-            <CardDescription>
-              Upload an image and click to select objects. Left click = select, Right click =
-              deselect
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
+        <InputCard
+          title="Upload & Segment"
+          description="Upload an image and click to select objects. Left click = select, Right click = deselect"
+        >
             <div>
               <Label>Image File</Label>
               <Dropzone
@@ -874,16 +870,14 @@ function RouteComponent() {
                 )}
               </>
             )}
-          </CardContent>
-        </Card>
+        </InputCard>
 
-        {/* Output Section */}
         <OutputCard
-          title="Cropped Result"
-          description="Your cropped image will appear here"
+          title="Segmentation Output"
+          description="Your processed image will appear here"
           outputFilename={segmentImage.croppedFilename}
-          downloadButtonText="Download Cropped Image"
-          emptyStateText="Click on the image to segment, then crop to see results."
+          downloadButtonText="Download Processed Image"
+          emptyStateText="Click on the image to segment, then process to see results."
           onUpscale={handleUpscale}
           onResize={handleResize}
           onSegment={handleSegment}

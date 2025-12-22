@@ -4,8 +4,9 @@ import { Dropzone, DropzoneContent, DropzoneEmptyState } from '@/components/ui/s
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useImageStore } from '@/store/imageStore'
+import { InputCard } from '@/components/input-card'
+import { OriginalImagePreview } from '@/components/original-image-preview'
 import {
   extractImageMetadata,
   fetchExifData,
@@ -237,14 +238,10 @@ function RouteComponent() {
     <div className="container mx-auto p-4 max-w-6xl">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Input Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Upload & Configure</CardTitle>
-            <CardDescription>
-              Select an image and set the target size in pixels (size²)
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
+        <InputCard
+          title="Upload And Configure"
+          description="Select an image and set the target size in pixels (size²)"
+        >
             <div>
               <Label>Image File</Label>
               <Dropzone
@@ -275,16 +272,10 @@ function RouteComponent() {
               </p>
             </div>
 
-            {resizeImage.originalFile && (
-              <div>
-                <Label>Original Image Preview</Label>
-                <img
-                  src={URL.createObjectURL(resizeImage.originalFile)}
-                  alt="Original"
-                  className="mt-2 max-h-64 w-full object-contain rounded-md border"
-                />
-              </div>
-            )}
+            <OriginalImagePreview
+              file={resizeImage.originalFile}
+              apiBaseUrl={API_BASE_URL}
+            />
 
             <Button
               onClick={handleResize}
@@ -301,10 +292,8 @@ function RouteComponent() {
                 {error}
               </div>
             )}
-          </CardContent>
-        </Card>
+        </InputCard>
 
-        {/* Output Section */}
         <OutputCard
           title="Resized Image"
           description="Your resized image will appear here"

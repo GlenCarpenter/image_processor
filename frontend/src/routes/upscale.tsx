@@ -6,10 +6,11 @@ import { Dropzone, DropzoneContent, DropzoneEmptyState } from '@/components/ui/s
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useImageStore } from '@/store/imageStore'
 import { extractImageMetadata, fetchExifData, fetchPrompt, fetchImageInfo } from '@/lib/imageUtils'
 import { ImageMetadataDisplay } from '@/components/image-metadata-display'
+import { InputCard } from '@/components/input-card'
+import { OriginalImagePreview } from '@/components/original-image-preview'
 import { OutputCard } from '@/components/output-card'
 import { API_BASE_URL } from '@/lib/constants'
 
@@ -212,12 +213,10 @@ function RouteComponent() {
     <div className="container mx-auto p-4 max-w-6xl">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Input Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Upload Image</CardTitle>
-            <CardDescription>Select an image to upscale using AI (1x - 4x)</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
+        <InputCard
+          title="Upload And Configure"
+          description="Select an image to upscale using AI (1x - 4x)"
+        >
             <div>
               <Label>Image File</Label>
               <Dropzone
@@ -253,16 +252,10 @@ function RouteComponent() {
               </p>
             </div>
 
-            {upscaleImage.originalFile && (
-              <div>
-                <Label>Original Image Preview</Label>
-                <img
-                  src={URL.createObjectURL(upscaleImage.originalFile)}
-                  alt="Original"
-                  className="mt-2 max-h-64 w-full object-contain rounded-md border"
-                />
-              </div>
-            )}
+            <OriginalImagePreview
+              file={upscaleImage.originalFile}
+              apiBaseUrl={API_BASE_URL}
+            />
 
             <Button
               onClick={handleUpscale}
@@ -284,10 +277,8 @@ function RouteComponent() {
                 {upscaleImage.error}
               </div>
             )}
-          </CardContent>
-        </Card>
+        </InputCard>
 
-        {/* Output Section */}
         <OutputCard
           title="Upscaled Image"
           description="Your upscaled image will appear here"
