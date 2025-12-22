@@ -1,5 +1,5 @@
 @echo off
-REM Run Segment Markup in development mode with auto-reload
+REM Run Image Processor in development mode with auto-reload
 
 echo Starting in development mode...
 

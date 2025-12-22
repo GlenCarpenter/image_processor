@@ -1,5 +1,5 @@
 @echo off
-REM Build Segment Markup project (create venv, install requirements and build frontend)
+REM Build Image Processor project (create venv, install requirements and build frontend)
 
 echo Starting build process...
 

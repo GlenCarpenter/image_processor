@@ -1,5 +1,5 @@
 @echo off
-REM Windows Start App Script - Build (if needed) and start Segment Markup
+REM Windows Start App Script - Build (if needed) and start Image Processor
 
 echo ========================================
 echo Image Processor - Start Application

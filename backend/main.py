@@ -16,7 +16,7 @@ from backend.database import get_active_jobs, init_db
 from backend.utils.fal_utils import poll_fal_job
 
 app = FastAPI(
-    title="Segment Markup API",
+    title="Image Processor API",
     description="FastAPI server for running Python scripts and serving the React UI",
     version="0.1.0",
 )

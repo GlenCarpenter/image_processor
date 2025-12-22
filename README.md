@@ -1,4 +1,4 @@
-# Segment Markup
+# Image Processor
 
 A full-stack application combining a FastAPI backend with a React frontend for running Python scripts through a web interface.
 
