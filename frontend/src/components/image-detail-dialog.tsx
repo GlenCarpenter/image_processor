@@ -15,6 +15,7 @@ import {
   Trash2,
   Loader2,
   XCircle,
+  ExternalLink,
 } from 'lucide-react'
 import { API_BASE_URL } from '@/lib/constants'
 
@@ -143,11 +144,22 @@ export function ImageDetailDialog({
           {/* Image Container */}
           <div className="flex-1 flex items-center justify-center">
             {filename ? (
-              <img
-                src={`${API_BASE_URL}/images/output/${filename}`}
-                alt={filename}
-                className="max-w-full max-h-[70vh] object-contain rounded-lg"
-              />
+              <div className="relative group">
+                <img
+                  src={`${API_BASE_URL}/images/output/${filename}`}
+                  alt={filename}
+                  className="max-w-full max-h-[70vh] object-contain rounded-lg"
+                />
+                <a
+                  href={`${API_BASE_URL}/images/output/${filename}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="absolute top-2 right-2 p-2 bg-black/60 hover:bg-black/80 text-white rounded-md opacity-0 group-hover:opacity-100 transition-opacity"
+                  title="Open in new tab"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                </a>
+              </div>
             ) : (
               <div className="w-full h-[60vh] flex items-center justify-center bg-muted rounded-lg">
                 <div className="text-center text-muted-foreground">

@@ -1,6 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Download, ArrowBigUpDash, Expand, Scissors, Pencil } from 'lucide-react'
+import { Download, ArrowBigUpDash, Expand, Scissors, Pencil, ExternalLink } from 'lucide-react'
 import { API_BASE_URL } from '@/lib/constants'
 import type { ReactNode } from 'react'
 
@@ -40,12 +40,21 @@ export function OutputCard({
       <CardContent className="space-y-4">
         {outputFilename ? (
           <>
-            <div>
+            <div className="relative group">
               <img
                 src={`${API_BASE_URL}/images/output/${outputFilename}`}
                 alt={title}
                 className="w-full rounded-md border"
               />
+              <a
+                href={`${API_BASE_URL}/images/output/${outputFilename}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="absolute top-2 right-2 p-2 bg-black/60 hover:bg-black/80 text-white rounded-md opacity-0 group-hover:opacity-100 transition-opacity"
+                title="Open in new tab"
+              >
+                <ExternalLink className="w-4 h-4" />
+              </a>
             </div>
 
             {additionalInfo}
