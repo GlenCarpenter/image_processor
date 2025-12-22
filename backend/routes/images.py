@@ -378,32 +378,33 @@ async def list_recent_jobs(
 @router.delete("/job/{job_id}")
 async def delete_job_endpoint(job_id: int):
     """
-    Delete a job and its associated output file
+    Delete an output record and its associated file
+    Note: Despite the name, this deletes from image_outputs table (used by history page)
 
     **Parameters:**
-    - **job_id**: The job ID to delete
+    - **job_id**: The output ID to delete
 
     **Returns:** Success status
     """
-    from backend.database import delete_job
+    from backend.database import delete_output, get_output
 
-    # Get job info before deleting to find the file
-    job = get_job(job_id)
+    # Get output info before deleting to find the file
+    output = get_output(job_id)
 
-    if not job:
+    if not output:
         raise HTTPException(status_code=404, detail="Job not found")
 
     # Delete the output file if it exists
-    output_path = Path(job["output_path"])
-    if output_path.exists():
+    file_path = Path(output.get("file_path", ""))
+    if file_path.exists():
         try:
-            output_path.unlink()
+            file_path.unlink()
         except Exception as e:
             # Log error but continue with database deletion
-            print(f"Warning: Could not delete file {output_path}: {e}")
+            print(f"Warning: Could not delete file {file_path}: {e}")
 
     # Delete from database
-    deleted = delete_job(job_id)
+    deleted = delete_output(job_id)
 
     if not deleted:
         raise HTTPException(status_code=404, detail="Job not found")

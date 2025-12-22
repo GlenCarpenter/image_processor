@@ -213,6 +213,15 @@ def get_job(job_id: int) -> Optional[Dict[str, Any]]:
         return dict(row) if row else None
 
 
+def get_output(output_id: int) -> Optional[Dict[str, Any]]:
+    """Get a specific output by ID from image_outputs table"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM image_outputs WHERE id = ?", (output_id,))
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+
 def get_recent_jobs(
     limit: int = 50, offset: int = 0, job_type: Optional[str] = None
 ) -> List[Dict[str, Any]]:
@@ -275,6 +284,19 @@ def delete_job(job_id: int) -> bool:
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute("DELETE FROM image_jobs WHERE id = ?", (job_id,))
+        return cursor.rowcount > 0
+
+
+def delete_output(output_id: int) -> bool:
+    """
+    Delete an output record from image_outputs table
+
+    Returns:
+        bool: True if output was deleted, False if not found
+    """
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM image_outputs WHERE id = ?", (output_id,))
         return cursor.rowcount > 0
 
 
