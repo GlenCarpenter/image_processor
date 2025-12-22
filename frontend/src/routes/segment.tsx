@@ -231,7 +231,7 @@ function RouteComponent() {
   ])
 
   useEffect(() => {
-    const preventContextMenu = (e) => e.preventDefault();
+    const preventContextMenu = (e: MouseEvent) => e.preventDefault();
     document.addEventListener("contextmenu", preventContextMenu);
 
     return () => {
