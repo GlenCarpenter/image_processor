@@ -22,14 +22,40 @@ def run_command(command, description):
 
 
 def main():
-    print("🚀 Setting up segment_markup environment with GPU support")
+    import platform
+    print("🚀 Setting up segment_markup environment with GPU support (cross-platform)")
 
-    # Step 1: Install PyTorch with CUDA 12.1 support
-    pytorch_command = (
-        "pip install torch torchvision torchaudio "
-        "--index-url https://download.pytorch.org/whl/cu121"
-    )
-    run_command(pytorch_command, "Installing PyTorch with CUDA 12.1 support")
+    system = platform.system()
+    pytorch_command = None
+
+    if system == "Windows":
+        # Default to CUDA 12.1 build for Windows
+        pytorch_command = (
+            "pip install torch torchvision torchaudio "
+            "--index-url https://download.pytorch.org/whl/cu121"
+        )
+    elif system == "Linux":
+        # Try CUDA 12.1 build for Linux, fallback to CPU if fails
+        try:
+            import torch
+            cuda_available = torch.cuda.is_available()
+        except ImportError:
+            cuda_available = False
+        if cuda_available:
+            pytorch_command = (
+                "pip install torch torchvision torchaudio "
+                "--index-url https://download.pytorch.org/whl/cu121"
+            )
+        else:
+            pytorch_command = "pip install torch torchvision torchaudio"
+    elif system == "Darwin":
+        # MacOS: install default (CPU/Metal) build
+        pytorch_command = "pip install torch torchvision torchaudio"
+    else:
+        print(f"Unknown OS: {system}. Attempting default PyTorch install.")
+        pytorch_command = "pip install torch torchvision torchaudio"
+
+    run_command(pytorch_command, f"Installing PyTorch for {system}")
 
     # Step 2: Install remaining dependencies
     # Read requirements.txt and filter out torch/torchvision lines
@@ -52,7 +78,11 @@ def main():
     print("🔍 Verifying installation")
     print("=" * 60)
 
-    verify_command = """python -c "import torch; print(f'PyTorch: {torch.__version__}'); print(f'CUDA available: {torch.cuda.is_available()}'); print(f'CUDA version: {torch.version.cuda if torch.version.cuda else \"None\"}')" """
+    verify_command = (
+        "python -c \"import torch; print(f'PyTorch: {torch.__version__}'); "
+        "print(f'CUDA available: {getattr(torch.cuda, 'is_available', lambda: False)()}'); "
+        "print(f'CUDA version: {getattr(getattr(torch, 'version', None), 'cuda', None)}')\" "
+    )
     run_command(verify_command, "Checking PyTorch installation")
 
     print("\n" + "=" * 60)
