@@ -125,19 +125,19 @@ function RouteComponent() {
                     variant="outline"
                     className="w-full"
                     size="lg"
-                    onClick={handleUpscaleClick}
+                    onClick={handleResizeClick}
                   >
-                    <ArrowUpCircle className="mr-2 h-4 w-4" />
-                    Upscale
+                    <Expand className="mr-2 h-4 w-4" />
+                    Resize
                   </Button>
                   <Button
                     variant="outline"
                     className="w-full"
                     size="lg"
-                    onClick={handleResizeClick}
+                    onClick={handleUpscaleClick}
                   >
-                    <Expand className="mr-2 h-4 w-4" />
-                    Resize
+                    <ArrowUpCircle className="mr-2 h-4 w-4" />
+                    Upscale
                   </Button>
                   <Button
                     variant="outline"
