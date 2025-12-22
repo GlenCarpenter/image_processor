@@ -4,12 +4,15 @@ Provides reusable functions for interacting with Fal AI's upscaling service
 """
 
 import os
-import tempfile
-from pathlib import Path
 from typing import Optional, Literal, Dict, Any, Callable, Tuple
 import fal_client
-import requests
 from dotenv import load_dotenv
+
+# Import shared utilities
+from backend.utils.fal_utils import (
+    upload_file_to_fal,
+    download_from_url,
+)
 
 # Load environment variables
 load_dotenv()
@@ -18,75 +21,6 @@ load_dotenv()
 FAL_KEY = os.getenv("FAL_KEY")
 if FAL_KEY:
     os.environ["FAL_KEY"] = FAL_KEY
-
-
-def upload_file_to_fal(file_path: str) -> str:
-    """
-    Upload a file from disk to Fal storage and return the URL
-
-    Args:
-        file_path: Path to the file to upload
-
-    Returns:
-        URL of the uploaded file in Fal storage
-    """
-    with open(file_path, "rb") as f:
-        url = fal_client.upload_file(f)
-    return url
-
-
-def upload_bytes_to_fal(file_bytes: bytes, filename: str) -> str:
-    """
-    Upload image bytes to Fal storage and return the URL
-    Uses a temporary file for the upload
-
-    Args:
-        file_bytes: Image data as bytes
-        filename: Original filename (used for extension detection)
-
-    Returns:
-        URL of the uploaded file in Fal storage
-    """
-    tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=Path(filename).suffix)
-    tmp_path = tmp_file.name
-
-    try:
-        tmp_file.write(file_bytes)
-        tmp_file.flush()
-        tmp_file.close()  # Explicitly close before uploading
-
-        # Pass the file path as string, not file handle
-        url = fal_client.upload_file(tmp_path)
-        return url
-    finally:
-        # Clean up temp file
-        try:
-            os.unlink(tmp_path)
-        except PermissionError:
-            # On Windows, sometimes there's a delay before file can be deleted
-            import time
-
-            time.sleep(0.1)
-            try:
-                os.unlink(tmp_path)
-            except Exception:
-                pass  # Ignore if still can't delete, OS will clean up eventually
-
-
-def download_from_url(url: str, output_path: str) -> None:
-    """
-    Download a file from URL to local path
-
-    Args:
-        url: URL to download from
-        output_path: Local path to save the file
-    """
-    response = requests.get(url, stream=True)
-    response.raise_for_status()
-
-    with open(output_path, "wb") as f:
-        for chunk in response.iter_content(chunk_size=8192):
-            f.write(chunk)
 
 
 def submit_upscale_image(

@@ -34,7 +34,7 @@ def submit_edit_image(
 ) -> Tuple[str, str]:
     """
     Submit an async image edit job to Fal AI
-    
+
     Args:
         image_url: URL of the image to edit (from Fal storage)
         prompt: Editing instruction
@@ -49,7 +49,7 @@ def submit_edit_image(
         num_images: Number of images to generate
         seed: Random seed for reproducibility
         webhook_url: Optional webhook URL for result notification
-    
+
     Returns:
         Tuple of (request_id, endpoint) for later retrieval
     """
@@ -65,27 +65,27 @@ def submit_edit_image(
         "output_format": output_format,
         "num_images": num_images,
     }
-    
+
     # Add custom image size if provided
     if image_width and image_height:
         arguments["image_size"] = {
             "width": image_width,
             "height": image_height,
         }
-    
+
     # Add seed if provided
     if seed is not None:
         arguments["seed"] = seed
-    
-    endpoint = "fal-ai/qwen-image-edit-plus-lora-gallery/remove-element"
-    
+
+    endpoint = "fal-ai/qwen-image-edit-plus"
+
     # Submit the job asynchronously
     handler = fal_client.submit(
         endpoint,
         arguments=arguments,
         webhook_url=webhook_url,
     )
-    
+
     return handler.request_id, endpoint
 
 
@@ -142,21 +142,21 @@ def edit_image_with_fal(
         "output_format": output_format,
         "num_images": num_images,
     }
-    
+
     # Add custom image size if provided
     if image_width and image_height:
         arguments["image_size"] = {
             "width": image_width,
             "height": image_height,
         }
-    
+
     # Add seed if provided
     if seed is not None:
         arguments["seed"] = seed
 
     # Call the Fal AI edit API
     result = fal_client.subscribe(
-        "fal-ai/qwen-image-edit-plus-lora-gallery/remove-element",
+        "fal-ai/qwen-image-edit-plus",
         arguments=arguments,
         with_logs=with_logs,
         on_queue_update=on_queue_update,
@@ -208,7 +208,7 @@ def edit_image_end_to_end(
     Returns:
         Dictionary with result information including image URL
     """
-    from backend.utils.fal_upscale import upload_file_to_fal, download_from_url
+    from backend.utils.fal_utils import upload_file_to_fal, download_from_url
 
     # Upload the input image
     image_url = upload_file_to_fal(input_path)

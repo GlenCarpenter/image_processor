@@ -8,15 +8,64 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pathlib import Path
+import asyncio
 
 from backend.routes import api_router
 from backend.config import settings
+from backend.database import get_active_jobs, init_db
+from backend.utils.fal_utils import poll_fal_job
 
 app = FastAPI(
     title="Segment Markup API",
     description="FastAPI server for running Python scripts and serving the React UI",
     version="0.1.0",
 )
+
+
+@app.on_event("startup")
+async def startup_event():
+    """
+    Startup event handler
+    Initializes database and recovers incomplete jobs
+    """
+    print("[Startup] Initializing database...")
+    init_db()
+
+    print("[Startup] Checking for incomplete jobs to recover...")
+    incomplete_jobs = get_active_jobs()
+
+    if incomplete_jobs:
+        print(f"[Startup] Found {len(incomplete_jobs)} incomplete job(s) to recover")
+        for job in incomplete_jobs:
+            job_id = job["id"]
+            job_type = job["job_type"]
+            fal_request_id = job.get("fal_request_id")
+
+            if fal_request_id:
+                # Determine the endpoint based on job type
+                if job_type == "upscale":
+                    endpoint = "fal-ai/seedvr/upscale/image"
+                elif job_type == "edit":
+                    endpoint = "fal-ai/qwen-image-edit-plus"
+                else:
+                    print(
+                        f"[Startup] Unknown job type '{job_type}' for job {job_id}, skipping"
+                    )
+                    continue
+
+                print(
+                    f"[Startup] Resuming polling for {job_type} job {job_id} (request_id: {fal_request_id})"
+                )
+                asyncio.create_task(
+                    poll_fal_job(job_id, fal_request_id, endpoint, job_type)
+                )
+            else:
+                print(f"[Startup] Job {job_id} has no fal_request_id, cannot recover")
+    else:
+        print("[Startup] No incomplete jobs found")
+
+    print("[Startup] Server ready!")
+
 
 # Configure CORS
 app.add_middleware(
@@ -62,6 +111,7 @@ async def health_check():
 if __name__ == "__main__":
     import uvicorn
 
+    # Note: When running with reload=True, the startup event will fire on each reload
     uvicorn.run(
         "backend.main:app",
         host=settings.HOST,

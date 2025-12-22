@@ -18,7 +18,7 @@ from backend.database import (
     get_all_jobs,
     clear_all_jobs,
 )
-from backend.utils.fal_upscale import download_from_url
+from backend.utils.fal_utils import download_from_url
 
 router = APIRouter()
 

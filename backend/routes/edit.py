@@ -3,15 +3,13 @@ Image editing API routes using Fal AI Qwen
 Handles image editing with configurable parameters
 """
 
-from fastapi import APIRouter, UploadFile, File, HTTPException, Form, BackgroundTasks
+from fastapi import APIRouter, UploadFile, File, HTTPException, Form
 from typing import Optional, Literal
 from pathlib import Path
-from datetime import datetime
-import uuid
 import asyncio
 
 from backend.database import create_job
-from backend.utils.fal_upscale import upload_bytes_to_fal, download_from_url
+from backend.utils.fal_utils import upload_bytes_to_fal, poll_fal_job
 from backend.utils.fal_edit import submit_edit_image
 from backend.utils.image_processing import resize_image_bytes
 from PIL import Image
@@ -28,8 +26,7 @@ OUTPUTS_DIR.mkdir(exist_ok=True)
 async def edit_image(
     file: UploadFile = File(..., description="Image file to edit"),
     prompt: str = Form(
-        "Remove all text from the image",
-        description="Editing instruction for the AI"
+        "Remove all text from the image", description="Editing instruction for the AI"
     ),
     guidance_scale: Optional[float] = Form(
         4.0, description="How closely to follow the prompt (0.0-20.0)"
@@ -49,9 +46,7 @@ async def edit_image(
     output_format: Optional[Literal["png", "jpeg"]] = Form(
         "png", description="Output image format"
     ),
-    seed: Optional[int] = Form(
-        None, description="Random seed for reproducibility"
-    ),
+    seed: Optional[int] = Form(None, description="Random seed for reproducibility"),
 ):
     """
     Edit an image using Fal AI's Qwen image editing service.
@@ -72,12 +67,13 @@ async def edit_image(
     """
     # Check if FAL_KEY is configured
     import os
+
     if not os.getenv("FAL_KEY"):
         raise HTTPException(
             status_code=500,
-            detail="FAL_KEY not configured. Please set FAL_KEY environment variable in .env file"
+            detail="FAL_KEY not configured. Please set FAL_KEY environment variable in .env file",
         )
-    
+
     # Validate file type
     if not file.content_type or not file.content_type.startswith("image/"):
         raise HTTPException(
@@ -119,8 +115,8 @@ async def edit_image(
             downscaled_bytes, resize_info = resize_image_bytes(
                 image_bytes, target_pixels=target_pixels
             )
-            output_width = resize_info['target_size']['width']
-            output_height = resize_info['target_size']['height']
+            output_width = resize_info["target_size"]["width"]
+            output_height = resize_info["target_size"]["height"]
             print(
                 f"Downscaled image from {width}x{height} to {output_width}x{output_height}"
             )
@@ -162,8 +158,7 @@ async def edit_image(
         )
         print(f"Job created with ID: {job_id}")
 
-        # Import and start background polling
-        from backend.routes.upscale import poll_fal_job
+        # Start background polling
         asyncio.create_task(poll_fal_job(job_id, request_id, endpoint, "edit"))
         print(f"Started background polling for job {job_id}")
 
@@ -177,6 +172,7 @@ async def edit_image(
 
     except Exception as e:
         import traceback
+
         error_details = traceback.format_exc()
         print(f"Error during image editing: {str(e)}")
         print(f"Full traceback:\n{error_details}")
