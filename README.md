@@ -19,7 +19,27 @@ segment_markup/
 
 ## Setup Instructions
 
-### Backend Setup
+### Quick Setup (Recommended)
+
+**Windows users:**
+```bash
+build.bat
+```
+
+This will automatically:
+1. Create a virtual environment (if it doesn't exist)
+2. Install Python dependencies with GPU support
+3. Build the frontend
+4. Start the server
+
+**Cross-platform option:**
+```bash
+python build.py
+```
+
+### Manual Setup
+
+If you prefer to set up manually or need more control:
 
 1. **Create a virtual environment:**
    ```bash
