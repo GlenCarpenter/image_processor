@@ -36,6 +36,13 @@ interface Point {
   label: number // 1 = foreground, 0 = background
 }
 
+interface BoundingBox {
+  x1: number
+  y1: number
+  x2: number
+  y2: number
+}
+
 function RouteComponent() {
   const navigate = useNavigate()
   const search = Route.useSearch()
@@ -46,6 +53,7 @@ function RouteComponent() {
   const setSegmentOriginal = useImageStore((state) => state.setSegmentOriginal)
   const setSegmentResult = useImageStore((state) => state.setSegmentResult)
   const setSegmentPoints = useImageStore((state) => state.setSegmentPoints)
+  const setSegmentBoxes = useImageStore((state) => state.setSegmentBoxes)
   const setSegmentMask = useImageStore((state) => state.setSegmentMask)
   const setSegmentPadding = useImageStore((state) => state.setSegmentPadding)
   const setSegmentAspectRatio = useImageStore((state) => state.setSegmentAspectRatio)
@@ -63,6 +71,9 @@ function RouteComponent() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const imageRef = useRef<HTMLImageElement>(null)
   const lastLoadedFilename = useRef<string | null>(null)
+  const isDragging = useRef(false)
+  const dragStartPos = useRef<{ x: number; y: number } | null>(null)
+  const currentBox = useRef<BoundingBox | null>(null)
 
   // Helper function to cleanup session on server
   const cleanupSession = async (sessionId: string) => {
@@ -87,6 +98,7 @@ function RouteComponent() {
 
       // Reset UI state for new image
       setSegmentPoints([])
+      setSegmentBoxes([])
       setSegmentMask(null)
       setSegmentSessionEnded(false)
       setSegmentError(null)
@@ -210,7 +222,7 @@ function RouteComponent() {
         img.onload = redrawCanvas
       }
     }
-  }, [segmentImage.originalFile, segmentImage.points, segmentImage.maskDataUrl, search.filename])
+  }, [segmentImage.originalFile, segmentImage.points, segmentImage.maskDataUrl, search.filename, currentBox.current])
 
   const drawPoints = (ctx: CanvasRenderingContext2D, img: HTMLImageElement) => {
     const canvas = canvasRef.current
@@ -230,6 +242,21 @@ function RouteComponent() {
       ctx.lineWidth = strokeWidth
       ctx.stroke()
     })
+
+    // Draw current bounding box if dragging
+    if (currentBox.current) {
+      const box = currentBox.current
+      ctx.strokeStyle = '#00ff00'
+      ctx.lineWidth = 3 * displayScale
+      ctx.setLineDash([10 * displayScale, 5 * displayScale])
+      ctx.strokeRect(
+        Math.min(box.x1, box.x2),
+        Math.min(box.y1, box.y2),
+        Math.abs(box.x2 - box.x1),
+        Math.abs(box.y2 - box.y1)
+      )
+      ctx.setLineDash([])
+    }
   }
 
   const handleFileDrop = async (acceptedFiles: File[]) => {
@@ -237,6 +264,7 @@ function RouteComponent() {
       const file = acceptedFiles[0]
       setSegmentOriginal(file)
       setSegmentPoints([])
+      setSegmentBoxes([])
       setSegmentMask(null)
       setSegmentResult(null)
       setSegmentSessionEnded(false)
@@ -273,29 +301,117 @@ function RouteComponent() {
     }
   }
 
-  const handleCanvasClick = async (e: React.MouseEvent<HTMLCanvasElement>) => {
-    console.log(imageRef.current, segmentImage.sessionId)
-    if (!imageRef.current || !segmentImage.sessionId) return
-
+  const getCanvasCoordinates = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current
-    if (!canvas) return
+    const img = imageRef.current
+    if (!canvas || !img) return null
 
     const rect = canvas.getBoundingClientRect()
-    const img = imageRef.current
-
-    // Get click coordinates relative to canvas
     const x = ((e.clientX - rect.left) / rect.width) * img.naturalWidth
     const y = ((e.clientY - rect.top) / rect.height) * img.naturalHeight
+    return { x, y }
+  }
 
-    // Determine label: left click = foreground (1), right click = background (0)
-    const label = e.button === 2 ? 0 : 1
+  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!imageRef.current || !segmentImage.sessionId) return
 
-    const newPoint: Point = { x, y, label }
-    const newPoints = [...segmentImage.points, newPoint]
-    setSegmentPoints(newPoints)
+    const coords = getCanvasCoordinates(e)
+    if (!coords) return
 
-    // Trigger prediction
-    await predictMask(newPoints)
+    // Start dragging for bounding box
+    isDragging.current = true
+    dragStartPos.current = coords
+    currentBox.current = { x1: coords.x, y1: coords.y, x2: coords.x, y2: coords.y }
+  }
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!isDragging.current || !dragStartPos.current) return
+
+    const coords = getCanvasCoordinates(e)
+    if (!coords) return
+
+    // Update bounding box
+    currentBox.current = {
+      x1: dragStartPos.current.x,
+      y1: dragStartPos.current.y,
+      x2: coords.x,
+      y2: coords.y,
+    }
+
+    // Force redraw
+    const canvas = canvasRef.current
+    const img = imageRef.current
+    if (canvas && img) {
+      const ctx = canvas.getContext('2d')
+      if (ctx) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height)
+        if (segmentImage.maskDataUrl) {
+          const maskImg = new Image()
+          maskImg.onload = () => {
+            ctx.globalAlpha = 0.5
+            ctx.drawImage(maskImg, 0, 0)
+            ctx.globalAlpha = 1.0
+            drawPoints(ctx, img)
+          }
+          maskImg.src = segmentImage.maskDataUrl
+        } else {
+          drawPoints(ctx, img)
+        }
+      }
+    }
+  }
+
+  const handleMouseUp = async (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!isDragging.current || !dragStartPos.current || !currentBox.current) return
+
+    const coords = getCanvasCoordinates(e)
+    if (!coords) return
+
+    isDragging.current = false
+
+    // Check if this was a drag or just a click
+    const dx = Math.abs(coords.x - dragStartPos.current.x)
+    const dy = Math.abs(coords.y - dragStartPos.current.y)
+    const minDragDistance = 5 // pixels in natural coordinates
+
+    if (dx < minDragDistance && dy < minDragDistance) {
+      // This was a click, not a drag - add point
+      const label = e.button === 2 ? 0 : 1
+      const newPoint: Point = { x: coords.x, y: coords.y, label }
+      const newPoints = [...segmentImage.points, newPoint]
+      setSegmentPoints(newPoints)
+      await predictMask(newPoints)
+    } else {
+      // This was a drag - use bounding box
+      const box = currentBox.current
+      await predictMaskFromBox(box)
+    }
+
+    // Clear drag state
+    dragStartPos.current = null
+    currentBox.current = null
+
+    // Force redraw to clear the box
+    const canvas = canvasRef.current
+    const img = imageRef.current
+    if (canvas && img) {
+      const ctx = canvas.getContext('2d')
+      if (ctx) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height)
+        if (segmentImage.maskDataUrl) {
+          const maskImg = new Image()
+          maskImg.onload = () => {
+            ctx.globalAlpha = 0.5
+            ctx.drawImage(maskImg, 0, 0)
+            ctx.globalAlpha = 1.0
+            drawPoints(ctx, img)
+          }
+          maskImg.src = segmentImage.maskDataUrl
+        } else {
+          drawPoints(ctx, img)
+        }
+      }
+    }
   }
 
   const predictMask = async (pointsList: Point[]) => {
@@ -326,6 +442,53 @@ function RouteComponent() {
       const data = await response.json()
       console.log('Received mask data:', data)
       setSegmentMask(`data:image/png;base64,${data.mask}`)
+    } catch (err) {
+      console.error('Error predicting mask:', err)
+      setSegmentError(err instanceof Error ? err.message : 'Failed to predict mask')
+    } finally {
+      setSegmentPredicting(false)
+    }
+  }
+
+  const predictMaskFromBox = async (box: BoundingBox) => {
+    if (!segmentImage.sessionId) return
+
+    console.log('Predicting mask with bounding box:', box)
+
+    setSegmentPredicting(true)
+    setSegmentError(null)
+
+    try {
+      const formData = new FormData()
+      formData.append('session_id', segmentImage.sessionId)
+      // SAM expects bboxes as [x1, y1, x2, y2]
+      formData.append(
+        'bboxes',
+        JSON.stringify([
+          Math.min(box.x1, box.x2),
+          Math.min(box.y1, box.y2),
+          Math.max(box.x1, box.x2),
+          Math.max(box.y1, box.y2),
+        ])
+      )
+
+      const response = await fetch(`${API_BASE_URL}/segment/predict`, {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('Prediction error:', errorText)
+        throw new Error('Failed to predict mask')
+      }
+
+      const data = await response.json()
+      console.log('Received mask data from box:', data)
+      setSegmentMask(`data:image/png;base64,${data.mask}`)
+      
+      // Store the box in history
+      setSegmentBoxes([...segmentImage.boxes, box])
     } catch (err) {
       console.error('Error predicting mask:', err)
       setSegmentError(err instanceof Error ? err.message : 'Failed to predict mask')
@@ -408,17 +571,41 @@ function RouteComponent() {
 
   const handleClearPoints = () => {
     setSegmentPoints([])
+    setSegmentBoxes([])
     setSegmentMask(null)
   }
 
   const handleUndoLastPoint = async () => {
-    if (segmentImage.points.length === 0) return
-    const newPoints = segmentImage.points.slice(0, -1)
-    setSegmentPoints(newPoints)
-    if (newPoints.length > 0) {
-      await predictMask(newPoints)
-    } else {
-      setSegmentMask(null)
+    const hasPoints = segmentImage.points.length > 0
+    const hasBoxes = segmentImage.boxes.length > 0
+    
+    if (!hasPoints && !hasBoxes) return
+
+    // Remove the last prompt (box or point)
+    // Boxes are always used alone, so if we have a box, remove it
+    if (hasBoxes) {
+      const newBoxes = segmentImage.boxes.slice(0, -1)
+      setSegmentBoxes(newBoxes)
+      
+      if (newBoxes.length > 0) {
+        // Re-predict with remaining box
+        await predictMaskFromBox(newBoxes[newBoxes.length - 1])
+      } else if (hasPoints) {
+        // Fall back to points if we have any
+        await predictMask(segmentImage.points)
+      } else {
+        setSegmentMask(null)
+      }
+    } else if (hasPoints) {
+      // Only points exist, remove last point
+      const newPoints = segmentImage.points.slice(0, -1)
+      setSegmentPoints(newPoints)
+      
+      if (newPoints.length > 0) {
+        await predictMask(newPoints)
+      } else {
+        setSegmentMask(null)
+      }
     }
   }
 
@@ -462,6 +649,7 @@ function RouteComponent() {
 
     // Keep the current image and cropped result, just reset the session state
     setSegmentPoints([])
+    setSegmentBoxes([])
     setSegmentMask(null)
     setSegmentSessionEnded(false)
     setSegmentError(null)
@@ -546,15 +734,19 @@ function RouteComponent() {
                           ? 'cursor-not-allowed opacity-50'
                           : 'cursor-crosshair'
                       }`}
-                      onClick={segmentImage.sessionEnded ? undefined : handleCanvasClick}
-                      onContextMenu={
+                      onMouseDown={segmentImage.sessionEnded ? undefined : handleMouseDown}
+                      onMouseMove={segmentImage.sessionEnded ? undefined : handleMouseMove}
+                      onMouseUp={segmentImage.sessionEnded ? undefined : handleMouseUp}
+                      onMouseLeave={
                         segmentImage.sessionEnded
                           ? undefined
                           : (e) => {
-                              e.preventDefault()
-                              handleCanvasClick(e as any)
+                              if (isDragging.current) {
+                                handleMouseUp(e)
+                              }
                             }
                       }
+                      onContextMenu={(e) => e.preventDefault()}
                     />
                   </div>
                   {segmentImage.isPredicting && (
@@ -588,7 +780,7 @@ function RouteComponent() {
                     <>
                       <Button
                         onClick={handleUndoLastPoint}
-                        disabled={segmentImage.points.length === 0 || segmentImage.isPredicting}
+                        disabled={(segmentImage.points.length === 0 && segmentImage.boxes.length === 0) || segmentImage.isPredicting}
                         variant="outline"
                         size="sm"
                       >
@@ -597,16 +789,16 @@ function RouteComponent() {
                       </Button>
                       <Button
                         onClick={handleClearPoints}
-                        disabled={segmentImage.points.length === 0}
+                        disabled={segmentImage.points.length === 0 && segmentImage.boxes.length === 0}
                         variant="outline"
                         size="sm"
                       >
                         <Trash2 className="w-4 h-4 mr-2" />
-                        Clear Points
+                        Clear All
                       </Button>
                       <div className="ml-auto text-sm text-muted-foreground">
-                        {segmentImage.points.length} point
-                        {segmentImage.points.length !== 1 ? 's' : ''}
+                        {segmentImage.points.length} point{segmentImage.points.length !== 1 ? 's' : ''}
+                        {segmentImage.boxes.length > 0 && `, ${segmentImage.boxes.length} box${segmentImage.boxes.length !== 1 ? 'es' : ''}`}
                       </div>
                     </>
                   )}

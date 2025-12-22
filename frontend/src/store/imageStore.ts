@@ -66,6 +66,7 @@ interface ImageState {
     originalFile: File | null
     croppedFilename: string | null
     points: Array<{ x: number; y: number; label: number }>
+    boxes: Array<{ x1: number; y1: number; x2: number; y2: number }>
     maskDataUrl: string | null
     padding: number
     aspectRatio: string
@@ -127,6 +128,7 @@ interface ImageState {
   setSegmentOriginal: (file: File | null) => void
   setSegmentResult: (filename: string | null) => void
   setSegmentPoints: (points: Array<{ x: number; y: number; label: number }>) => void
+  setSegmentBoxes: (boxes: Array<{ x1: number; y1: number; x2: number; y2: number }>) => void
   setSegmentMask: (maskDataUrl: string | null) => void
   setSegmentPadding: (padding: number) => void
   setSegmentAspectRatio: (aspectRatio: string) => void
@@ -157,6 +159,7 @@ export const useImageStore = create<ImageState>()(
         originalFile: null,
         croppedFilename: null,
         points: [],
+        boxes: [],
         maskDataUrl: null,
         padding: 10,
         aspectRatio: 'None',
@@ -320,6 +323,8 @@ export const useImageStore = create<ImageState>()(
         set((state) => ({ segmentImage: { ...state.segmentImage, croppedFilename: filename } })),
       setSegmentPoints: (points) =>
         set((state) => ({ segmentImage: { ...state.segmentImage, points } })),
+      setSegmentBoxes: (boxes) =>
+        set((state) => ({ segmentImage: { ...state.segmentImage, boxes } })),
       setSegmentMask: (maskDataUrl) =>
         set((state) => ({ segmentImage: { ...state.segmentImage, maskDataUrl } })),
       setSegmentPadding: (padding) =>
@@ -343,6 +348,7 @@ export const useImageStore = create<ImageState>()(
             originalFile: null,
             croppedFilename: null,
             points: [],
+            boxes: [],
             maskDataUrl: null,
             padding: 10,
             aspectRatio: 'None',

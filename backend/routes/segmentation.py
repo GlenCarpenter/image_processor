@@ -85,19 +85,21 @@ async def upload_for_segmentation(
 @router.post("/predict")
 async def predict_segmentation(
     session_id: str = Form(..., description="Session ID from upload"),
-    points: str = Form(..., description="JSON array of [x, y] point coordinates"),
-    labels: str = Form(
-        ..., description="JSON array of labels (1=foreground, 0=background)"
+    points: Optional[str] = Form(None, description="JSON array of [x, y] point coordinates"),
+    labels: Optional[str] = Form(
+        None, description="JSON array of labels (1=foreground, 0=background)"
     ),
+    bboxes: Optional[str] = Form(None, description="JSON array [x1, y1, x2, y2] for bounding box"),
     model: str = Form("sam2_b.pt", description="SAM model to use"),
 ):
     """
-    Generate segmentation mask from point prompts
+    Generate segmentation mask from point prompts or bounding box
 
     **Parameters:**
     - **session_id**: Session ID from upload
-    - **points**: JSON string of [[x1, y1], [x2, y2], ...] coordinates
-    - **labels**: JSON string of [1, 1, 0, ...] labels
+    - **points**: JSON string of [[x1, y1], [x2, y2], ...] coordinates (optional)
+    - **labels**: JSON string of [1, 1, 0, ...] labels (optional)
+    - **bboxes**: JSON string of [x1, y1, x2, y2] bounding box (optional)
     - **model**: SAM model name (sam2_b.pt, sam2_l.pt, sam2_s.pt, sam2_t.pt)
 
     **Returns:** Base64-encoded mask image (PNG)
@@ -111,17 +113,30 @@ async def predict_segmentation(
         # Parse points and labels
         import json
 
-        points_list = json.loads(points)
-        labels_list = json.loads(labels)
-
         # Read image
         with open(temp_path, "rb") as f:
             image_bytes = f.read()
 
-        # Get mask prediction
-        mask = predict_mask_from_points(
-            image_bytes, points=points_list, labels=labels_list, model_name=model
-        )
+        # Get mask prediction - handle both points and bboxes
+        if bboxes:
+            # Use bounding box prompt
+            bbox_list = json.loads(bboxes)
+            from backend.utils.sam_segmentation import predict_mask_from_bboxes
+            mask = predict_mask_from_bboxes(
+                image_bytes, bboxes=bbox_list, model_name=model
+            )
+        elif points and labels:
+            # Use point prompts
+            points_list = json.loads(points)
+            labels_list = json.loads(labels)
+            mask = predict_mask_from_points(
+                image_bytes, points=points_list, labels=labels_list, model_name=model
+            )
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail="Either points/labels or bboxes must be provided"
+            )
 
         # Convert mask to PNG image
         mask_img = Image.fromarray(mask, mode="L")

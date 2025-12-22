@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useEffect } from 'react'
+import { toast } from 'sonner'
 import { Dropzone, DropzoneContent, DropzoneEmptyState } from '@/components/ui/shadcn-io/dropzone'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -164,6 +165,8 @@ function RouteComponent() {
 
       // Job will be tracked globally, no local polling needed
       console.log(`Edit job submitted: ${data.job_id}`)
+      toast.success('Job Submitted', {
+        description: 'Your edit job is being processed. You will be notified when complete.'      })
     } catch (err) {
       setEditError(err instanceof Error ? err.message : 'An error occurred')
       setEditEditing(false)
@@ -265,12 +268,6 @@ function RouteComponent() {
                 >
                   {editImage.isEditing ? 'Editing Image...' : 'Edit Image'}
                 </Button>
-
-                {editImage.isEditing && (
-                  <div className="text-sm text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950 p-3 rounded-md">
-                    Job submitted - you will be notified when complete
-                  </div>
-                )}
 
                 {editImage.originalMetadata && (
                   <ImageMetadataDisplay metadata={editImage.originalMetadata} />

@@ -147,6 +147,57 @@ def predict_mask_from_points(
     return np.zeros(img_array.shape[:2], dtype=np.uint8)
 
 
+def predict_mask_from_bboxes(
+    image_bytes: bytes,
+    bboxes: List[float],
+    model_name: str = "sam2_b.pt",
+) -> np.ndarray:
+    """
+    Generate segmentation mask from bounding box prompt
+
+    Args:
+        image_bytes: Image data as bytes
+        bboxes: Bounding box as [x1, y1, x2, y2]
+        model_name: SAM model to use
+
+    Returns:
+        Binary mask as numpy array (H, W) with values 0 or 255
+    """
+    # Load image
+    img = Image.open(BytesIO(image_bytes))
+    img_array = np.array(img)
+
+    # Get cached model
+    model = get_sam_model(model_name)
+
+    print(f"Predicting with bounding box: {bboxes}")
+
+    # Run prediction with bboxes prompt
+    # SAM expects bboxes as a list: [x1, y1, x2, y2]
+    results = model(
+        img_array, bboxes=bboxes, verbose=False
+    )
+
+    # Extract mask from results
+    if (
+        len(results) > 0
+        and hasattr(results[0], "masks")
+        and results[0].masks is not None
+    ):
+        # Get the first mask
+        mask = results[0].masks.data[0].cpu().numpy()
+        # Convert to uint8 (0 or 255)
+        mask = (mask * 255).astype(np.uint8)
+        print(
+            f"Generated mask with shape: {mask.shape}, unique values: {np.unique(mask)}, sum: {mask.sum()}"
+        )
+        return mask
+
+    # Return empty mask if no result
+    print("No mask generated!")
+    return np.zeros(img_array.shape[:2], dtype=np.uint8)
+
+
 def crop_image_with_mask(
     image_bytes: bytes,
     mask: np.ndarray,
