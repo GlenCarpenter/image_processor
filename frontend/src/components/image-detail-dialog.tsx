@@ -51,7 +51,6 @@ export function ImageDetailDialog({
   open,
   onOpenChange,
   filename,
-  originalFilename,
   title,
   description,
   onDelete,

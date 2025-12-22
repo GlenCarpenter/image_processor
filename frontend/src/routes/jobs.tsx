@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ImageDetailDialog } from '@/components/image-detail-dialog'
 import { useImageStore } from '@/store/imageStore'
-import { Loader2, CheckCircle2, XCircle, Clock, Trash2 } from 'lucide-react'
+import { Loader2, CheckCircle2, XCircle, Clock } from 'lucide-react'
 import { API_BASE_URL } from '@/lib/constants'
 
 export const Route = createFileRoute('/jobs')({
@@ -52,19 +52,6 @@ function RouteComponent() {
       setError(err instanceof Error ? err.message : 'Failed to fetch jobs')
     } finally {
       setLoading(false)
-    }
-  }
-
-  const clearJobs = async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/jobs`, {
-        method: 'DELETE',
-      })
-      if (!response.ok) throw new Error('Failed to clear jobs')
-
-      setJobs([])
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to clear jobs')
     }
   }
 
@@ -187,15 +174,6 @@ function RouteComponent() {
               </Button>
               <Button variant="outline" size="sm" onClick={fetchJobs}>
                 Refresh
-              </Button>
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={clearJobs}
-                disabled={jobs.length === 0}
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Clear All
               </Button>
             </div>
           </div>
