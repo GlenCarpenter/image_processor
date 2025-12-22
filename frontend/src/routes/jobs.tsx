@@ -114,8 +114,8 @@ function RouteComponent() {
     // Add 'Z' to parse as UTC, or handle as-is if it already has timezone info
     const dateStr =
       dateString.includes('Z') ||
-        dateString.includes('+') ||
-        (dateString.includes('T') && dateString.split('T')[1].includes('-'))
+      dateString.includes('+') ||
+      (dateString.includes('T') && dateString.split('T')[1].includes('-'))
         ? dateString
         : dateString.replace(' ', 'T') + 'Z'
 

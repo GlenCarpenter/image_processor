@@ -1,4 +1,5 @@
 """API Routes"""
+
 from fastapi import APIRouter
 
 from backend.routes import scripts, images, upscale, segmentation, edit, jobs

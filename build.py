@@ -121,6 +121,35 @@ def install_requirements():
     return True
 
 
+def format_python():
+    """Format Python code using black"""
+    print("\n🎨 Formatting Python code with black...")
+
+    python_exe = sys.executable
+    backend_dir = Path("backend")
+
+    if not backend_dir.exists():
+        print("⚠ Backend directory not found. Skipping formatting.")
+        return True
+
+    # Format backend directory
+    if not run_command([python_exe, "-m", "black", "backend"]):
+        print("⚠ Black formatting encountered issues (may not be installed yet)")
+        return True  # Don't fail the build
+
+    # Format root Python files
+    root_py_files = list(Path(".").glob("*.py"))
+    if root_py_files:
+        if not run_command(
+            [python_exe, "-m", "black"] + [str(f) for f in root_py_files]
+        ):
+            print("⚠ Black formatting encountered issues")
+            return True
+
+    print("\n✅ Python code formatted!")
+    return True
+
+
 def start_server(dev_mode=False):
     """Start the FastAPI server"""
     print("\n🚀 Starting Server...")
@@ -173,11 +202,22 @@ def main():
         action="store_true",
         help="Start server in development mode with auto-reload",
     )
+    parser.add_argument(
+        "--format",
+        action="store_true",
+        help="Format Python code with black before building",
+    )
 
     args = parser.parse_args()
 
     print("Image Processor Build Script")
     print("=" * 60)
+
+    # Format Python code if requested
+    if args.format:
+        if not format_python():
+            print("\n❌ Python formatting failed!")
+            sys.exit(1)
 
     # Build frontend
     if not args.skip_frontend:

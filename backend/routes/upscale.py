@@ -181,6 +181,3 @@ async def upscale_image(
         print(f"Error upscaling image: {str(e)}")
         print(f"Full traceback:\n{error_details}")
         raise HTTPException(status_code=500, detail=f"Error upscaling image: {str(e)}")
-
-
-

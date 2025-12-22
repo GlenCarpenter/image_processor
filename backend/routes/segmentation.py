@@ -205,7 +205,7 @@ async def crop_to_selection(
         # Get original filename from session
         original_filename = "unknown"
         # Try to get from temp file or session data
-        
+
         # Create output record
         output_id = create_output(
             filename=output_filename,
@@ -214,7 +214,11 @@ async def crop_to_selection(
             file_path=str(output_path),
             width=info.get("width"),
             height=info.get("height"),
-            pixels=info.get("width", 0) * info.get("height", 0) if info.get("width") and info.get("height") else None,
+            pixels=(
+                info.get("width", 0) * info.get("height", 0)
+                if info.get("width") and info.get("height")
+                else None
+            ),
             aspect_ratio=aspect_ratio,
         )
 
