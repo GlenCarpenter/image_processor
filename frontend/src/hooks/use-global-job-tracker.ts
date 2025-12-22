@@ -4,6 +4,7 @@
  */
 
 import { useEffect, useCallback, useRef } from 'react'
+import { toast } from 'sonner'
 import { useImageStore } from '@/store/imageStore'
 import { API_BASE_URL } from '@/lib/constants'
 import { extractImageMetadata } from '@/lib/imageUtils'
@@ -17,6 +18,7 @@ interface Job {
   output_height: number | null
   output_pixels: number | null
   error_message: string | null
+  metadata?: string | null
 }
 
 export function useGlobalJobTracker() {
@@ -53,13 +55,24 @@ export function useGlobalJobTracker() {
 
           // Update store based on job type
           if (job.job_type === 'upscale') {
+            // Parse upscale factor from job metadata if available
+            let upscaleFactor = 2 // default
+            if (job.metadata) {
+              try {
+                const jobMetadata = JSON.parse(job.metadata)
+                upscaleFactor = jobMetadata.upscale_factor || 2
+              } catch (e) {
+                console.error('Failed to parse job metadata:', e)
+              }
+            }
+
             const info = {
               outputWidth: job.output_width || 0,
               outputHeight: job.output_height || 0,
               outputPixels: job.output_pixels || 0,
               fileSize: 0, // Not available from API
               upscaleMode: 'factor',
-              upscaleFactor: 2,
+              upscaleFactor: upscaleFactor,
             }
             setUpscaleResult(job.id, job.output_filename, info)
             setUpscaleResultMetadata(metadata)
@@ -77,13 +90,24 @@ export function useGlobalJobTracker() {
           console.error('Failed to extract metadata:', error)
           // Still update the result even if metadata fails
           if (job.job_type === 'upscale') {
+            // Parse upscale factor from job metadata if available
+            let upscaleFactor = 2 // default
+            if (job.metadata) {
+              try {
+                const jobMetadata = JSON.parse(job.metadata)
+                upscaleFactor = jobMetadata.upscale_factor || 2
+              } catch (e) {
+                console.error('Failed to parse job metadata:', e)
+              }
+            }
+
             const info = {
               outputWidth: job.output_width || 0,
               outputHeight: job.output_height || 0,
               outputPixels: job.output_pixels || 0,
               fileSize: 0,
               upscaleMode: 'factor',
-              upscaleFactor: 2,
+              upscaleFactor: upscaleFactor,
             }
             setUpscaleResult(job.id, job.output_filename, info)
             setUpscaleUpscaling(false)
@@ -98,11 +122,7 @@ export function useGlobalJobTracker() {
         }
       } else if (job.job_status === 'failed') {
         // Show error notification
-        showNotification(
-          'Job Failed',
-          job.error_message || `${job.job_type} job failed`,
-          'error'
-        )
+        showNotification('Job Failed', job.error_message || `${job.job_type} job failed`, 'error')
 
         // Update store with error
         if (job.job_type === 'upscale') {
@@ -126,13 +146,15 @@ export function useGlobalJobTracker() {
     ]
   )
 
-  const showNotification = (title: string, message: string, type: 'success' | 'error' = 'success') => {
-    // Simple browser notification
-    if ('Notification' in window && Notification.permission === 'granted') {
-      new Notification(title, { body: message })
+  const showNotification = (
+    title: string,
+    message: string,
+    type: 'success' | 'error' = 'success'
+  ) => {
+    if (type === 'error') {
+      toast.error(title, { description: message })
     } else {
-      // Fallback to console log
-      console.log(`[${type.toUpperCase()}] ${title}: ${message}`)
+      toast.success(title, { description: message })
     }
   }
 
@@ -176,13 +198,6 @@ export function useGlobalJobTracker() {
       console.error('Error checking jobs:', error)
     }
   }, [handleJobCompletion])
-
-  // Request notification permission on mount
-  useEffect(() => {
-    if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission()
-    }
-  }, [])
 
   // Start polling
   useEffect(() => {

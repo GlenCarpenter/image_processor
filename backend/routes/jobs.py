@@ -12,10 +12,10 @@ import fal_client
 
 from backend.database import (
     get_job,
-    get_recent_jobs,
     get_job_by_request_id,
     update_job_status,
     get_active_jobs,
+    get_all_jobs,
     clear_all_jobs,
 )
 from backend.utils.fal_upscale import download_from_url
@@ -35,17 +35,17 @@ async def list_jobs(
     status: Optional[str] = None,
 ):
     """
-    Get list of jobs with optional filtering
+    Get list of async jobs with optional filtering
 
     **Parameters:**
     - **limit**: Maximum number of jobs to return (default: 50)
     - **offset**: Pagination offset (default: 0)
-    - **job_type**: Filter by job type (resize, edit, upscale)
+    - **job_type**: Filter by job type (upscale, edit)
     - **status**: Filter by status (pending, processing, completed, failed)
 
-    **Returns:** List of jobs
+    **Returns:** List of async jobs from image_jobs table
     """
-    jobs = get_recent_jobs(limit=limit, offset=offset, job_type=job_type)
+    jobs = get_all_jobs(limit=limit, offset=offset, job_type=job_type)
 
     # Apply status filter if provided
     if status:
@@ -130,7 +130,7 @@ async def poll_job_status(job_id: int, background_tasks: BackgroundTasks):
     # For now, determine based on job_type
     job_type = job["job_type"]
     if job_type == "edit":
-        endpoint = "fal-ai/qwen-image-edit-plus-lora-gallery/remove-element"
+        endpoint = "fal-ai/qwen-image-edit-plus"
     elif job_type == "upscale":
         endpoint = "fal-ai/seedvr/upscale/image"
     else:

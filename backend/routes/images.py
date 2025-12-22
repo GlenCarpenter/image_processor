@@ -13,7 +13,7 @@ import zipfile
 from io import BytesIO
 
 from backend.utils.image_processing import resize_image_bytes, extract_exif_data
-from backend.database import create_job, get_job, get_recent_jobs
+from backend.database import create_job, get_job, get_recent_jobs, create_output
 
 router = APIRouter()
 
@@ -153,12 +153,28 @@ async def resize_image(
         with open(output_path, "wb") as f:
             f.write(resized_bytes)
 
-        # No job tracking for synchronous resize operations
+        # Create output record
+        output_id = create_output(
+            filename=output_filename,
+            operation_type="resize",
+            original_filename=file.filename or "unknown",
+            file_path=str(output_path),
+            width=info["target_size"]["width"],
+            height=info["target_size"]["height"],
+            pixels=info["actual_pixels"],
+            original_width=info["original_size"]["width"],
+            original_height=info["original_size"]["height"],
+            original_pixels=info["original_pixels"],
+            aspect_ratio=info["aspect_ratio"],
+            quality=quality,
+            target_pixels=target_pixels,
+        )
 
         # Return job metadata
         return {
             "success": True,
             "output_filename": output_filename,
+            "output_id": output_id,
             "info": info,
         }
 

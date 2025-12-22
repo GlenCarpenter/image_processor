@@ -268,7 +268,7 @@ function RouteComponent() {
 
                 {editImage.isEditing && (
                   <div className="text-sm text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950 p-3 rounded-md">
-                    Job submitted - you can navigate away and will be notified when complete
+                    Job submitted - you will be notified when complete
                   </div>
                 )}
 

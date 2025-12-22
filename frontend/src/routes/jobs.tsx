@@ -3,27 +3,9 @@ import { useEffect, useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { ImageDetailDialog } from '@/components/image-detail-dialog'
 import { useImageStore } from '@/store/imageStore'
-import {
-  Loader2,
-  CheckCircle2,
-  XCircle,
-  Clock,
-  Trash2,
-  Download,
-  ArrowUpCircle,
-  Expand,
-  Scissors,
-  Pencil,
-} from 'lucide-react'
+import { Loader2, CheckCircle2, XCircle, Clock, Trash2 } from 'lucide-react'
 import { API_BASE_URL } from '@/lib/constants'
 
 export const Route = createFileRoute('/jobs')({
@@ -125,13 +107,18 @@ function RouteComponent() {
     )
   }
 
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString: string | undefined | null) => {
+    if (!dateString) return 'N/A'
+
     // SQLite CURRENT_TIMESTAMP returns UTC time without 'Z' suffix
     // Add 'Z' to parse as UTC, or handle as-is if it already has timezone info
-    const dateStr = dateString.includes('Z') || dateString.includes('+') || dateString.includes('T') && dateString.split('T')[1].includes('-')
-      ? dateString
-      : dateString.replace(' ', 'T') + 'Z'
-    
+    const dateStr =
+      dateString.includes('Z') ||
+        dateString.includes('+') ||
+        (dateString.includes('T') && dateString.split('T')[1].includes('-'))
+        ? dateString
+        : dateString.replace(' ', 'T') + 'Z'
+
     const date = new Date(dateStr)
     const now = new Date()
     const diff = now.getTime() - date.getTime()
@@ -192,16 +179,10 @@ function RouteComponent() {
           <div className="flex items-center justify-between">
             <div>
               <CardTitle>Job Queue</CardTitle>
-              <CardDescription>
-                Track your image processing jobs
-              </CardDescription>
+              <CardDescription>Track your image processing jobs</CardDescription>
             </div>
             <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setAutoRefresh(!autoRefresh)}
-              >
+              <Button variant="outline" size="sm" onClick={() => setAutoRefresh(!autoRefresh)}>
                 {autoRefresh ? 'Disable' : 'Enable'} Auto-refresh
               </Button>
               <Button variant="outline" size="sm" onClick={fetchJobs}>
@@ -284,9 +265,7 @@ function RouteComponent() {
                             </div>
                             <div className="text-sm text-muted-foreground mt-1">
                               {job.original_filename}
-                              {job.output_filename && (
-                                <span> → {job.output_filename}</span>
-                              )}
+                              {job.output_filename && <span> → {job.output_filename}</span>}
                             </div>
                             {job.output_width && job.output_height && (
                               <div className="text-xs text-muted-foreground mt-1">
@@ -341,129 +320,30 @@ function RouteComponent() {
       </Card>
 
       {/* Job Detail Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-[95vw] max-h-[95vh] w-full h-full">
-          {selectedJob && (
-            <>
-              <DialogHeader>
-                <DialogTitle className="break-all overflow-wrap-anywhere max-w-full">
-                  Job #{selectedJob.id} - {selectedJob.original_filename}
-                </DialogTitle>
-                <DialogDescription>
-                  {selectedJob.job_type.charAt(0).toUpperCase() + selectedJob.job_type.slice(1)} •{' '}
-                  {getStatusBadge(selectedJob.job_status)} • Created {formatDate(selectedJob.created_at)}
-                </DialogDescription>
-              </DialogHeader>
-
-              <div className="space-y-4 flex-1 overflow-auto">
-                {selectedJob.output_filename ? (
-                  <div className="w-full h-[60vh] overflow-hidden rounded-lg border bg-muted flex items-center justify-center">
-                    <img
-                      src={`${API_BASE_URL}/images/output/${selectedJob.output_filename}`}
-                      alt={selectedJob.original_filename}
-                      className="max-w-full max-h-full object-contain"
-                    />
-                  </div>
-                ) : (
-                  <div className="w-full h-[60vh] overflow-hidden rounded-lg border bg-muted flex items-center justify-center">
-                    <div className="text-center text-muted-foreground">
-                      {selectedJob.job_status === 'failed' ? (
-                        <div>
-                          <XCircle className="h-16 w-16 mx-auto mb-4 text-red-500" />
-                          <p>Job Failed</p>
-                          {selectedJob.error_message && (
-                            <p className="text-sm mt-2 text-red-500">{selectedJob.error_message}</p>
-                          )}
-                        </div>
-                      ) : (
-                        <div>
-                          <Loader2 className="h-16 w-16 mx-auto mb-4 animate-spin" />
-                          <p>Processing...</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className="text-muted-foreground">Job Type:</span>
-                    <p className="font-medium capitalize">{selectedJob.job_type}</p>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Status:</span>
-                    <div className="mt-1">{getStatusBadge(selectedJob.job_status)}</div>
-                  </div>
-                  {selectedJob.output_width && selectedJob.output_height && (
-                    <>
-                      <div>
-                        <span className="text-muted-foreground">Output Size:</span>
-                        <p className="font-medium">
-                          {selectedJob.output_width} × {selectedJob.output_height}
-                        </p>
-                      </div>
-                    </>
-                  )}
-                  <div>
-                    <span className="text-muted-foreground">Created:</span>
-                    <p className="font-medium">{formatDate(selectedJob.created_at)}</p>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Updated:</span>
-                    <p className="font-medium">{formatDate(selectedJob.updated_at)}</p>
-                  </div>
-                  {selectedJob.fal_request_id && (
-                    <div className="col-span-2">
-                      <span className="text-muted-foreground">Request ID:</span>
-                      <p className="font-mono text-xs break-all">{selectedJob.fal_request_id}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <DialogFooter className="flex-col sm:flex-row gap-2">
-                {selectedJob.output_filename && (
-                  <>
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        const link = document.createElement('a')
-                        link.href = `${API_BASE_URL}/images/output/${selectedJob.output_filename}/download`
-                        link.download = selectedJob.output_filename || 'image'
-                        document.body.appendChild(link)
-                        link.click()
-                        document.body.removeChild(link)
-                      }}
-                      className="w-full sm:w-auto sm:mr-auto"
-                    >
-                      <Download className="w-4 h-4 mr-2" />
-                      Download
-                    </Button>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 w-full sm:w-auto">
-                      <Button variant="outline" size="sm" onClick={handleSendToUpscale}>
-                        <ArrowUpCircle className="w-4 h-4 mr-1" />
-                        Upscale
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={handleSendToResize}>
-                        <Expand className="w-4 h-4 mr-1" />
-                        Resize
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={handleSendToSegment}>
-                        <Scissors className="w-4 h-4 mr-1" />
-                        Segment
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={handleSendToEdit}>
-                        <Pencil className="w-4 h-4 mr-1" />
-                        Edit
-                      </Button>
-                    </div>
-                  </>
-                )}
-              </DialogFooter>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
+      <ImageDetailDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        filename={selectedJob?.output_filename || null}
+        originalFilename={selectedJob?.original_filename || ''}
+        title={selectedJob?.original_filename || ''}
+        description={
+          selectedJob
+            ? `${selectedJob.job_type.charAt(0).toUpperCase() + selectedJob.job_type.slice(1)} • ${selectedJob.job_status}`
+            : ''
+        }
+        onSendToUpscale={handleSendToUpscale}
+        onSendToResize={handleSendToResize}
+        onSendToSegment={handleSendToSegment}
+        onSendToEdit={handleSendToEdit}
+        status={
+          selectedJob?.job_status === 'completed'
+            ? 'completed'
+            : selectedJob?.job_status === 'failed'
+              ? 'failed'
+              : 'processing'
+        }
+        errorMessage={selectedJob?.error_message}
+      />
     </div>
   )
 }

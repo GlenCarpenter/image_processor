@@ -32,25 +32,25 @@ async def edit_image(
         description="Editing instruction for the AI"
     ),
     guidance_scale: Optional[float] = Form(
-        1.0, description="How closely to follow the prompt (0.0-20.0)"
+        4.0, description="How closely to follow the prompt (0.0-20.0)"
     ),
     num_inference_steps: Optional[int] = Form(
-        6, description="Number of denoising steps (1-50)"
+        50, description="Number of denoising steps (1-50)"
     ),
-    acceleration: Optional[Literal["regular", "fast"]] = Form(
+    acceleration: Optional[Literal["none", "regular"]] = Form(
         "regular", description="Generation speed mode"
     ),
     negative_prompt: Optional[str] = Form(
         " ", description="What to avoid in the output"
     ),
     enable_safety_checker: Optional[bool] = Form(
-        False, description="Enable NSFW content filtering"
+        True, description="Enable NSFW content filtering"
     ),
-    output_format: Optional[Literal["png", "jpg", "webp"]] = Form(
+    output_format: Optional[Literal["png", "jpeg"]] = Form(
         "png", description="Output image format"
     ),
-    lora_scale: Optional[float] = Form(
-        1.0, description="LoRA strength (0.0-1.0)"
+    seed: Optional[int] = Form(
+        None, description="Random seed for reproducibility"
     ),
 ):
     """
@@ -60,13 +60,13 @@ async def edit_image(
     **Parameters:**
     - **file**: Image file to edit
     - **prompt**: Editing instruction (e.g., "Remove all text from the image")
-    - **guidance_scale**: How closely to follow the prompt (default: 1.0)
-    - **num_inference_steps**: Number of denoising steps (default: 6)
-    - **acceleration**: 'regular' or 'fast' generation speed (default: 'regular')
+    - **guidance_scale**: How closely to follow the prompt (0.0-20.0, default: 4.0)
+    - **num_inference_steps**: Number of denoising steps (1-50, default: 50)
+    - **acceleration**: 'none' or 'regular' generation speed (default: 'regular')
     - **negative_prompt**: What to avoid in the output (default: " ")
-    - **enable_safety_checker**: Enable NSFW filtering (default: False)
-    - **output_format**: Output format - png, jpg, or webp (default: png)
-    - **lora_scale**: LoRA strength 0.0-1.0 (default: 1.0)
+    - **enable_safety_checker**: Enable NSFW filtering (default: True)
+    - **output_format**: Output format - png or jpeg (default: png)
+    - **seed**: Random seed for reproducibility (optional)
 
     **Returns:** Job metadata with ID to retrieve the edited image
     """
@@ -97,20 +97,18 @@ async def edit_image(
             status_code=400, detail="Number of inference steps must be between 1 and 50"
         )
 
-    # Validate lora_scale
-    if lora_scale < 0 or lora_scale > 1:
-        raise HTTPException(
-            status_code=400, detail="LoRA scale must be between 0 and 1"
-        )
-
     try:
         # Read the uploaded file
         image_bytes = await file.read()
 
-        # Check image size and downscale if needed
+        # Check image size and get dimensions
         img = Image.open(BytesIO(image_bytes))
         width, height = img.size
         total_pixels = width * height
+
+        # Store original dimensions for custom image_size parameter
+        output_width = width
+        output_height = height
 
         # Target pixels: 1024x1024 = 1,048,576
         target_pixels = 1024 * 1024
@@ -121,8 +119,10 @@ async def edit_image(
             downscaled_bytes, resize_info = resize_image_bytes(
                 image_bytes, target_pixels=target_pixels
             )
+            output_width = resize_info['target_size']['width']
+            output_height = resize_info['target_size']['height']
             print(
-                f"Downscaled image from {width}x{height} to {resize_info['target_size']['width']}x{resize_info['target_size']['height']}"
+                f"Downscaled image from {width}x{height} to {output_width}x{output_height}"
             )
             # Use the downscaled version
             image_bytes = downscaled_bytes
@@ -132,13 +132,15 @@ async def edit_image(
         image_url = upload_bytes_to_fal(image_bytes, file.filename)
         print(f"Image uploaded: {image_url}")
 
-        # Submit async job to Fal AI
+        # Submit async job to Fal AI with custom image size matching source
         print(
-            f"Submitting Fal AI edit job with prompt: '{prompt}' (guidance: {guidance_scale}, steps: {num_inference_steps})"
+            f"Submitting Fal AI edit job with prompt: '{prompt}' (guidance: {guidance_scale}, steps: {num_inference_steps}, size: {output_width}x{output_height})"
         )
         request_id, endpoint = submit_edit_image(
             image_url=image_url,
             prompt=prompt,
+            image_width=output_width,
+            image_height=output_height,
             guidance_scale=guidance_scale,
             num_inference_steps=num_inference_steps,
             acceleration=acceleration,
@@ -146,7 +148,7 @@ async def edit_image(
             enable_safety_checker=enable_safety_checker,
             output_format=output_format,
             num_images=1,
-            lora_scale=lora_scale,
+            seed=seed,
             webhook_url=None,  # Not supported for local apps
         )
         print(f"Job submitted with request_id: {request_id}")
@@ -154,13 +156,9 @@ async def edit_image(
         # Create database job record with pending status
         job_id = create_job(
             job_type="edit",
-            original_filename=file.filename or "unknown",
+            input_filename=file.filename or "unknown",
             fal_request_id=request_id,
             job_status="pending",
-            original_width=width,
-            original_height=height,
-            original_pixels=total_pixels,
-            metadata=f"prompt:{prompt},guidance:{guidance_scale},steps:{num_inference_steps},acceleration:{acceleration},format:{output_format},endpoint:{endpoint}",
         )
         print(f"Job created with ID: {job_id}")
 

@@ -14,7 +14,7 @@ import logging
 from io import BytesIO
 from PIL import Image
 
-from backend.database import create_job
+from backend.database import create_job, create_output
 from backend.utils.sam_segmentation import (
     predict_mask_from_points,
     crop_image_with_mask,
@@ -202,7 +202,21 @@ async def crop_to_selection(
         # Get file size
         output_size = output_path.stat().st_size
 
-        # No job tracking for synchronous segment operations
+        # Get original filename from session
+        original_filename = "unknown"
+        # Try to get from temp file or session data
+        
+        # Create output record
+        output_id = create_output(
+            filename=output_filename,
+            operation_type="segment",
+            original_filename=original_filename,
+            file_path=str(output_path),
+            width=info.get("width"),
+            height=info.get("height"),
+            pixels=info.get("width", 0) * info.get("height", 0) if info.get("width") and info.get("height") else None,
+            aspect_ratio=aspect_ratio,
+        )
 
         # Clean up temp file
         try:
@@ -301,7 +315,16 @@ async def remove_background_endpoint(
         output_size = output_path.stat().st_size
         result_img = Image.open(BytesIO(result_bytes))
 
-        # No job tracking for synchronous remove background operations
+        # Create output record
+        output_id = create_output(
+            filename=output_filename,
+            operation_type="segment",
+            original_filename="unknown",
+            file_path=str(output_path),
+            width=result_img.width,
+            height=result_img.height,
+            pixels=result_img.width * result_img.height,
+        )
 
         return {
             "success": True,

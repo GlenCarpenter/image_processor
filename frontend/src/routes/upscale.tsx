@@ -1,9 +1,10 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useNavigate } from '@tanstack/react-router'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Dropzone, DropzoneContent, DropzoneEmptyState } from '@/components/ui/shadcn-io/dropzone'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
+import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useImageStore } from '@/store/imageStore'
 import { extractImageMetadata, fetchExifData, fetchPrompt, fetchImageInfo } from '@/lib/imageUtils'
@@ -27,6 +28,7 @@ export const Route = createFileRoute('/upscale')({
 function RouteComponent() {
   const navigate = useNavigate()
   const search = Route.useSearch()
+  const [upscaleFactor, setUpscaleFactor] = useState(2)
 
   // Get state from Zustand store
   const upscaleImage = useImageStore((state) => state.upscaleImage)
@@ -133,7 +135,7 @@ function RouteComponent() {
       const formData = new FormData()
       formData.append('file', upscaleImage.originalFile)
       formData.append('upscale_mode', 'factor')
-      formData.append('upscale_factor', '2.0')
+      formData.append('upscale_factor', upscaleFactor.toString())
       formData.append('output_format', 'jpg')
 
       const response = await fetch(`${API_BASE_URL}/upscale/upscale`, {
@@ -209,7 +211,7 @@ function RouteComponent() {
         <Card>
           <CardHeader>
             <CardTitle>Upload Image</CardTitle>
-            <CardDescription>Select an image to upscale using AI (2x upscaling)</CardDescription>
+            <CardDescription>Select an image to upscale using AI (1x - 4x)</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
@@ -223,6 +225,28 @@ function RouteComponent() {
                 <DropzoneEmptyState />
                 <DropzoneContent />
               </Dropzone>
+            </div>
+
+            <div>
+              <Label htmlFor="upscale-factor">Upscale Factor</Label>
+              <Input
+                id="upscale-factor"
+                type="number"
+                min="1"
+                max="4"
+                step="0.1"
+                value={upscaleFactor}
+                onChange={(e) => {
+                  const value = parseFloat(e.target.value)
+                  if (value >= 1 && value <= 4) {
+                    setUpscaleFactor(value)
+                  }
+                }}
+                className="mt-2"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Scale factor between 1.0 and 4.0 (default: 2.0)
+              </p>
             </div>
 
             {upscaleImage.originalFile && (
@@ -242,12 +266,14 @@ function RouteComponent() {
               className="w-full"
               size="lg"
             >
-              {upscaleImage.isUpscaling ? 'Upscaling Image...' : 'Upscale Image (2x)'}
+              {upscaleImage.isUpscaling
+                ? 'Upscaling Image...'
+                : `Upscale Image (${upscaleFactor}x)`}
             </Button>
 
             {upscaleImage.isUpscaling && (
               <div className="text-sm text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950 p-3 rounded-md">
-                Job submitted - you can navigate away and will be notified when complete
+                Job submitted - you will be notified when complete
               </div>
             )}
 

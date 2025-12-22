@@ -20,14 +20,16 @@ if FAL_KEY:
 def submit_edit_image(
     image_url: str,
     prompt: str = "Remove all text from the image",
-    guidance_scale: float = 1.0,
-    num_inference_steps: int = 6,
-    acceleration: Literal["regular", "fast"] = "regular",
+    image_width: Optional[int] = None,
+    image_height: Optional[int] = None,
+    guidance_scale: float = 4.0,
+    num_inference_steps: int = 50,
+    acceleration: Literal["none", "regular"] = "regular",
     negative_prompt: str = " ",
-    enable_safety_checker: bool = False,
-    output_format: Literal["png", "jpg", "webp"] = "png",
+    enable_safety_checker: bool = True,
+    output_format: Literal["png", "jpeg"] = "png",
     num_images: int = 1,
-    lora_scale: float = 1.0,
+    seed: Optional[int] = None,
     webhook_url: Optional[str] = None,
 ) -> Tuple[str, str]:
     """
@@ -36,14 +38,16 @@ def submit_edit_image(
     Args:
         image_url: URL of the image to edit (from Fal storage)
         prompt: Editing instruction
-        guidance_scale: How closely to follow the prompt
+        image_width: Custom output width (required with image_height)
+        image_height: Custom output height (required with image_width)
+        guidance_scale: How closely to follow the prompt (0.0-20.0)
         num_inference_steps: Number of denoising steps
-        acceleration: Generation speed mode
+        acceleration: Generation speed mode ('none' or 'regular')
         negative_prompt: What to avoid in the output
         enable_safety_checker: Whether to enable safety filtering
-        output_format: Output image format
+        output_format: Output image format ('png' or 'jpeg')
         num_images: Number of images to generate
-        lora_scale: LoRA strength
+        seed: Random seed for reproducibility
         webhook_url: Optional webhook URL for result notification
     
     Returns:
@@ -60,8 +64,18 @@ def submit_edit_image(
         "enable_safety_checker": enable_safety_checker,
         "output_format": output_format,
         "num_images": num_images,
-        "lora_scale": lora_scale,
     }
+    
+    # Add custom image size if provided
+    if image_width and image_height:
+        arguments["image_size"] = {
+            "width": image_width,
+            "height": image_height,
+        }
+    
+    # Add seed if provided
+    if seed is not None:
+        arguments["seed"] = seed
     
     endpoint = "fal-ai/qwen-image-edit-plus-lora-gallery/remove-element"
     
@@ -78,14 +92,16 @@ def submit_edit_image(
 def edit_image_with_fal(
     image_url: str,
     prompt: str = "Remove all text from the image",
-    guidance_scale: float = 1.0,
-    num_inference_steps: int = 6,
-    acceleration: Literal["regular", "fast"] = "regular",
+    image_width: Optional[int] = None,
+    image_height: Optional[int] = None,
+    guidance_scale: float = 4.0,
+    num_inference_steps: int = 50,
+    acceleration: Literal["none", "regular"] = "regular",
     negative_prompt: str = " ",
-    enable_safety_checker: bool = False,
-    output_format: Literal["png", "jpg", "webp"] = "png",
+    enable_safety_checker: bool = True,
+    output_format: Literal["png", "jpeg"] = "png",
     num_images: int = 1,
-    lora_scale: float = 1.0,
+    seed: Optional[int] = None,
     with_logs: bool = False,
     on_queue_update: Optional[Callable] = None,
 ) -> Dict[str, Any]:
@@ -95,14 +111,16 @@ def edit_image_with_fal(
     Args:
         image_url: URL of the image to edit (from Fal storage)
         prompt: Editing instruction (e.g., "Remove all text from the image")
-        guidance_scale: How closely to follow the prompt (default: 1.0)
-        num_inference_steps: Number of denoising steps (default: 6)
-        acceleration: Generation speed mode (default: "regular")
+        image_width: Custom output width (required with image_height)
+        image_height: Custom output height (required with image_width)
+        guidance_scale: How closely to follow the prompt (0.0-20.0, default: 4.0)
+        num_inference_steps: Number of denoising steps (default: 50)
+        acceleration: Generation speed mode ('none' or 'regular', default: "regular")
         negative_prompt: What to avoid in the output (default: " ")
-        enable_safety_checker: Whether to enable safety filtering (default: False)
-        output_format: Output image format (default: "png")
+        enable_safety_checker: Whether to enable safety filtering (default: True)
+        output_format: Output image format ('png' or 'jpeg', default: "png")
         num_images: Number of images to generate (default: 1)
-        lora_scale: LoRA strength (default: 1.0)
+        seed: Random seed for reproducibility
         with_logs: Whether to include logs in the response
         on_queue_update: Optional callback for queue updates
 
@@ -123,8 +141,18 @@ def edit_image_with_fal(
         "enable_safety_checker": enable_safety_checker,
         "output_format": output_format,
         "num_images": num_images,
-        "lora_scale": lora_scale,
     }
+    
+    # Add custom image size if provided
+    if image_width and image_height:
+        arguments["image_size"] = {
+            "width": image_width,
+            "height": image_height,
+        }
+    
+    # Add seed if provided
+    if seed is not None:
+        arguments["seed"] = seed
 
     # Call the Fal AI edit API
     result = fal_client.subscribe(

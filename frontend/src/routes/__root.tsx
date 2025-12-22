@@ -4,6 +4,7 @@ import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar'
 import { AppSidebar } from '@/components/app-sidebar'
 import { ModeToggle } from '@/components/mode-toggle'
 import { useGlobalJobTracker } from '@/hooks/use-global-job-tracker'
+import { FloatingJobWidget } from '@/components/floating-job-widget'
 
 const getPageTitle = (pathname: string) => {
   switch (pathname) {
@@ -29,7 +30,7 @@ const getPageTitle = (pathname: string) => {
 const RootLayout = () => {
   const location = useLocation()
   const pageTitle = getPageTitle(location.pathname)
-  
+
   // Initialize global job tracker
   useGlobalJobTracker()
 
@@ -44,6 +45,7 @@ const RootLayout = () => {
         </div>
         <Outlet />
       </main>
+      <FloatingJobWidget />
       <TanStackRouterDevtools />
     </SidebarProvider>
   )

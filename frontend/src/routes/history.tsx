@@ -3,26 +3,9 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { ImageDetailDialog } from '@/components/image-detail-dialog'
 import { useImageStore } from '@/store/imageStore'
-import {
-  Calendar,
-  Ruler,
-  Trash2,
-  Download,
-  Check,
-  ArrowUpCircle,
-  Expand,
-  Scissors,
-  Pencil,
-} from 'lucide-react'
+import { Calendar, Ruler, Download, Check } from 'lucide-react'
 import { API_BASE_URL } from '@/lib/constants'
 
 export const Route = createFileRoute('/history')({
@@ -367,7 +350,7 @@ function RouteComponent() {
                   />
                 </div>
                 <div className="p-4 space-y-2">
-                  <h3 className="font-semibold truncate text-sm">{job.original_filename}</h3>
+                  <h3 className="font-semibold truncate text-sm">{job.output_filename}</h3>
                   <div className="flex items-center gap-1 text-xs text-muted-foreground">
                     <Ruler className="w-3 h-3" />
                     <span>
@@ -409,88 +392,39 @@ function RouteComponent() {
       )}
 
       {/* Image Detail Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-3xl">
-          {selectedJob && (
-            <>
-              <DialogHeader>
-                <DialogTitle className="break-all overflow-wrap-anywhere max-w-full">
-                  {selectedJob.original_filename}
-                </DialogTitle>
-                <DialogDescription>
-                  {selectedJob.job_type.charAt(0).toUpperCase() + selectedJob.job_type.slice(1)} •{' '}
-                  {formatDate(selectedJob.created_at)}
-                </DialogDescription>
-              </DialogHeader>
-
-              <div className="space-y-4">
-                <div className="w-full max-h-96 overflow-hidden rounded-lg border bg-muted">
-                  <img
-                    src={`${API_BASE_URL}/images/output/${selectedJob.output_filename}`}
-                    alt={selectedJob.original_filename}
-                    className="w-full h-full object-contain"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className="text-muted-foreground">Original Size:</span>
-                    <p className="font-medium">
-                      {selectedJob.original_width} × {selectedJob.original_height}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {selectedJob.original_pixels?.toLocaleString()} pixels
-                    </p>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Output Size:</span>
-                    <p className="font-medium">
-                      {selectedJob.output_width} × {selectedJob.output_height}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {selectedJob.output_pixels?.toLocaleString()} pixels
-                    </p>
-                  </div>
-                  <div className="col-span-2">
-                    <span className="text-muted-foreground">Aspect Ratio:</span>
-                    <p className="font-medium">{selectedJob.aspect_ratio}</p>
-                  </div>
-                </div>
-              </div>
-
-              <DialogFooter className="flex-col sm:flex-row gap-2">
-                <Button
-                  variant="destructive"
-                  onClick={handleDelete}
-                  disabled={deleting}
-                  className="w-full sm:w-auto sm:mr-auto"
-                >
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  {deleting ? 'Deleting...' : 'Delete'}
-                </Button>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 w-full sm:w-auto">
-                  <Button variant="outline" size="sm" onClick={handleSendToUpscale}>
-                    <ArrowUpCircle className="w-4 h-4 mr-1" />
-                    Upscale
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={handleSendToResize}>
-                    <Expand className="w-4 h-4 mr-1" />
-                    Resize
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={handleSendToSegment}>
-                    <Scissors className="w-4 h-4 mr-1" />
-                    Segment
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={handleSendToEdit}>
-                    <Pencil className="w-4 h-4 mr-1" />
-                    Edit
-                  </Button>
-                </div>
-              </DialogFooter>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
+      <ImageDetailDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        filename={selectedJob?.output_filename || null}
+        originalFilename={selectedJob?.original_filename || ''}
+        title={selectedJob?.output_filename || ''}
+        description={
+          selectedJob
+            ? `${selectedJob.job_type.charAt(0).toUpperCase() + selectedJob.job_type.slice(1)} • ${formatDate(selectedJob.created_at)}`
+            : ''
+        }
+        onDelete={handleDelete}
+        onSendToUpscale={handleSendToUpscale}
+        onSendToResize={handleSendToResize}
+        onSendToSegment={handleSendToSegment}
+        onSendToEdit={handleSendToEdit}
+        deleting={deleting}
+        metadata={
+          selectedJob
+            ? {
+                originalWidth: selectedJob.original_width,
+                originalHeight: selectedJob.original_height,
+                originalPixels: selectedJob.original_pixels,
+                outputWidth: selectedJob.output_width,
+                outputHeight: selectedJob.output_height,
+                outputPixels: selectedJob.output_pixels,
+                aspectRatio: selectedJob.aspect_ratio,
+                quality: selectedJob.quality,
+                targetPixels: selectedJob.target_pixels,
+              }
+            : undefined
+        }
+      />
     </div>
   )
 }

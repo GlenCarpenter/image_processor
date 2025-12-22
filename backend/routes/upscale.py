@@ -10,7 +10,7 @@ from datetime import datetime
 import uuid
 import asyncio
 
-from backend.database import create_job, update_job_status
+from backend.database import create_job, update_job_status, create_output
 from backend.utils.fal_upscale import (
     upload_bytes_to_fal,
     submit_upscale_image,
@@ -138,15 +138,21 @@ async def upscale_image(
         print(f"Upscale job submitted: request_id={request_id}, endpoint={endpoint}")
 
         # Create database record with pending status
+        import json
+        metadata = json.dumps({
+            "upscale_mode": upscale_mode,
+            "upscale_factor": upscale_factor,
+            "target_resolution": target_resolution,
+            "noise_scale": noise_scale,
+            "output_format": output_format,
+            "downscale_info": downscale_info,
+        })
         job_id = create_job(
             job_type="upscale",
-            original_filename=file.filename or "unknown",
+            input_filename=file.filename or "unknown",
             fal_request_id=request_id,
             job_status="pending",
-            original_width=width,
-            original_height=height,
-            original_pixels=total_pixels,
-            metadata=f"mode:{upscale_mode},factor:{upscale_factor},resolution:{target_resolution},noise:{noise_scale},format:{output_format}|{downscale_info}|endpoint:{endpoint}",
+            metadata=metadata,
         )
 
         # Start background polling task
@@ -248,7 +254,16 @@ async def process_fal_result(job_id: int, job_type: str, result: dict):
     Process completed Fal job result
     Downloads the image and updates the database
     """
+    from backend.database import get_job
+    
     try:
+        # Get job details to retrieve original filename
+        job = get_job(job_id)
+        if not job:
+            raise Exception(f"Job {job_id} not found in database")
+        
+        original_filename = job.get("input_filename", "unknown")
+        
         # Extract result URL based on job type
         if job_type == "edit":
             if "images" in result and len(result["images"]) > 0:
@@ -292,18 +307,30 @@ async def process_fal_result(job_id: int, job_type: str, result: dict):
         if result_width and result_height:
             output_pixels = result_width * result_height
 
-        # Update job status
+        # Create output record in image_outputs table
+        output_id = create_output(
+            filename=output_filename,
+            file_path=str(output_path),
+            operation_type=job_type,
+            original_filename=original_filename,
+            width=result_width,
+            height=result_height,
+            pixels=output_pixels,
+            metadata=job.get("metadata")  # Preserve original metadata
+        )
+
+        # Update job status with output_id link
         update_job_status(
             job_id,
             "completed",
             output_filename=output_filename,
-            output_path=str(output_path),
             output_width=result_width,
             output_height=result_height,
             output_pixels=output_pixels,
+            output_id=output_id,
         )
 
-        print(f"[Job {job_id}] Completed successfully: {output_filename}")
+        print(f"[Job {job_id}] Completed successfully: {output_filename} (output_id: {output_id})")
 
     except Exception as e:
         print(f"[Job {job_id}] Error processing result: {str(e)}")

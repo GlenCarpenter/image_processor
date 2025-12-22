@@ -1,6 +1,7 @@
 import { StrictMode } from 'react'
 import ReactDOM from 'react-dom/client'
 import { RouterProvider, createRouter } from '@tanstack/react-router'
+import { Toaster } from 'sonner'
 import { ThemeProvider } from '@/components/theme-provider'
 import './index.css'
 
@@ -25,6 +26,7 @@ if (!rootElement.innerHTML) {
     <StrictMode>
       <ThemeProvider defaultTheme="system" storageKey="segment-markup-theme">
         <RouterProvider router={router} />
+        <Toaster position="top-right" />
       </ThemeProvider>
     </StrictMode>
   )
