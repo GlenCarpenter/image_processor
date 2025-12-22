@@ -160,7 +160,7 @@ function RouteComponent() {
       // Job will be tracked globally, no local polling needed
       console.log(`Upscale job submitted: ${data.job_id}`)
       toast.success('Job Submitted', {
-        description: 'Your upscale job is being processed. You will be notified when complete.'
+        description: 'Your upscale job is being processed. You will be notified when complete.',
       })
     } catch (err) {
       setUpscaleError(err instanceof Error ? err.message : 'An error occurred')
@@ -217,66 +217,61 @@ function RouteComponent() {
           title="Upload And Configure"
           description="Select an image to upscale using AI (1x - 4x)"
         >
-            <div>
-              <Label>Image File</Label>
-              <Dropzone
-                accept={{ 'image/*': ['.jpg', '.jpeg', '.png', '.bmp', '.webp', '.tiff'] }}
-                src={upscaleImage.originalFile ? [upscaleImage.originalFile] : undefined}
-                onDrop={handleFileDrop}
-                className="mt-2"
-              >
-                <DropzoneEmptyState />
-                <DropzoneContent />
-              </Dropzone>
-            </div>
-
-            <div>
-              <Label htmlFor="upscale-factor">Upscale Factor</Label>
-              <Input
-                id="upscale-factor"
-                type="number"
-                min="1"
-                max="4"
-                step="0.1"
-                value={upscaleFactor}
-                onChange={(e) => {
-                  const value = parseFloat(e.target.value)
-                  if (value >= 1 && value <= 4) {
-                    setUpscaleFactor(value)
-                  }
-                }}
-                className="mt-2"
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Scale factor between 1.0 and 4.0 (default: 2.0)
-              </p>
-            </div>
-
-            <OriginalImagePreview
-              file={upscaleImage.originalFile}
-              apiBaseUrl={API_BASE_URL}
-            />
-
-            <Button
-              onClick={handleUpscale}
-              disabled={!upscaleImage.originalFile || upscaleImage.isUpscaling}
-              className="w-full"
-              size="lg"
+          <div>
+            <Label>Image File</Label>
+            <Dropzone
+              accept={{ 'image/*': ['.jpg', '.jpeg', '.png', '.bmp', '.webp', '.tiff'] }}
+              src={upscaleImage.originalFile ? [upscaleImage.originalFile] : undefined}
+              onDrop={handleFileDrop}
+              className="mt-2"
             >
-              {upscaleImage.isUpscaling
-                ? 'Upscaling Image...'
-                : `Upscale Image (${upscaleFactor}x)`}
-            </Button>
+              <DropzoneEmptyState />
+              <DropzoneContent />
+            </Dropzone>
+          </div>
 
-            {upscaleImage.originalMetadata && (
-              <ImageMetadataDisplay metadata={upscaleImage.originalMetadata} />
-            )}
+          <div>
+            <Label htmlFor="upscale-factor">Upscale Factor</Label>
+            <Input
+              id="upscale-factor"
+              type="number"
+              min="1"
+              max="4"
+              step="0.1"
+              value={upscaleFactor}
+              onChange={(e) => {
+                const value = parseFloat(e.target.value)
+                if (value >= 1 && value <= 4) {
+                  setUpscaleFactor(value)
+                }
+              }}
+              className="mt-2"
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Scale factor between 1.0 and 4.0 (default: 2.0)
+            </p>
+          </div>
 
-            {upscaleImage.error && (
-              <div className="p-3 bg-destructive/10 text-destructive rounded-md text-sm">
-                {upscaleImage.error}
-              </div>
-            )}
+          <OriginalImagePreview file={upscaleImage.originalFile} apiBaseUrl={API_BASE_URL} />
+
+          <Button
+            onClick={handleUpscale}
+            disabled={!upscaleImage.originalFile || upscaleImage.isUpscaling}
+            className="w-full"
+            size="lg"
+          >
+            {upscaleImage.isUpscaling ? 'Upscaling Image...' : `Upscale Image (${upscaleFactor}x)`}
+          </Button>
+
+          {upscaleImage.originalMetadata && (
+            <ImageMetadataDisplay metadata={upscaleImage.originalMetadata} />
+          )}
+
+          {upscaleImage.error && (
+            <div className="p-3 bg-destructive/10 text-destructive rounded-md text-sm">
+              {upscaleImage.error}
+            </div>
+          )}
         </InputCard>
 
         <OutputCard

@@ -424,6 +424,7 @@ export const useImageStore = create<ImageState>()(
             originalFile: homeImage.file,
             croppedFilename: null,
             points: [],
+            boxes: [],
             maskDataUrl: null,
             padding: 10,
             aspectRatio: 'None',

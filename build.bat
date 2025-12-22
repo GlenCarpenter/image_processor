@@ -10,13 +10,13 @@ if not exist "venv\" (
     python -m venv venv
     if errorlevel 1 (
         echo.
-        echo ❌ Failed to create virtual environment!
+        echo [ERROR] Failed to create virtual environment!
         pause
         exit /b 1
     )
-    echo ✅ Virtual environment created!
+    echo [OK] Virtual environment created!
 ) else (
-    echo ✓ Virtual environment already exists
+    echo [OK] Virtual environment already exists
 )
 
 REM Activate the virtual environment
@@ -26,7 +26,7 @@ call venv\Scripts\activate.bat
 
 if errorlevel 1 (
     echo.
-    echo ❌ Failed to activate virtual environment!
+    echo [ERROR] Failed to activate virtual environment!
     pause
     exit /b 1
 )
@@ -42,7 +42,7 @@ if errorlevel 1 (
 )
 
 echo.
-echo ✅ Build complete!
+echo [OK] Build complete!
 echo.
 echo To start the server, run: dev.bat (development) or Windows_Start_App.bat (production)
 pause

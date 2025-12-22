@@ -4,7 +4,6 @@ import { Dropzone, DropzoneContent, DropzoneEmptyState } from '@/components/ui/s
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Select,
   SelectContent,
@@ -223,7 +222,13 @@ function RouteComponent() {
         img.onload = redrawCanvas
       }
     }
-  }, [segmentImage.originalFile, segmentImage.points, segmentImage.maskDataUrl, search.filename, currentBox.current])
+  }, [
+    segmentImage.originalFile,
+    segmentImage.points,
+    segmentImage.maskDataUrl,
+    search.filename,
+    currentBox.current,
+  ])
 
   const drawPoints = (ctx: CanvasRenderingContext2D, img: HTMLImageElement) => {
     const canvas = canvasRef.current
@@ -487,7 +492,7 @@ function RouteComponent() {
       const data = await response.json()
       console.log('Received mask data from box:', data)
       setSegmentMask(`data:image/png;base64,${data.mask}`)
-      
+
       // Store the box in history
       setSegmentBoxes([...segmentImage.boxes, box])
     } catch (err) {
@@ -579,7 +584,7 @@ function RouteComponent() {
   const handleUndoLastPoint = async () => {
     const hasPoints = segmentImage.points.length > 0
     const hasBoxes = segmentImage.boxes.length > 0
-    
+
     if (!hasPoints && !hasBoxes) return
 
     // Remove the last prompt (box or point)
@@ -587,7 +592,7 @@ function RouteComponent() {
     if (hasBoxes) {
       const newBoxes = segmentImage.boxes.slice(0, -1)
       setSegmentBoxes(newBoxes)
-      
+
       if (newBoxes.length > 0) {
         // Re-predict with remaining box
         await predictMaskFromBox(newBoxes[newBoxes.length - 1])
@@ -601,7 +606,7 @@ function RouteComponent() {
       // Only points exist, remove last point
       const newPoints = segmentImage.points.slice(0, -1)
       setSegmentPoints(newPoints)
-      
+
       if (newPoints.length > 0) {
         await predictMask(newPoints)
       } else {
@@ -691,185 +696,190 @@ function RouteComponent() {
           title="Upload & Segment"
           description="Upload an image and click to select objects. Left click = select, Right click = deselect"
         >
-            <div>
-              <Label>Image File</Label>
-              <Dropzone
-                accept={{ 'image/*': ['.jpg', '.jpeg', '.png', '.bmp', '.webp'] }}
-                src={segmentImage.originalFile ? [segmentImage.originalFile] : undefined}
-                onDrop={handleFileDrop}
-                className="mt-2"
-                disabled={segmentImage.isUploading}
-              >
-                <DropzoneEmptyState />
-                <DropzoneContent />
-              </Dropzone>
-            </div>
+          <div>
+            <Label>Image File</Label>
+            <Dropzone
+              accept={{ 'image/*': ['.jpg', '.jpeg', '.png', '.bmp', '.webp'] }}
+              src={segmentImage.originalFile ? [segmentImage.originalFile] : undefined}
+              onDrop={handleFileDrop}
+              className="mt-2"
+              disabled={segmentImage.isUploading}
+            >
+              <DropzoneEmptyState />
+              <DropzoneContent />
+            </Dropzone>
+          </div>
 
-            {segmentImage.originalFile && (
-              <>
-                <div className="relative">
-                  <Label>Click on image to segment</Label>
-                  <div className="mt-2 relative border rounded-md overflow-hidden">
-                    <img
-                      ref={imageRef}
-                      src={
-                        segmentImage.originalFile
-                          ? URL.createObjectURL(segmentImage.originalFile)
-                          : search.filename
-                            ? `${API_BASE_URL}/images/output/${search.filename}`
-                            : ''
-                      }
-                      alt="Original"
-                      className="w-full"
-                      style={{ display: 'block' }}
-                    />
-                    <canvas
-                      ref={canvasRef}
-                      className={`absolute top-0 left-0 w-full h-full ${
-                        segmentImage.sessionEnded
-                          ? 'cursor-not-allowed opacity-50'
-                          : 'cursor-crosshair'
-                      }`}
-                      onMouseDown={segmentImage.sessionEnded ? undefined : handleMouseDown}
-                      onMouseMove={segmentImage.sessionEnded ? undefined : handleMouseMove}
-                      onMouseUp={segmentImage.sessionEnded ? undefined : handleMouseUp}
-                      onMouseLeave={
-                        segmentImage.sessionEnded
-                          ? undefined
-                          : (e) => {
-                              if (isDragging.current) {
-                                handleMouseUp(e)
-                              }
+          {segmentImage.originalFile && (
+            <>
+              <div className="relative">
+                <Label>Click on image to segment</Label>
+                <div className="mt-2 relative border rounded-md overflow-hidden">
+                  <img
+                    ref={imageRef}
+                    src={
+                      segmentImage.originalFile
+                        ? URL.createObjectURL(segmentImage.originalFile)
+                        : search.filename
+                          ? `${API_BASE_URL}/images/output/${search.filename}`
+                          : ''
+                    }
+                    alt="Original"
+                    className="w-full"
+                    style={{ display: 'block' }}
+                  />
+                  <canvas
+                    ref={canvasRef}
+                    className={`absolute top-0 left-0 w-full h-full ${
+                      segmentImage.sessionEnded
+                        ? 'cursor-not-allowed opacity-50'
+                        : 'cursor-crosshair'
+                    }`}
+                    onMouseDown={segmentImage.sessionEnded ? undefined : handleMouseDown}
+                    onMouseMove={segmentImage.sessionEnded ? undefined : handleMouseMove}
+                    onMouseUp={segmentImage.sessionEnded ? undefined : handleMouseUp}
+                    onMouseLeave={
+                      segmentImage.sessionEnded
+                        ? undefined
+                        : (e) => {
+                            if (isDragging.current) {
+                              handleMouseUp(e)
                             }
-                      }
-                      onContextMenu={(e) => e.preventDefault()}
-                    />
-                  </div>
-                  {segmentImage.isPredicting && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-md">
-                      <div className="text-white">Predicting mask...</div>
-                    </div>
-                  )}
-                  {segmentImage.sessionEnded && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-md">
-                      <div className="text-white text-center p-4">
-                        <p className="font-semibold mb-2">Session Complete</p>
-                        <p className="text-sm">
-                          Cropping complete. Start a new segmentation or process the result.
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex gap-2">
-                  {segmentImage.sessionEnded ? (
-                    <Button
-                      onClick={handleNewSegmentation}
-                      variant="outline"
-                      className="w-full"
-                      size="sm"
-                    >
-                      Start New Segmentation
-                    </Button>
-                  ) : (
-                    <>
-                      <Button
-                        onClick={handleUndoLastPoint}
-                        disabled={(segmentImage.points.length === 0 && segmentImage.boxes.length === 0) || segmentImage.isPredicting}
-                        variant="outline"
-                        size="sm"
-                      >
-                        <Undo className="w-4 h-4 mr-2" />
-                        Undo
-                      </Button>
-                      <Button
-                        onClick={handleClearPoints}
-                        disabled={segmentImage.points.length === 0 && segmentImage.boxes.length === 0}
-                        variant="outline"
-                        size="sm"
-                      >
-                        <Trash2 className="w-4 h-4 mr-2" />
-                        Clear All
-                      </Button>
-                      <div className="ml-auto text-sm text-muted-foreground">
-                        {segmentImage.points.length} point{segmentImage.points.length !== 1 ? 's' : ''}
-                        {segmentImage.boxes.length > 0 && `, ${segmentImage.boxes.length} box${segmentImage.boxes.length !== 1 ? 'es' : ''}`}
-                      </div>
-                    </>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="padding">Padding (%)</Label>
-                  <Input
-                    id="padding"
-                    type="number"
-                    value={segmentImage.padding}
-                    onChange={(e) => setSegmentPadding(parseFloat(e.target.value) || 0)}
-                    min="0"
-                    max="100"
-                    disabled={segmentImage.sessionEnded}
+                          }
+                    }
+                    onContextMenu={(e) => e.preventDefault()}
                   />
                 </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="aspectRatio">Aspect Ratio</Label>
-                  <Select
-                    value={segmentImage.aspectRatio}
-                    onValueChange={setSegmentAspectRatio}
-                    disabled={segmentImage.sessionEnded}
-                  >
-                    <SelectTrigger id="aspectRatio">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {ASPECT_RATIOS.map((ratio) => (
-                        <SelectItem key={ratio} value={ratio}>
-                          {ratio}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <Button
-                    onClick={handleCrop}
-                    disabled={
-                      !segmentImage.maskDataUrl ||
-                      segmentImage.isCropping ||
-                      segmentImage.sessionEnded
-                    }
-                    className="w-full"
-                    size="lg"
-                  >
-                    <Scissors className="w-4 h-4 mr-2" />
-                    {segmentImage.isCropping ? 'Cropping...' : 'Crop to Selection'}
-                  </Button>
-
-                  <Button
-                    onClick={handleRemoveBackground}
-                    disabled={
-                      !segmentImage.maskDataUrl ||
-                      segmentImage.isCropping ||
-                      segmentImage.sessionEnded
-                    }
-                    variant="secondary"
-                    className="w-full"
-                    size="lg"
-                  >
-                    {segmentImage.isCropping ? 'Processing...' : 'Remove Background'}
-                  </Button>
-                </div>
-
-                {segmentImage.error && (
-                  <div className="p-3 bg-destructive/10 text-destructive rounded-md text-sm">
-                    {segmentImage.error}
+                {segmentImage.isPredicting && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-md">
+                    <div className="text-white">Predicting mask...</div>
                   </div>
                 )}
-              </>
-            )}
+                {segmentImage.sessionEnded && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-md">
+                    <div className="text-white text-center p-4">
+                      <p className="font-semibold mb-2">Session Complete</p>
+                      <p className="text-sm">
+                        Cropping complete. Start a new segmentation or process the result.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex gap-2">
+                {segmentImage.sessionEnded ? (
+                  <Button
+                    onClick={handleNewSegmentation}
+                    variant="outline"
+                    className="w-full"
+                    size="sm"
+                  >
+                    Start New Segmentation
+                  </Button>
+                ) : (
+                  <>
+                    <Button
+                      onClick={handleUndoLastPoint}
+                      disabled={
+                        (segmentImage.points.length === 0 && segmentImage.boxes.length === 0) ||
+                        segmentImage.isPredicting
+                      }
+                      variant="outline"
+                      size="sm"
+                    >
+                      <Undo className="w-4 h-4 mr-2" />
+                      Undo
+                    </Button>
+                    <Button
+                      onClick={handleClearPoints}
+                      disabled={segmentImage.points.length === 0 && segmentImage.boxes.length === 0}
+                      variant="outline"
+                      size="sm"
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Clear All
+                    </Button>
+                    <div className="ml-auto text-sm text-muted-foreground">
+                      {segmentImage.points.length} point
+                      {segmentImage.points.length !== 1 ? 's' : ''}
+                      {segmentImage.boxes.length > 0 &&
+                        `, ${segmentImage.boxes.length} box${segmentImage.boxes.length !== 1 ? 'es' : ''}`}
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="padding">Padding (%)</Label>
+                <Input
+                  id="padding"
+                  type="number"
+                  value={segmentImage.padding}
+                  onChange={(e) => setSegmentPadding(parseFloat(e.target.value) || 0)}
+                  min="0"
+                  max="100"
+                  disabled={segmentImage.sessionEnded}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="aspectRatio">Aspect Ratio</Label>
+                <Select
+                  value={segmentImage.aspectRatio}
+                  onValueChange={setSegmentAspectRatio}
+                  disabled={segmentImage.sessionEnded}
+                >
+                  <SelectTrigger id="aspectRatio">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ASPECT_RATIOS.map((ratio) => (
+                      <SelectItem key={ratio} value={ratio}>
+                        {ratio}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  onClick={handleCrop}
+                  disabled={
+                    !segmentImage.maskDataUrl ||
+                    segmentImage.isCropping ||
+                    segmentImage.sessionEnded
+                  }
+                  className="w-full"
+                  size="lg"
+                >
+                  <Scissors className="w-4 h-4 mr-2" />
+                  {segmentImage.isCropping ? 'Cropping...' : 'Crop to Selection'}
+                </Button>
+
+                <Button
+                  onClick={handleRemoveBackground}
+                  disabled={
+                    !segmentImage.maskDataUrl ||
+                    segmentImage.isCropping ||
+                    segmentImage.sessionEnded
+                  }
+                  variant="secondary"
+                  className="w-full"
+                  size="lg"
+                >
+                  {segmentImage.isCropping ? 'Processing...' : 'Remove Background'}
+                </Button>
+              </div>
+
+              {segmentImage.error && (
+                <div className="p-3 bg-destructive/10 text-destructive rounded-md text-sm">
+                  {segmentImage.error}
+                </div>
+              )}
+            </>
+          )}
         </InputCard>
 
         <OutputCard

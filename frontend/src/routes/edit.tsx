@@ -166,7 +166,8 @@ function RouteComponent() {
       // Job will be tracked globally, no local polling needed
       console.log(`Edit job submitted: ${data.job_id}`)
       toast.success('Job Submitted', {
-        description: 'Your edit job is being processed. You will be notified when complete.'      })
+        description: 'Your edit job is being processed. You will be notified when complete.',
+      })
     } catch (err) {
       setEditError(err instanceof Error ? err.message : 'An error occurred')
       setEditEditing(false)
@@ -212,65 +213,62 @@ function RouteComponent() {
     <div className="container mx-auto p-4 max-w-6xl">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Input Section */}
-        <InputCard
-          title="Upload And Configure"
-          description="Select an image to edit using AI"
-        >
-            <div>
-              <Label>Image File</Label>
-              <Dropzone
-                accept={{ 'image/*': ['.jpg', '.jpeg', '.png', '.bmp', '.webp', '.tiff'] }}
-                src={editImage.originalFile ? [editImage.originalFile] : undefined}
-                onDrop={handleFileDrop}
-                className="mt-2"
-              >
-                <DropzoneEmptyState />
-                <DropzoneContent />
-              </Dropzone>
-            </div>
+        <InputCard title="Upload And Configure" description="Select an image to edit using AI">
+          <div>
+            <Label>Image File</Label>
+            <Dropzone
+              accept={{ 'image/*': ['.jpg', '.jpeg', '.png', '.bmp', '.webp', '.tiff'] }}
+              src={editImage.originalFile ? [editImage.originalFile] : undefined}
+              onDrop={handleFileDrop}
+              className="mt-2"
+            >
+              <DropzoneEmptyState />
+              <DropzoneContent />
+            </Dropzone>
+          </div>
 
-            {(editImage.originalFile || search.filename) && (
-              <>
-                <OriginalImagePreview
-                  file={editImage.originalFile}
-                  filename={search.filename}
-                  apiBaseUrl={API_BASE_URL}
+          {(editImage.originalFile || search.filename) && (
+            <>
+              <OriginalImagePreview
+                file={editImage.originalFile}
+                filename={search.filename}
+                apiBaseUrl={API_BASE_URL}
+              />
+
+              <div>
+                <Label htmlFor="prompt">Editing Prompt</Label>
+                <Textarea
+                  id="prompt"
+                  value={editImage.prompt}
+                  onChange={(e) => setEditPrompt(e.target.value)}
+                  placeholder="e.g., Remove all text from the image, Replace the sky with sunset, Remove the person in red"
+                  className="mt-2 min-h-[100px]"
                 />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Describe what you want to edit or remove from the image
+                </p>
+              </div>
 
-                <div>
-                  <Label htmlFor="prompt">Editing Prompt</Label>
-                  <Textarea
-                    id="prompt"
-                    value={editImage.prompt}
-                    onChange={(e) => setEditPrompt(e.target.value)}
-                    placeholder="e.g., Remove all text from the image, Replace the sky with sunset, Remove the person in red"
-                    className="mt-2 min-h-[100px]"
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Describe what you want to edit or remove from the image
-                  </p>
+              <Button
+                onClick={handleEdit}
+                disabled={editImage.isEditing || !editImage.prompt.trim()}
+                className="w-full"
+                size="lg"
+              >
+                {editImage.isEditing ? 'Editing Image...' : 'Edit Image'}
+              </Button>
+
+              {editImage.originalMetadata && (
+                <ImageMetadataDisplay metadata={editImage.originalMetadata} />
+              )}
+
+              {editImage.error && (
+                <div className="text-sm text-red-500 bg-red-50 dark:bg-red-950 p-3 rounded-md">
+                  {editImage.error}
                 </div>
-
-                <Button
-                  onClick={handleEdit}
-                  disabled={editImage.isEditing || !editImage.prompt.trim()}
-                  className="w-full"
-                  size="lg"
-                >
-                  {editImage.isEditing ? 'Editing Image...' : 'Edit Image'}
-                </Button>
-
-                {editImage.originalMetadata && (
-                  <ImageMetadataDisplay metadata={editImage.originalMetadata} />
-                )}
-
-                {editImage.error && (
-                  <div className="text-sm text-red-500 bg-red-50 dark:bg-red-950 p-3 rounded-md">
-                    {editImage.error}
-                  </div>
-                )}
-              </>
-            )}
+              )}
+            </>
+          )}
         </InputCard>
 
         <OutputCard

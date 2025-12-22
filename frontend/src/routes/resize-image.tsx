@@ -242,56 +242,51 @@ function RouteComponent() {
           title="Upload And Configure"
           description="Select an image and set the target size in pixels (size²)"
         >
-            <div>
-              <Label>Image File</Label>
-              <Dropzone
-                accept={{ 'image/*': ['.jpg', '.jpeg', '.png', '.bmp', '.webp', '.tiff'] }}
-                src={resizeImage.originalFile ? [resizeImage.originalFile] : undefined}
-                onDrop={handleFileDrop}
-                className="mt-2"
-              >
-                <DropzoneEmptyState />
-                <DropzoneContent />
-              </Dropzone>
-            </div>
-
-            <div>
-              <Label htmlFor="targetSize">Target Size (pixels = size²)</Label>
-              <Input
-                id="targetSize"
-                type="number"
-                value={targetSize}
-                onChange={(e) => setTargetSize(parseInt(e.target.value) || 0)}
-                placeholder="1024"
-                className="mt-2"
-              />
-              <p className="text-sm text-muted-foreground mt-1">
-                {targetSize > 0
-                  ? `${targetSize}² = ${(targetSize * targetSize).toLocaleString()} pixels`
-                  : ''}
-              </p>
-            </div>
-
-            <OriginalImagePreview
-              file={resizeImage.originalFile}
-              apiBaseUrl={API_BASE_URL}
-            />
-
-            <Button
-              onClick={handleResize}
-              disabled={!resizeImage.originalFile || isResizing}
-              className="w-full"
-              size="lg"
+          <div>
+            <Label>Image File</Label>
+            <Dropzone
+              accept={{ 'image/*': ['.jpg', '.jpeg', '.png', '.bmp', '.webp', '.tiff'] }}
+              src={resizeImage.originalFile ? [resizeImage.originalFile] : undefined}
+              onDrop={handleFileDrop}
+              className="mt-2"
             >
-              {isResizing ? 'Resizing...' : 'Resize Image'}
-            </Button>
-            {originalMetadata && <ImageMetadataDisplay metadata={originalMetadata} />}
+              <DropzoneEmptyState />
+              <DropzoneContent />
+            </Dropzone>
+          </div>
 
-            {error && (
-              <div className="p-3 bg-destructive/10 text-destructive rounded-md text-sm">
-                {error}
-              </div>
-            )}
+          <div>
+            <Label htmlFor="targetSize">Target Size (pixels = size²)</Label>
+            <Input
+              id="targetSize"
+              type="number"
+              value={targetSize}
+              onChange={(e) => setTargetSize(parseInt(e.target.value) || 0)}
+              placeholder="1024"
+              className="mt-2"
+            />
+            <p className="text-sm text-muted-foreground mt-1">
+              {targetSize > 0
+                ? `${targetSize}² = ${(targetSize * targetSize).toLocaleString()} pixels`
+                : ''}
+            </p>
+          </div>
+
+          <OriginalImagePreview file={resizeImage.originalFile} apiBaseUrl={API_BASE_URL} />
+
+          <Button
+            onClick={handleResize}
+            disabled={!resizeImage.originalFile || isResizing}
+            className="w-full"
+            size="lg"
+          >
+            {isResizing ? 'Resizing...' : 'Resize Image'}
+          </Button>
+          {originalMetadata && <ImageMetadataDisplay metadata={originalMetadata} />}
+
+          {error && (
+            <div className="p-3 bg-destructive/10 text-destructive rounded-md text-sm">{error}</div>
+          )}
         </InputCard>
 
         <OutputCard
