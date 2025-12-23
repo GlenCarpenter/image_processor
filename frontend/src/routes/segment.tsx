@@ -231,14 +231,13 @@ function RouteComponent() {
   ])
 
   useEffect(() => {
-    const preventContextMenu = (e: MouseEvent) => e.preventDefault();
-    document.addEventListener("contextmenu", preventContextMenu);
+    const preventContextMenu = (e: MouseEvent) => e.preventDefault()
+    document.addEventListener('contextmenu', preventContextMenu)
 
     return () => {
-      document.removeEventListener("contextmenu", preventContextMenu);
-    };
-  }, []);
-
+      document.removeEventListener('contextmenu', preventContextMenu)
+    }
+  }, [])
 
   const drawPoints = (ctx: CanvasRenderingContext2D, img: HTMLImageElement) => {
     const canvas = canvasRef.current
@@ -744,7 +743,7 @@ function RouteComponent() {
                       segmentImage.sessionEnded
                         ? 'cursor-not-allowed opacity-50'
                         : 'cursor-crosshair'
-                      }`}
+                    }`}
                     onMouseDown={segmentImage.sessionEnded ? undefined : handleMouseDown}
                     onMouseMove={segmentImage.sessionEnded ? undefined : handleMouseMove}
                     onMouseUp={segmentImage.sessionEnded ? undefined : handleMouseUp}
@@ -752,10 +751,10 @@ function RouteComponent() {
                       segmentImage.sessionEnded
                         ? undefined
                         : (e) => {
-                          if (isDragging.current) {
-                            handleMouseUp(e)
+                            if (isDragging.current) {
+                              handleMouseUp(e)
+                            }
                           }
-                        }
                     }
                   />
                 </div>

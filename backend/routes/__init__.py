@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter
 
-from backend.routes import scripts, images, upscale, segmentation, edit, jobs
+from backend.routes import scripts, images, upscale, segmentation, edit, jobs, presets
 
 api_router = APIRouter()
 
@@ -12,4 +12,5 @@ api_router.include_router(images.router, prefix="/images", tags=["images"])
 api_router.include_router(upscale.router, prefix="/upscale", tags=["upscale"])
 api_router.include_router(segmentation.router, prefix="/segment", tags=["segmentation"])
 api_router.include_router(edit.router, prefix="/edit", tags=["edit"])
+api_router.include_router(presets.router, prefix="/presets", tags=["presets"])
 api_router.include_router(jobs.router, prefix="/jobs", tags=["jobs"])

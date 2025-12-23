@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
+import { API_BASE_URL } from '@/lib/constants'
 
 export interface ResizeInfo {
   originalWidth: number
@@ -18,6 +19,19 @@ export interface UpscaleInfo {
   fileSize: number
   upscaleMode: string
   upscaleFactor: number
+}
+
+export interface EditPreset {
+  id: number
+  name: string
+  prompt: string
+  numInferenceSteps: number
+  negativePrompt?: string
+  enableSafetyChecker: boolean
+  outputFormat: string
+  seed?: number
+  created_at: string
+  updated_at: string
 }
 
 interface ImageState {
@@ -54,6 +68,11 @@ interface ImageState {
     outputFilename: string | null
     info: { outputWidth: number; outputHeight: number } | null
     prompt: string
+    numInferenceSteps?: number
+    negativePrompt?: string
+    enableSafetyChecker?: boolean
+    outputFormat?: string
+    seed?: string
     isEditing: boolean
     error: string | null
     originalMetadata: any | null
@@ -144,6 +163,13 @@ interface ImageState {
   sendToEdit: () => void
   sendToUpscale: () => void
   sendToSegment: () => void
+
+  // Presets actions
+  presets: EditPreset[]
+  loadPresets: () => Promise<void>
+  savePreset: (preset: Omit<EditPreset, 'id' | 'created_at' | 'updated_at'>) => Promise<void>
+  deletePreset: (presetId: number) => Promise<void>
+  applyPreset: (preset: EditPreset) => void
 }
 
 export const useImageStore = create<ImageState>()(
@@ -169,6 +195,7 @@ export const useImageStore = create<ImageState>()(
         isCropping: false,
         error: null,
       },
+      presets: [],
       resizeImage: {
         originalFile: null,
         jobId: null,
@@ -191,6 +218,11 @@ export const useImageStore = create<ImageState>()(
         outputFilename: null,
         info: null,
         prompt: '',
+        numInferenceSteps: 50,
+        negativePrompt: '',
+        enableSafetyChecker: true,
+        outputFormat: 'png',
+        seed: '',
         isEditing: false,
         error: null,
         originalMetadata: null,
@@ -439,6 +471,68 @@ export const useImageStore = create<ImageState>()(
         if (homeImage.file) {
           set({ homeImage: { file: null, url: null } })
         }
+      },
+      loadPresets: async () => {
+        try {
+          const response = await fetch(`${API_BASE_URL}/presets`)
+          if (response.ok) {
+            const presets = await response.json()
+            set({ presets })
+          }
+        } catch (error) {
+          console.error('Failed to load presets:', error)
+        }
+      },
+      savePreset: async (preset) => {
+        try {
+          const response = await fetch(`${API_BASE_URL}/presets`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(preset),
+          })
+          if (response.ok) {
+            const savedPreset = await response.json()
+            set((state) => ({
+              presets: [...state.presets, savedPreset].sort((a, b) => a.name.localeCompare(b.name)),
+            }))
+          } else {
+            const error = await response.json()
+            throw new Error(error.detail || 'Failed to save preset')
+          }
+        } catch (error) {
+          console.error('Failed to save preset:', error)
+          throw error
+        }
+      },
+      deletePreset: async (presetId: number) => {
+        try {
+          const response = await fetch(`${API_BASE_URL}/presets/${presetId}`, {
+            method: 'DELETE',
+          })
+          if (response.ok) {
+            set((state) => ({
+              presets: state.presets.filter((p) => p.id !== presetId),
+            }))
+          } else {
+            throw new Error('Failed to delete preset')
+          }
+        } catch (error) {
+          console.error('Failed to delete preset:', error)
+          throw error
+        }
+      },
+      applyPreset: (preset) => {
+        set((state) => ({
+          editImage: {
+            ...state.editImage,
+            prompt: preset.prompt,
+            numInferenceSteps: preset.numInferenceSteps,
+            negativePrompt: preset.negativePrompt || '',
+            enableSafetyChecker: preset.enableSafetyChecker,
+            outputFormat: preset.outputFormat,
+            seed: preset.seed ? String(preset.seed) : '',
+          },
+        }))
       },
     }),
     { name: 'ImageStore' }

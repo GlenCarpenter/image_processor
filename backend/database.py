@@ -124,6 +124,32 @@ def init_db():
         """
         )
 
+        # Create edit_presets table - stores user-saved edit configurations
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS edit_presets (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE,
+                prompt TEXT NOT NULL,
+                num_inference_steps INTEGER DEFAULT 6,
+                negative_prompt TEXT,
+                enable_safety_checker INTEGER DEFAULT 1,
+                output_format TEXT DEFAULT 'png',
+                seed INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """
+        )
+
+        # Create index for edit_presets
+        cursor.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_presets_name 
+            ON edit_presets(name)
+        """
+        )
+
 
 def create_output(
     filename: str,
@@ -429,6 +455,144 @@ def get_all_jobs(
                 (limit, offset),
             )
         return [dict(row) for row in cursor.fetchall()]
+
+
+def create_edit_preset(
+    name: str,
+    prompt: str,
+    num_inference_steps: int = 6,
+    negative_prompt: Optional[str] = None,
+    enable_safety_checker: bool = True,
+    output_format: str = "png",
+    seed: Optional[int] = None,
+) -> int:
+    """
+    Create a new edit preset
+
+    Returns:
+        int: The ID of the created preset
+    """
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            INSERT INTO edit_presets (
+                name, prompt, num_inference_steps, negative_prompt,
+                enable_safety_checker, output_format, seed
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        """,
+            (
+                name,
+                prompt,
+                num_inference_steps,
+                negative_prompt or None,
+                1 if enable_safety_checker else 0,
+                output_format,
+                seed,
+            ),
+        )
+        return cursor.lastrowid
+
+
+def get_edit_preset(preset_id: int) -> Optional[Dict[str, Any]]:
+    """Get a specific preset by ID"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM edit_presets WHERE id = ?", (preset_id,))
+        row = cursor.fetchone()
+        if row:
+            preset = dict(row)
+            preset["enable_safety_checker"] = bool(preset["enable_safety_checker"])
+            return preset
+        return None
+
+
+def get_all_edit_presets() -> List[Dict[str, Any]]:
+    """Get all edit presets ordered by name"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM edit_presets ORDER BY name ASC")
+        presets = []
+        for row in cursor.fetchall():
+            preset = dict(row)
+            preset["enable_safety_checker"] = bool(preset["enable_safety_checker"])
+            presets.append(preset)
+        return presets
+
+
+def update_edit_preset(
+    preset_id: int,
+    name: Optional[str] = None,
+    prompt: Optional[str] = None,
+    num_inference_steps: Optional[int] = None,
+    negative_prompt: Optional[str] = None,
+    enable_safety_checker: Optional[bool] = None,
+    output_format: Optional[str] = None,
+    seed: Optional[int] = None,
+) -> bool:
+    """
+    Update an edit preset
+
+    Returns:
+        bool: True if preset was updated, False if not found
+    """
+    with get_db() as conn:
+        cursor = conn.cursor()
+
+        # Get current preset to build update
+        cursor.execute("SELECT * FROM edit_presets WHERE id = ?", (preset_id,))
+        row = cursor.fetchone()
+        if not row:
+            return False
+
+        # Build update query with non-None values
+        updates = []
+        values = []
+
+        if name is not None:
+            updates.append("name = ?")
+            values.append(name)
+        if prompt is not None:
+            updates.append("prompt = ?")
+            values.append(prompt)
+        if num_inference_steps is not None:
+            updates.append("num_inference_steps = ?")
+            values.append(num_inference_steps)
+        if negative_prompt is not None:
+            updates.append("negative_prompt = ?")
+            values.append(negative_prompt)
+        if enable_safety_checker is not None:
+            updates.append("enable_safety_checker = ?")
+            values.append(1 if enable_safety_checker else 0)
+        if output_format is not None:
+            updates.append("output_format = ?")
+            values.append(output_format)
+        if seed is not None:
+            updates.append("seed = ?")
+            values.append(seed)
+
+        if not updates:
+            return True  # Nothing to update
+
+        updates.append("updated_at = CURRENT_TIMESTAMP")
+        values.append(preset_id)
+
+        query = f"UPDATE edit_presets SET {', '.join(updates)} WHERE id = ?"
+        cursor.execute(query, values)
+        return cursor.rowcount > 0
+
+
+def delete_edit_preset(preset_id: int) -> bool:
+    """
+    Delete an edit preset
+
+    Returns:
+        bool: True if preset was deleted, False if not found
+    """
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM edit_presets WHERE id = ?", (preset_id,))
+        return cursor.rowcount > 0
 
 
 def destroy_db():
