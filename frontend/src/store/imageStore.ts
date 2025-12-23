@@ -141,6 +141,11 @@ interface ImageState {
     info: ResizeInfo | null
   ) => void
   clearEditImage: () => void
+  setEditNumInferenceSteps: (steps: number) => void
+  setEditNegativePrompt: (prompt: string) => void
+  setEditEnableSafetyChecker: (enabled: boolean) => void
+  setEditOutputFormat: (format: string) => void
+  setEditSeed: (seed: string) => void
 
   // Segment page actions
   setSegmentSession: (sessionId: string | null) => void
@@ -343,6 +348,16 @@ export const useImageStore = create<ImageState>()(
             resultMetadata: null,
           },
         }),
+      setEditNumInferenceSteps: (steps) =>
+        set((state) => ({ editImage: { ...state.editImage, numInferenceSteps: steps } })),
+      setEditNegativePrompt: (prompt) =>
+        set((state) => ({ editImage: { ...state.editImage, negativePrompt: prompt } })),
+      setEditEnableSafetyChecker: (enabled) =>
+        set((state) => ({ editImage: { ...state.editImage, enableSafetyChecker: enabled } })),
+      setEditOutputFormat: (format) =>
+        set((state) => ({ editImage: { ...state.editImage, outputFormat: format } })),
+      setEditSeed: (seed) =>
+        set((state) => ({ editImage: { ...state.editImage, seed } })),
 
       // Segment page actions
       setSegmentSession: (sessionId) =>
@@ -485,16 +500,34 @@ export const useImageStore = create<ImageState>()(
       },
       savePreset: async (preset) => {
         try {
-          const response = await fetch(`${API_BASE_URL}/presets`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(preset),
-          })
+          const state = get()
+          const existingPreset = state.presets.find((p) => p.name === preset.name)
+          
+          let response
+          if (existingPreset) {
+            // Update existing preset
+            response = await fetch(`${API_BASE_URL}/presets/${existingPreset.id}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(preset),
+            })
+          } else {
+            // Create new preset
+            response = await fetch(`${API_BASE_URL}/presets`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(preset),
+            })
+          }
+          
           if (response.ok) {
             const savedPreset = await response.json()
-            set((state) => ({
-              presets: [...state.presets, savedPreset].sort((a, b) => a.name.localeCompare(b.name)),
-            }))
+            set((state) => {
+              const filtered = state.presets.filter((p) => p.id !== savedPreset.id)
+              return {
+                presets: [...filtered, savedPreset].sort((a, b) => a.name.localeCompare(b.name)),
+              }
+            })
           } else {
             const error = await response.json()
             throw new Error(error.detail || 'Failed to save preset')

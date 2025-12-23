@@ -55,6 +55,7 @@ function RouteComponent() {
         .then((blob) => {
           const file = new File([blob], search.filename!, { type: blob.type })
           setUpscaleOriginal(file)
+          setUpscaleUpscaling(false)
 
           extractImageMetadata(file, imageUrl)
             .then(async (metadata) => {
@@ -85,6 +86,7 @@ function RouteComponent() {
       setUpscaleResult(null, null, null)
       setUpscaleError(null)
       setUpscaleResultMetadata(null)
+      setUpscaleUpscaling(false)
 
       // Extract image metadata
       const url = URL.createObjectURL(file)
@@ -256,7 +258,7 @@ function RouteComponent() {
 
           <Button
             onClick={handleUpscale}
-            disabled={!upscaleImage.originalFile}
+            disabled={!upscaleImage.originalFile || upscaleImage.isUpscaling}
             className="w-full"
             size="lg"
           >

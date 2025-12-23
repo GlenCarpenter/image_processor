@@ -39,6 +39,11 @@ function RouteComponent() {
   const setEditError = useImageStore((state) => state.setEditError)
   const setEditOriginalMetadata = useImageStore((state) => state.setEditOriginalMetadata)
   const setEditResultMetadata = useImageStore((state) => state.setEditResultMetadata)
+  const setEditNumInferenceSteps = useImageStore((state) => state.setEditNumInferenceSteps)
+  const setEditNegativePrompt = useImageStore((state) => state.setEditNegativePrompt)
+  const setEditEnableSafetyChecker = useImageStore((state) => state.setEditEnableSafetyChecker)
+  const setEditOutputFormat = useImageStore((state) => state.setEditOutputFormat)
+  const setEditSeed = useImageStore((state) => state.setEditSeed)
   const sendToEdit = useImageStore((state) => state.sendToEdit)
   const sendToUpscale = useImageStore((state) => state.sendToUpscale)
   const sendToResize = useImageStore((state) => state.sendToResize)
@@ -49,35 +54,15 @@ function RouteComponent() {
   const deletePreset = useImageStore((state) => state.deletePreset)
   const applyPreset = useImageStore((state) => state.applyPreset)
 
-  // Local state for parameters
-  const [numInferenceSteps, setNumInferenceSteps] = useState(editImage.numInferenceSteps || 6)
-  const [negativePrompt, setNegativePrompt] = useState(editImage.negativePrompt || '')
-  const [enableSafetyChecker, setEnableSafetyChecker] = useState(
-    editImage.enableSafetyChecker !== false
-  )
-  const [outputFormat, setOutputFormat] = useState(editImage.outputFormat || 'png')
-  const [seed, setSeed] = useState(editImage.seed || '')
+  // Local state for UI-only values (not parameters)
   const [presetName, setPresetName] = useState('')
   const [showSavePreset, setShowSavePreset] = useState(false)
+  const existingPresetWithName = presets.find((p) => p.name === presetName)
 
   // Load presets on mount
   useEffect(() => {
     loadPresets()
   }, [loadPresets])
-
-  // Update store when parameters change
-  useEffect(() => {
-    useImageStore.setState((s) => ({
-      editImage: {
-        ...s.editImage,
-        numInferenceSteps,
-        negativePrompt,
-        enableSafetyChecker,
-        outputFormat,
-        seed,
-      },
-    }))
-  }, [numInferenceSteps, negativePrompt, enableSafetyChecker, outputFormat, seed])
 
   // Load image from URL query param on mount
   useEffect(() => {
@@ -89,6 +74,7 @@ function RouteComponent() {
         .then((blob) => {
           const file = new File([blob], search.filename!, { type: blob.type })
           setEditOriginal(file)
+          setEditEditing(false)
 
           extractImageMetadata(file, imageUrl)
             .then(async (metadata) => {
@@ -119,6 +105,7 @@ function RouteComponent() {
       setEditResult(null, null, null)
       setEditError(null)
       setEditResultMetadata(null)
+      setEditEditing(false)
 
       // Extract image metadata
       const url = URL.createObjectURL(file)
@@ -177,15 +164,15 @@ function RouteComponent() {
       formData.append('file', editImage.originalFile)
       formData.append('prompt', editImage.prompt)
       formData.append('guidance_scale', '1.0')
-      formData.append('num_inference_steps', String(numInferenceSteps ?? 6))
+      formData.append('num_inference_steps', String(editImage.numInferenceSteps ?? 6))
       formData.append('acceleration', 'regular')
-      formData.append('output_format', outputFormat ?? 'png')
-      if (negativePrompt) {
-        formData.append('negative_prompt', negativePrompt)
+      formData.append('output_format', editImage.outputFormat ?? 'png')
+      if (editImage.negativePrompt) {
+        formData.append('negative_prompt', editImage.negativePrompt)
       }
-      formData.append('enable_safety_checker', String(enableSafetyChecker ?? true))
-      if (seed) {
-        formData.append('seed', seed)
+      formData.append('enable_safety_checker', String(editImage.enableSafetyChecker ?? true))
+      if (editImage.seed) {
+        formData.append('seed', editImage.seed)
       }
 
       const response = await fetch(`${API_BASE_URL}/edit/edit`, {
@@ -261,11 +248,11 @@ function RouteComponent() {
       await savePreset({
         name: presetName,
         prompt: editImage.prompt,
-        numInferenceSteps,
-        negativePrompt,
-        enableSafetyChecker,
-        outputFormat,
-        seed: seed ? parseInt(seed) : undefined,
+        numInferenceSteps: editImage.numInferenceSteps || 50,
+        negativePrompt: editImage.negativePrompt,
+        enableSafetyChecker: editImage.enableSafetyChecker !== false,
+        outputFormat: editImage.outputFormat || 'png',
+        seed: editImage.seed ? parseInt(editImage.seed) : undefined,
       })
       toast.success(`Preset "${presetName}" saved successfully`)
       setPresetName('')
@@ -288,11 +275,6 @@ function RouteComponent() {
     const preset = presets.find((p) => p.id === presetId)
     if (preset) {
       applyPreset(preset)
-      setNumInferenceSteps(preset.numInferenceSteps)
-      setNegativePrompt(preset.negativePrompt || '')
-      setEnableSafetyChecker(preset.enableSafetyChecker)
-      setOutputFormat(preset.outputFormat)
-      setSeed(preset.seed ? String(preset.seed) : '')
       toast.success(`Applied preset "${preset.name}"`)
     }
   }
@@ -388,8 +370,8 @@ function RouteComponent() {
                   <Label htmlFor="negative-prompt">Negative Prompt (optional)</Label>
                   <Textarea
                     id="negative-prompt"
-                    value={negativePrompt}
-                    onChange={(e) => setNegativePrompt(e.target.value)}
+                    value={editImage.negativePrompt || ''}
+                    onChange={(e) => setEditNegativePrompt(e.target.value)}
                     placeholder="e.g., blurry, low quality"
                     className="mt-2 min-h-[60px]"
                   />
@@ -400,14 +382,14 @@ function RouteComponent() {
 
                 {/* Inference Steps */}
                 <div>
-                  <Label htmlFor="inference-steps">Inference Steps: {numInferenceSteps}</Label>
+                  <Label htmlFor="inference-steps">Inference Steps: {editImage.numInferenceSteps}</Label>
                   <input
                     id="inference-steps"
                     type="range"
                     min="1"
                     max="50"
-                    value={numInferenceSteps}
-                    onChange={(e) => setNumInferenceSteps(Number(e.target.value))}
+                    value={editImage.numInferenceSteps || 50}
+                    onChange={(e) => setEditNumInferenceSteps(Number(e.target.value))}
                     className="w-full mt-2"
                   />
                   <p className="text-xs text-muted-foreground mt-1">
@@ -420,8 +402,8 @@ function RouteComponent() {
                   <Label htmlFor="output-format">Output Format</Label>
                   <select
                     id="output-format"
-                    value={outputFormat}
-                    onChange={(e) => setOutputFormat(e.target.value)}
+                    value={editImage.outputFormat || 'png'}
+                    onChange={(e) => setEditOutputFormat(e.target.value)}
                     className="w-full mt-2 px-3 py-2 border rounded-md bg-background text-foreground"
                   >
                     <option value="png">PNG</option>
@@ -434,8 +416,8 @@ function RouteComponent() {
                   <input
                     id="safety-checker"
                     type="checkbox"
-                    checked={enableSafetyChecker}
-                    onChange={(e) => setEnableSafetyChecker(e.target.checked)}
+                    checked={editImage.enableSafetyChecker !== false}
+                    onChange={(e) => setEditEnableSafetyChecker(e.target.checked)}
                     className="mt-2"
                   />
                   <Label htmlFor="safety-checker" className="mt-2">
@@ -449,8 +431,8 @@ function RouteComponent() {
                   <input
                     id="seed"
                     type="number"
-                    value={seed}
-                    onChange={(e) => setSeed(e.target.value)}
+                    value={editImage.seed || ''}
+                    onChange={(e) => setEditSeed(e.target.value)}
                     placeholder="Leave empty for random seed"
                     className="w-full mt-2 px-3 py-2 border rounded-md"
                   />
@@ -462,7 +444,7 @@ function RouteComponent() {
 
               <Button
                 onClick={handleEdit}
-                disabled={!editImage.prompt.trim()}
+                disabled={!editImage.prompt.trim() || editImage.isEditing}
                 className="w-full"
                 size="lg"
               >
@@ -488,9 +470,14 @@ function RouteComponent() {
                       placeholder="Enter preset name (e.g., 'Remove Text')"
                       className="w-full px-3 py-2 border rounded-md"
                     />
+                    {existingPresetWithName && (
+                      <p className="text-xs text-amber-600 dark:text-amber-400">
+                        A preset with this name already exists. Saving will overwrite it.
+                      </p>
+                    )}
                     <div className="flex gap-2">
                       <Button onClick={handleSavePreset} className="flex-1" size="sm">
-                        Save Preset
+                        {existingPresetWithName ? 'Update Preset' : 'Save Preset'}
                       </Button>
                       <Button
                         onClick={() => {
