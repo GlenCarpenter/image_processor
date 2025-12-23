@@ -85,11 +85,15 @@ async def upload_for_segmentation(
 @router.post("/predict")
 async def predict_segmentation(
     session_id: str = Form(..., description="Session ID from upload"),
-    points: Optional[str] = Form(None, description="JSON array of [x, y] point coordinates"),
+    points: Optional[str] = Form(
+        None, description="JSON array of [x, y] point coordinates"
+    ),
     labels: Optional[str] = Form(
         None, description="JSON array of labels (1=foreground, 0=background)"
     ),
-    bboxes: Optional[str] = Form(None, description="JSON array [x1, y1, x2, y2] for bounding box"),
+    bboxes: Optional[str] = Form(
+        None, description="JSON array [x1, y1, x2, y2] for bounding box"
+    ),
     model: str = Form("sam2_b.pt", description="SAM model to use"),
 ):
     """
@@ -122,6 +126,7 @@ async def predict_segmentation(
             # Use bounding box prompt
             bbox_list = json.loads(bboxes)
             from backend.utils.sam_segmentation import predict_mask_from_bboxes
+
             mask = predict_mask_from_bboxes(
                 image_bytes, bboxes=bbox_list, model_name=model
             )
@@ -135,7 +140,7 @@ async def predict_segmentation(
         else:
             raise HTTPException(
                 status_code=400,
-                detail="Either points/labels or bboxes must be provided"
+                detail="Either points/labels or bboxes must be provided",
             )
 
         # Convert mask to PNG image

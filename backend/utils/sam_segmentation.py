@@ -174,9 +174,7 @@ def predict_mask_from_bboxes(
 
     # Run prediction with bboxes prompt
     # SAM expects bboxes as a list: [x1, y1, x2, y2]
-    results = model(
-        img_array, bboxes=bboxes, verbose=False
-    )
+    results = model(img_array, bboxes=bboxes, verbose=False)
 
     # Extract mask from results
     if (

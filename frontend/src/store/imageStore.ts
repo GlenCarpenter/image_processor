@@ -356,8 +356,7 @@ export const useImageStore = create<ImageState>()(
         set((state) => ({ editImage: { ...state.editImage, enableSafetyChecker: enabled } })),
       setEditOutputFormat: (format) =>
         set((state) => ({ editImage: { ...state.editImage, outputFormat: format } })),
-      setEditSeed: (seed) =>
-        set((state) => ({ editImage: { ...state.editImage, seed } })),
+      setEditSeed: (seed) => set((state) => ({ editImage: { ...state.editImage, seed } })),
 
       // Segment page actions
       setSegmentSession: (sessionId) =>
@@ -502,7 +501,7 @@ export const useImageStore = create<ImageState>()(
         try {
           const state = get()
           const existingPreset = state.presets.find((p) => p.name === preset.name)
-          
+
           let response
           if (existingPreset) {
             // Update existing preset
@@ -519,7 +518,7 @@ export const useImageStore = create<ImageState>()(
               body: JSON.stringify(preset),
             })
           }
-          
+
           if (response.ok) {
             const savedPreset = await response.json()
             set((state) => {

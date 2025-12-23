@@ -382,7 +382,9 @@ function RouteComponent() {
 
                 {/* Inference Steps */}
                 <div>
-                  <Label htmlFor="inference-steps">Inference Steps: {editImage.numInferenceSteps}</Label>
+                  <Label htmlFor="inference-steps">
+                    Inference Steps: {editImage.numInferenceSteps}
+                  </Label>
                   <input
                     id="inference-steps"
                     type="range"

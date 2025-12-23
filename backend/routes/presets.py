@@ -20,6 +20,7 @@ router = APIRouter()
 
 class EditPresetCreate(BaseModel):
     """Request model for creating a new preset"""
+
     name: str
     prompt: str
     num_inference_steps: int = 6
@@ -31,6 +32,7 @@ class EditPresetCreate(BaseModel):
 
 class EditPresetUpdate(BaseModel):
     """Request model for updating a preset"""
+
     name: Optional[str] = None
     prompt: Optional[str] = None
     num_inference_steps: Optional[int] = None
@@ -42,6 +44,7 @@ class EditPresetUpdate(BaseModel):
 
 class EditPresetResponse(BaseModel):
     """Response model for a preset"""
+
     id: int
     name: str
     prompt: str
@@ -115,7 +118,7 @@ async def create_preset(preset: EditPresetCreate):
         if "UNIQUE constraint failed" in str(e):
             raise HTTPException(
                 status_code=400,
-                detail=f"A preset with the name '{preset.name}' already exists"
+                detail=f"A preset with the name '{preset.name}' already exists",
             )
         raise HTTPException(status_code=500, detail=f"Error creating preset: {str(e)}")
 
