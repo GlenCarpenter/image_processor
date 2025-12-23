@@ -462,11 +462,11 @@ function RouteComponent() {
 
               <Button
                 onClick={handleEdit}
-                disabled={editImage.isEditing || !editImage.prompt.trim()}
+                disabled={!editImage.prompt.trim()}
                 className="w-full"
                 size="lg"
               >
-                {editImage.isEditing ? 'Editing Image...' : 'Edit Image'}
+                Edit Image
               </Button>
 
               {/* Save Preset Section */}

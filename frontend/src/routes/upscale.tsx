@@ -256,11 +256,11 @@ function RouteComponent() {
 
           <Button
             onClick={handleUpscale}
-            disabled={!upscaleImage.originalFile || upscaleImage.isUpscaling}
+            disabled={!upscaleImage.originalFile}
             className="w-full"
             size="lg"
           >
-            {upscaleImage.isUpscaling ? 'Upscaling Image...' : `Upscale Image (${upscaleFactor}x)`}
+            {`Upscale Image (${upscaleFactor}x)`}
           </Button>
 
           {upscaleImage.originalMetadata && (
