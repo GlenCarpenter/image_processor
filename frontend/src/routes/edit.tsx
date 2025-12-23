@@ -177,13 +177,13 @@ function RouteComponent() {
       formData.append('file', editImage.originalFile)
       formData.append('prompt', editImage.prompt)
       formData.append('guidance_scale', '1.0')
-      formData.append('num_inference_steps', String(numInferenceSteps))
+      formData.append('num_inference_steps', String(numInferenceSteps ?? 6))
       formData.append('acceleration', 'regular')
-      formData.append('output_format', outputFormat)
+      formData.append('output_format', outputFormat ?? 'png')
       if (negativePrompt) {
         formData.append('negative_prompt', negativePrompt)
       }
-      formData.append('enable_safety_checker', String(enableSafetyChecker))
+      formData.append('enable_safety_checker', String(enableSafetyChecker ?? true))
       if (seed) {
         formData.append('seed', seed)
       }
