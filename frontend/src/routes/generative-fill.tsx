@@ -16,7 +16,7 @@ import { useImageStore } from '@/store/imageStore'
 import { extractImageMetadata } from '@/lib/imageUtils'
 import { InputCard } from '@/components/input-card'
 import { API_BASE_URL } from '@/lib/constants'
-import { MaskCanvas } from '@/components/mask-canvas'
+import { AdvancedMaskCanvas } from '@/components/advanced-mask-canvas'
 import { ImageDetailDialog } from '@/components/image-detail-dialog'
 
 type GenerativeFillSearch = {
@@ -60,7 +60,6 @@ function RouteComponent() {
   const fillMask = useImageStore((state) => state.fillImage.maskFile)
 
   // Local state for fill-specific parameters
-  const [maskMode, setMaskMode] = useState<'upload' | 'draw'>('draw')
   const [selectedModel, setSelectedModel] = useState<string>('')
   const [sdxlModels, setSdxlModels] = useState<SDXLModel[]>([])
   const [loadingModels, setLoadingModels] = useState(true)
@@ -136,13 +135,6 @@ function RouteComponent() {
       setFillOriginal(file)
       setFillEditing(false)
       setFillError(null)
-    }
-  }
-
-  const handleMaskDrop = (files: File[]) => {
-    if (files.length > 0) {
-      setFillMask(files[0])
-      toast.success('Mask image selected')
     }
   }
 
@@ -256,20 +248,35 @@ function RouteComponent() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Left column - Input */}
+          {/* Left column - Mask Creation Canvas */}
           <div className="space-y-6">
-            {/* Image with Mask Overlay */}
-            <InputCard
-              title={fillMask ? 'Image with Mask Overlay' : 'Original Image'}
-              description={
-                fillMask ? 'White overlay shows fill areas' : 'Upload an image to fill'
-              }
-            >
-              {!fillOriginal ? (
+            {!fillOriginal ? (
+              <InputCard
+                title="Upload Image"
+                description="Upload an image to create a mask and fill"
+              >
                 <Dropzone onDrop={handleImageDrop}>
                   <DropzoneEmptyState />
                 </Dropzone>
-              ) : (
+              </InputCard>
+            ) : !fillMask ? (
+              <InputCard
+                title="Create Mask"
+                description="Draw, erase, or use AI segmentation to create your mask"
+              >
+                <AdvancedMaskCanvas
+                  imageFile={fillOriginal}
+                  onMaskCreated={(mask) => {
+                    setFillMask(mask)
+                    toast.success('Mask created successfully')
+                  }}
+                />
+              </InputCard>
+            ) : (
+              <InputCard
+                title="Image with Mask"
+                description="White overlay shows fill areas"
+              >
                 <div className="space-y-4">
                   <div className="relative w-full">
                     <img
@@ -277,17 +284,15 @@ function RouteComponent() {
                       alt="Original"
                       className="w-full rounded-lg"
                     />
-                    {fillMask && (
-                      <img
-                        src={URL.createObjectURL(fillMask)}
-                        alt="Mask overlay"
-                        className="absolute inset-0 w-full h-full rounded-lg"
-                        style={{
-                          mixBlendMode: 'lighten',
-                          opacity: 0.3,
-                        }}
-                      />
-                    )}
+                    <img
+                      src={URL.createObjectURL(fillMask)}
+                      alt="Mask overlay"
+                      className="absolute inset-0 w-full h-full rounded-lg"
+                      style={{
+                        mixBlendMode: 'lighten',
+                        opacity: 0.3,
+                      }}
+                    />
                   </div>
                   <div className="flex gap-2">
                     <Button
@@ -301,79 +306,16 @@ function RouteComponent() {
                     >
                       Clear All
                     </Button>
-                    {fillMask && (
-                      <Button
-                        variant="outline"
-                        className="flex-1"
-                        onClick={() => setFillMask(null)}
-                      >
-                        Clear Mask
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              )}
-            </InputCard>
-
-            {/* Mask Creation/Upload */}
-            {fillOriginal && !fillMask && (
-              <InputCard
-                title="Create or Upload Mask"
-                description="Draw on the image or upload a pre-made mask"
-              >
-                <div className="space-y-4">
-                  {/* Mode selector */}
-                  <div className="flex gap-2 mb-4">
                     <Button
-                      variant={maskMode === 'draw' ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setMaskMode('draw')}
-                      disabled={!fillOriginal}
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => setFillMask(null)}
                     >
-                      Draw Mask
-                    </Button>
-                    <Button
-                      variant={maskMode === 'upload' ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setMaskMode('upload')}
-                    >
-                      Upload Mask
+                      Edit Mask
                     </Button>
                   </div>
-
-                  {maskMode === 'upload' ? (
-                    <Dropzone onDrop={handleMaskDrop}>
-                      <DropzoneEmptyState />
-                    </Dropzone>
-                  ) : fillOriginal ? (
-                    <MaskCanvas
-                      imageFile={fillOriginal}
-                      onMaskCreated={(mask) => {
-                        setFillMask(mask)
-                        toast.success('Mask created successfully')
-                      }}
-                    />
-                  ) : (
-                    <div className="text-center py-8 text-muted-foreground">
-                      Please upload an image first to draw a mask
-                    </div>
-                  )}
                 </div>
               </InputCard>
-            )}
-
-            {/* Or send to segmentation to create mask */}
-            {fillOriginal && !fillMask && maskMode === 'upload' && (
-              <Button
-                variant="secondary"
-                className="w-full"
-                onClick={() => {
-                  setFillOriginal(fillOriginal)
-                  sendToSegment()
-                }}
-              >
-                Create Mask with Segmentation
-              </Button>
             )}
           </div>
 
