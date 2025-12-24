@@ -123,7 +123,7 @@ export function MaskCanvas({ imageFile, onMaskCreated }: MaskCanvasProps) {
     // Draw circle with white 30% opacity (fill areas) or erase back to image
     ctx.beginPath()
     ctx.arc(coords.x, coords.y, brushSize, 0, Math.PI * 2)
-    
+
     if (brushMode === 'draw') {
       // Draw white with 30% opacity to mark fill areas
       ctx.fillStyle = 'rgba(255, 255, 255, 0.3)'
@@ -174,7 +174,7 @@ export function MaskCanvas({ imageFile, onMaskCreated }: MaskCanvasProps) {
 
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
     const data = imageData.data
-    
+
     // Get original image data for comparison
     const originalCanvas = document.createElement('canvas')
     originalCanvas.width = canvas.width
@@ -191,7 +191,7 @@ export function MaskCanvas({ imageFile, onMaskCreated }: MaskCanvasProps) {
       const rDiff = Math.abs(data[i] - originalData[i])
       const gDiff = Math.abs(data[i + 1] - originalData[i + 1])
       const bDiff = Math.abs(data[i + 2] - originalData[i + 2])
-      
+
       // If pixel is brighter than original (white overlay applied), mark it white in mask
       if (rDiff > 30 || gDiff > 30 || bDiff > 30) {
         const pixelIndex = i / 4
@@ -229,7 +229,7 @@ export function MaskCanvas({ imageFile, onMaskCreated }: MaskCanvasProps) {
 
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
     const data = imageData.data
-    
+
     // Get original image data for comparison
     const originalCanvas = document.createElement('canvas')
     originalCanvas.width = canvas.width
@@ -244,7 +244,7 @@ export function MaskCanvas({ imageFile, onMaskCreated }: MaskCanvasProps) {
       const rDiff = Math.abs(data[i] - originalData[i])
       const gDiff = Math.abs(data[i + 1] - originalData[i + 1])
       const bDiff = Math.abs(data[i + 2] - originalData[i + 2])
-      
+
       if (rDiff > 30 || gDiff > 30 || bDiff > 30) {
         const pixelIndex = i / 4
         const x = pixelIndex % canvas.width

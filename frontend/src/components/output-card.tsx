@@ -1,6 +1,14 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Download, ArrowBigUpDash, Expand, Scissors, Pencil, ExternalLink, Sparkles } from 'lucide-react'
+import {
+  Download,
+  ArrowBigUpDash,
+  Expand,
+  Scissors,
+  Pencil,
+  ExternalLink,
+  Sparkles,
+} from 'lucide-react'
 import { API_BASE_URL } from '@/lib/constants'
 import type { ReactNode } from 'react'
 

@@ -34,9 +34,7 @@ def example_detect_models():
             print(f"   Path: {model['path']}\n")
     else:
         print("\nNo SDXL models found!")
-        print(
-            "Add .safetensors files to the 'sdxl/' directory to get started.\n"
-        )
+        print("Add .safetensors files to the 'sdxl/' directory to get started.\n")
 
     return models
 
@@ -131,7 +129,8 @@ def example_api_usage():
     print("Example 4: Using the API")
     print("=" * 60)
 
-    print("""
+    print(
+        """
 To use the generative fill API, make HTTP requests:
 
 1. Get available models:
@@ -157,7 +156,8 @@ To use the generative fill API, make HTTP requests:
      "width": 512,
      "height": 512
    }
-    """)
+    """
+    )
 
 
 def main():

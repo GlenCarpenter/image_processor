@@ -68,7 +68,7 @@ function RouteComponent() {
   const [guidanceScale, setGuidanceScale] = useState(7.5)
   const [strength, setStrength] = useState(1.0)
   const [seed, setSeed] = useState<number | null>(null)
-  
+
   // Dialog state
   const [dialogOpen, setDialogOpen] = useState(false)
   const [resultFilename, setResultFilename] = useState<string | null>(null)
@@ -273,10 +273,7 @@ function RouteComponent() {
                 />
               </InputCard>
             ) : (
-              <InputCard
-                title="Image with Mask"
-                description="White overlay shows fill areas"
-              >
+              <InputCard title="Image with Mask" description="White overlay shows fill areas">
                 <div className="space-y-4">
                   <div className="relative w-full">
                     <img
@@ -306,11 +303,7 @@ function RouteComponent() {
                     >
                       Clear All
                     </Button>
-                    <Button
-                      variant="outline"
-                      className="flex-1"
-                      onClick={() => setFillMask(null)}
-                    >
+                    <Button variant="outline" className="flex-1" onClick={() => setFillMask(null)}>
                       Edit Mask
                     </Button>
                   </div>
@@ -496,7 +489,7 @@ function RouteComponent() {
           </div>
         </div>
       </div>
-      
+
       {/* Result Detail Dialog */}
       <ImageDetailDialog
         open={dialogOpen}

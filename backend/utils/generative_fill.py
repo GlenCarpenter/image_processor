@@ -161,12 +161,16 @@ def perform_generative_fill(
         )
 
         output_image = result.images[0]
-        
+
         # Resize output back to target dimensions if different
         if output_image.size != (target_width, target_height):
-            print(f"Resizing output from {output_image.size} to {target_width}x{target_height}")
-            output_image = output_image.resize((target_width, target_height), Image.Resampling.LANCZOS)
-        
+            print(
+                f"Resizing output from {output_image.size} to {target_width}x{target_height}"
+            )
+            output_image = output_image.resize(
+                (target_width, target_height), Image.Resampling.LANCZOS
+            )
+
         print(f"Inference completed successfully, output size: {output_image.size}")
 
         # Convert to bytes

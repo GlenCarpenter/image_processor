@@ -69,7 +69,7 @@ async def predict_segmentation(
     try:
         # Read the uploaded file
         image_bytes = await file.read()
-        
+
         # Parse points and labels
         import json
 
@@ -87,7 +87,11 @@ async def predict_segmentation(
             points_list = json.loads(points)
             labels_list = json.loads(labels)
             mask = predict_mask_from_points(
-                image_bytes, points=points_list, labels=labels_list, model_name=model, padding=padding
+                image_bytes,
+                points=points_list,
+                labels=labels_list,
+                model_name=model,
+                padding=padding,
             )
         else:
             raise HTTPException(

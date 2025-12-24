@@ -2,7 +2,16 @@
 
 from fastapi import APIRouter
 
-from backend.routes import scripts, images, upscale, segmentation, edit, fill, jobs, presets
+from backend.routes import (
+    scripts,
+    images,
+    upscale,
+    segmentation,
+    edit,
+    fill,
+    jobs,
+    presets,
+)
 
 api_router = APIRouter()
 

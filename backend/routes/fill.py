@@ -48,9 +48,7 @@ async def get_available_models():
             "count": len(models),
         }
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Error detecting models: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Error detecting models: {str(e)}")
 
 
 @router.post("/fill")
@@ -106,7 +104,8 @@ async def generative_fill(
     # Validate parameters
     if num_inference_steps < 20 or num_inference_steps > 50:
         raise HTTPException(
-            status_code=400, detail="Number of inference steps must be between 20 and 50"
+            status_code=400,
+            detail="Number of inference steps must be between 20 and 50",
         )
 
     if guidance_scale < 1 or guidance_scale > 20:
@@ -120,7 +119,9 @@ async def generative_fill(
     try:
         # Check if model exists
         available_models = detect_sdxl_models()
-        model_info = next((m for m in available_models if m["name"] == model_name), None)
+        model_info = next(
+            (m for m in available_models if m["name"] == model_name), None
+        )
 
         if not model_info:
             raise HTTPException(
@@ -138,9 +139,7 @@ async def generative_fill(
             mask_img = Image.open(BytesIO(mask_bytes))
             width, height = img.size
         except Exception as e:
-            raise HTTPException(
-                status_code=400, detail=f"Invalid image file: {str(e)}"
-            )
+            raise HTTPException(status_code=400, detail=f"Invalid image file: {str(e)}")
 
         print(
             f"Performing generative fill: {model_name}, prompt='{prompt}', size={width}x{height}"
@@ -196,7 +195,7 @@ async def generative_fill(
             job_status="completed",
             metadata=f"model={model_name}, steps={num_inference_steps}, guidance={guidance_scale}, output={output_filename}",
         )
-        
+
         # Update job with output information
         update_job_status(
             job_id=job_id,
