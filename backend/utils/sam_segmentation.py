@@ -10,6 +10,7 @@ from typing import List, Tuple, Optional
 from pathlib import Path
 from ultralytics import SAM
 import torch
+import cv2
 
 # Global model cache
 _model_cache = {}
@@ -81,11 +82,78 @@ def clear_model_cache():
     _model_cache = {}
 
 
+def fill_mask_holes(mask: np.ndarray, kernel_size: int = 5) -> np.ndarray:
+    """
+    Fill small holes in a binary mask using morphological operations
+    
+    Args:
+        mask: Binary mask as numpy array (H, W) with values 0 or 255
+        kernel_size: Size of the morphological kernel (larger = fills bigger holes)
+    
+    Returns:
+        Cleaned mask with holes filled
+    """
+    # Create a kernel for morphological operations
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_size, kernel_size))
+    
+    # Morphological closing: dilation followed by erosion
+    # This fills small holes while preserving the outer boundary
+    closed_mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
+    
+    # Optional: Fill any remaining interior holes using flood fill
+    # This catches larger holes that closing might miss
+    filled_mask = closed_mask.copy()
+    h, w = filled_mask.shape
+    
+    # Create a slightly larger canvas for flood fill
+    canvas = np.zeros((h + 2, w + 2), dtype=np.uint8)
+    canvas[1:-1, 1:-1] = filled_mask
+    
+    # Flood fill from the border to mark the background
+    cv2.floodFill(canvas, None, (0, 0), 128)
+    
+    # Extract the filled region (anything not marked as background is foreground)
+    filled_mask = np.where(canvas[1:-1, 1:-1] == 128, 0, 255).astype(np.uint8)
+    
+    return filled_mask
+
+
+def add_mask_padding(mask: np.ndarray, padding: int = 10) -> np.ndarray:
+    """
+    Add padding to a mask by dilating it outward
+    
+    This expands the mask boundary, which is useful for inpainting to:
+    - Include border pixels for better blending
+    - Provide more context around the masked area
+    - Avoid hard edges at the mask boundary
+    
+    Args:
+        mask: Binary mask as numpy array (H, W) with values 0 or 255
+        padding: Number of pixels to expand the mask (kernel size for dilation)
+    
+    Returns:
+        Dilated mask with padding added
+    """
+    if padding <= 0:
+        return mask
+    
+    # Create a circular/elliptical kernel for smooth expansion
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (padding * 2 + 1, padding * 2 + 1))
+    
+    # Dilate the mask to expand it outward
+    padded_mask = cv2.dilate(mask, kernel, iterations=1)
+    
+    return padded_mask
+
+
 def predict_mask_from_points(
     image_bytes: bytes,
     points: List[Tuple[int, int]],
     labels: List[int],
     model_name: str = "sam2_b.pt",
+    fill_holes: bool = True,
+    kernel_size: int = 5,
+    padding: int = 0,
 ) -> np.ndarray:
     """
     Generate segmentation mask from point prompts
@@ -95,6 +163,9 @@ def predict_mask_from_points(
         points: List of (x, y) coordinates for prompts
         labels: List of labels (1 for foreground, 0 for background)
         model_name: SAM model to use
+        fill_holes: Whether to fill small holes in the mask
+        kernel_size: Size of morphological kernel for hole filling
+        padding: Number of pixels to expand the mask boundary (0 = no padding)
 
     Returns:
         Binary mask as numpy array (H, W) with values 0 or 255
@@ -140,6 +211,17 @@ def predict_mask_from_points(
         print(
             f"Generated mask with shape: {mask.shape}, unique values: {np.unique(mask)}, sum: {mask.sum()}"
         )
+        
+        # Fill holes if requested
+        if fill_holes:
+            print(f"Filling holes in mask with kernel size {kernel_size}")
+            mask = fill_mask_holes(mask, kernel_size)
+        
+        # Add padding if requested
+        if padding > 0:
+            print(f"Adding {padding}px padding to mask")
+            mask = add_mask_padding(mask, padding)
+        
         return mask
 
     # Return empty mask if no result
@@ -151,6 +233,9 @@ def predict_mask_from_bboxes(
     image_bytes: bytes,
     bboxes: List[float],
     model_name: str = "sam2_b.pt",
+    fill_holes: bool = True,
+    kernel_size: int = 5,
+    padding: int = 0,
 ) -> np.ndarray:
     """
     Generate segmentation mask from bounding box prompt
@@ -159,6 +244,9 @@ def predict_mask_from_bboxes(
         image_bytes: Image data as bytes
         bboxes: Bounding box as [x1, y1, x2, y2]
         model_name: SAM model to use
+        fill_holes: Whether to fill small holes in the mask
+        kernel_size: Size of morphological kernel for hole filling
+        padding: Number of pixels to expand the mask boundary (0 = no padding)
 
     Returns:
         Binary mask as numpy array (H, W) with values 0 or 255
@@ -189,6 +277,17 @@ def predict_mask_from_bboxes(
         print(
             f"Generated mask with shape: {mask.shape}, unique values: {np.unique(mask)}, sum: {mask.sum()}"
         )
+        
+        # Fill holes if requested
+        if fill_holes:
+            print(f"Filling holes in mask with kernel size {kernel_size}")
+            mask = fill_mask_holes(mask, kernel_size)
+        
+        # Add padding if requested
+        if padding > 0:
+            print(f"Adding {padding}px padding to mask")
+            mask = add_mask_padding(mask, padding)
+        
         return mask
 
     # Return empty mask if no result
@@ -199,16 +298,20 @@ def predict_mask_from_bboxes(
 def crop_image_with_mask(
     image_bytes: bytes,
     mask: np.ndarray,
-    padding_percent: float = 10.0,
+    padding_pixels: int = 0,
     target_aspect_ratio: Optional[float] = None,
 ) -> Tuple[bytes, dict]:
     """
     Crop image to mask bounds with padding and aspect ratio adjustment
+    
+    The padding is applied around the mask bounds first. If a target aspect ratio
+    is specified and the padded mask doesn't fit, padding is reduced automatically
+    to fit within the aspect ratio constraint.
 
     Args:
         image_bytes: Original image data as bytes
         mask: Binary mask (0 or 255)
-        padding_percent: Padding as percentage of crop size
+        padding_pixels: Padding in pixels around mask bounds
         target_aspect_ratio: Target width/height ratio (None = use mask bounds)
 
     Returns:
@@ -236,38 +339,68 @@ def crop_image_with_mask(
     row_min, row_max = np.where(rows)[0][[0, -1]]
     col_min, col_max = np.where(cols)[0][[0, -1]]
 
-    # Calculate crop dimensions
+    # Calculate mask dimensions
     mask_width = col_max - col_min + 1
     mask_height = row_max - row_min + 1
+    
+    # Calculate mask center
+    mask_center_x = (col_min + col_max) / 2
+    mask_center_y = (row_min + row_max) / 2
 
-    # Add padding (from original image content)
-    padding_w = int(mask_width * padding_percent / 100)
-    padding_h = int(mask_height * padding_percent / 100)
-
-    crop_x1 = max(0, col_min - padding_w)
-    crop_y1 = max(0, row_min - padding_h)
-    crop_x2 = min(img.width, col_max + padding_w + 1)
-    crop_y2 = min(img.height, row_max + padding_h + 1)
-
-    # Crop to bounds with padding
-    cropped = img_array[crop_y1:crop_y2, crop_x1:crop_x2]
-
-    # Apply aspect ratio if specified
     if target_aspect_ratio is not None:
-        current_h, current_w = cropped.shape[:2]
-        current_aspect = current_w / current_h
+        # Calculate dimensions needed for aspect ratio around mask + padding
+        # Start with mask dimensions plus requested padding
+        padded_mask_width = mask_width + 2 * padding_pixels
+        padded_mask_height = mask_height + 2 * padding_pixels
+        
+        # Determine which dimension constrains us for the aspect ratio
+        required_width_for_height = padded_mask_height * target_aspect_ratio
+        required_height_for_width = padded_mask_width / target_aspect_ratio
+        
+        # Choose the dimension that fits the aspect ratio
+        if required_width_for_height >= padded_mask_width:
+            # Height is the constraint - use padded_mask_height and calculate width
+            final_height = padded_mask_height
+            final_width = int(final_height * target_aspect_ratio)
+        else:
+            # Width is the constraint - use padded_mask_width and calculate height
+            final_width = padded_mask_width
+            final_height = int(final_width / target_aspect_ratio)
+        
+        # Center the crop around the mask center
+        crop_x1 = int(mask_center_x - final_width / 2)
+        crop_y1 = int(mask_center_y - final_height / 2)
+        crop_x2 = crop_x1 + final_width
+        crop_y2 = crop_y1 + final_height
+        
+        # Clamp to image bounds
+        if crop_x1 < 0:
+            crop_x2 = min(crop_x2 - crop_x1, img.width)
+            crop_x1 = 0
+        if crop_y1 < 0:
+            crop_y2 = min(crop_y2 - crop_y1, img.height)
+            crop_y1 = 0
+        if crop_x2 > img.width:
+            crop_x1 = max(0, crop_x1 - (crop_x2 - img.width))
+            crop_x2 = img.width
+        if crop_y2 > img.height:
+            crop_y1 = max(0, crop_y1 - (crop_y2 - img.height))
+            crop_y2 = img.height
+        
+        actual_padding_x = (crop_x2 - crop_x1 - mask_width) // 2
+        actual_padding_y = (crop_y2 - crop_y1 - mask_height) // 2
+    else:
+        # No aspect ratio constraint - just add padding around mask
+        crop_x1 = max(0, col_min - padding_pixels)
+        crop_y1 = max(0, row_min - padding_pixels)
+        crop_x2 = min(img.width, col_max + padding_pixels + 1)
+        crop_y2 = min(img.height, row_max + padding_pixels + 1)
+        
+        actual_padding_x = min(padding_pixels, col_min, img.width - col_max - 1)
+        actual_padding_y = min(padding_pixels, row_min, img.height - row_max - 1)
 
-        if abs(current_aspect - target_aspect_ratio) > 0.01:
-            if current_aspect > target_aspect_ratio:
-                # Too wide, crop width
-                new_width = int(current_h * target_aspect_ratio)
-                start_x = (current_w - new_width) // 2
-                cropped = cropped[:, start_x : start_x + new_width]
-            else:
-                # Too tall, crop height
-                new_height = int(current_w / target_aspect_ratio)
-                start_y = (current_h - new_height) // 2
-                cropped = cropped[start_y : start_y + new_height, :]
+    # Crop to final bounds
+    cropped = img_array[crop_y1:crop_y2, crop_x1:crop_x2]
 
     # Convert back to PIL Image and save
     cropped_img = Image.fromarray(cropped)
@@ -290,7 +423,8 @@ def crop_image_with_mask(
             "height": int(crop_y2 - crop_y1),
         },
         "final_size": {"width": cropped_img.width, "height": cropped_img.height},
-        "padding_applied": {"horizontal": padding_w, "vertical": padding_h},
+        "padding_applied": {"horizontal": int(actual_padding_x), "vertical": int(actual_padding_y)},
+        "requested_padding": padding_pixels,
     }
 
     return output_buffer.getvalue(), info

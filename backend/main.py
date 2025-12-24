@@ -46,7 +46,7 @@ async def startup_event():
                 if job_type == "upscale":
                     endpoint = "fal-ai/seedvr/upscale/image"
                 elif job_type == "edit":
-                    endpoint = "fal-ai/qwen-image-edit-plus"
+                    endpoint = "fal-ai/qwen-image-edit-2511"
                 else:
                     print(
                         f"[Startup] Unknown job type '{job_type}' for job {job_id}, skipping"

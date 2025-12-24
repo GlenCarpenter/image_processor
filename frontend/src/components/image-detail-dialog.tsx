@@ -74,8 +74,6 @@ export function ImageDetailDialog({
     document.body.removeChild(link)
   }
 
-  console.log(description)
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[95vw] max-h-[95vh] w-auto h-auto p-6">

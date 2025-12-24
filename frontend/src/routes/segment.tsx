@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Scissors, Trash2, Undo } from 'lucide-react'
+import { Scissors, Trash2, Undo, Sparkles } from 'lucide-react'
 import { useImageStore } from '@/store/imageStore'
 import { InputCard } from '@/components/input-card'
 import { OutputCard } from '@/components/output-card'
@@ -49,13 +49,13 @@ function RouteComponent() {
 
   // Get state from Zustand store
   const segmentImage = useImageStore((state) => state.segmentImage)
-  const setSegmentSession = useImageStore((state) => state.setSegmentSession)
   const setSegmentOriginal = useImageStore((state) => state.setSegmentOriginal)
   const setSegmentResult = useImageStore((state) => state.setSegmentResult)
   const setSegmentPoints = useImageStore((state) => state.setSegmentPoints)
   const setSegmentBoxes = useImageStore((state) => state.setSegmentBoxes)
   const setSegmentMask = useImageStore((state) => state.setSegmentMask)
-  const setSegmentPadding = useImageStore((state) => state.setSegmentPadding)
+  const setSegmentCropPadding = useImageStore((state) => state.setSegmentCropPadding)
+  const setSegmentMaskPadding = useImageStore((state) => state.setSegmentMaskPadding)
   const setSegmentAspectRatio = useImageStore((state) => state.setSegmentAspectRatio)
   const setSegmentSessionEnded = useImageStore((state) => state.setSegmentSessionEnded)
   const setSegmentUploading = useImageStore((state) => state.setSegmentUploading)
@@ -66,6 +66,7 @@ function RouteComponent() {
   const sendToResize = useImageStore((state) => state.sendToResize)
   const sendToSegment = useImageStore((state) => state.sendToSegment)
   const sendToEdit = useImageStore((state) => state.sendToEdit)
+  const sendToFill = useImageStore((state) => state.sendToFill)
 
   // Local refs only (not persisted)
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -75,24 +76,11 @@ function RouteComponent() {
   const dragStartPos = useRef<{ x: number; y: number } | null>(null)
   const currentBox = useRef<BoundingBox | null>(null)
 
-  // Helper function to cleanup session on server
-  const cleanupSession = async (sessionId: string) => {
-    try {
-      await fetch(`${API_BASE_URL}/segment/session/${sessionId}`, {
-        method: 'DELETE',
-      })
-      console.log('Cleaned up session:', sessionId)
-    } catch (err) {
-      console.error('Failed to cleanup session:', err)
-    }
-  }
-
   // Load image from URL query param on mount
   useEffect(() => {
     if (search.filename && search.filename !== lastLoadedFilename.current) {
-      // Clear store state FIRST (synchronously) to prevent sessionEnded from triggering
+      // Clear store state FIRST (synchronously)
       setSegmentResult(null)
-      setSegmentSession(null)
 
       const imageUrl = `${API_BASE_URL}/images/output/${search.filename}`
 
@@ -110,18 +98,6 @@ function RouteComponent() {
         .then((blob) => {
           const file = new File([blob], search.filename!, { type: blob.type })
           setSegmentOriginal(file)
-          // Upload to get a new session
-          const formData = new FormData()
-          formData.append('file', file)
-          return fetch(`${API_BASE_URL}/segment/upload`, {
-            method: 'POST',
-            body: formData,
-          })
-        })
-        .then((response) => response.json())
-        .then((data) => {
-          console.log(data)
-          setSegmentSession(data.session_id)
           lastLoadedFilename.current = search.filename!
         })
         .catch((err) => {
@@ -134,53 +110,17 @@ function RouteComponent() {
     }
   }, [search.filename])
 
-  // Handle image from store (uploaded from home page) when no URL param
+  // No upload step needed - file is used directly with predict/crop
   useEffect(() => {
-    if (!search.filename && segmentImage.originalFile && !segmentImage.sessionId) {
-      // Upload the file from store to create a session
-      setSegmentUploading(true)
-      setSegmentError(null)
+    // This effect is no longer needed
+  }, [search.filename, segmentImage.originalFile])
 
-      const formData = new FormData()
-      formData.append('file', segmentImage.originalFile)
-
-      fetch(`${API_BASE_URL}/segment/upload`, {
-        method: 'POST',
-        body: formData,
-      })
-        .then((response) => response.json())
-        .then((data) => {
-          console.log('Session created from store:', data)
-          setSegmentSession(data.session_id)
-        })
-        .catch((err) => {
-          console.error('Failed to upload image:', err)
-          setSegmentError('Failed to upload image')
-        })
-        .finally(() => {
-          setSegmentUploading(false)
-        })
-    }
-  }, [search.filename, segmentImage.originalFile, segmentImage.sessionId])
-
-  // Cleanup session on unmount if it hasn't been cropped
+  // No cleanup needed - no temp files
   useEffect(() => {
     return () => {
-      // Cleanup active session when navigating away (if not already cropped)
-      if (segmentImage.sessionId && !segmentImage.sessionEnded) {
-        cleanupSession(segmentImage.sessionId)
-      }
+      // No session cleanup needed
     }
-  }, []) // Empty deps to only run on unmount
-
-  // Check if session has ended (when there's a cropped result but no session)
-  useEffect(() => {
-    if (segmentImage.croppedFilename && !segmentImage.sessionId) {
-      setSegmentSessionEnded(true)
-    } else if (!segmentImage.croppedFilename) {
-      setSegmentSessionEnded(false)
-    }
-  }, [segmentImage.croppedFilename, segmentImage.sessionId, setSegmentSessionEnded])
+  }, [])
 
   useEffect(() => {
     const imageUrl = segmentImage.originalFile
@@ -284,35 +224,6 @@ function RouteComponent() {
       setSegmentResult(null)
       setSegmentSessionEnded(false)
       setSegmentError(null)
-
-      // Cleanup old session first if it exists
-      const oldSessionId = segmentImage.sessionId
-      if (oldSessionId) {
-        cleanupSession(oldSessionId)
-      }
-
-      // Upload to server
-      setSegmentUploading(true)
-      try {
-        const formData = new FormData()
-        formData.append('file', file)
-
-        const response = await fetch(`${API_BASE_URL}/segment/upload`, {
-          method: 'POST',
-          body: formData,
-        })
-
-        if (!response.ok) {
-          throw new Error('Failed to upload image')
-        }
-
-        const data = await response.json()
-        setSegmentSession(data.session_id)
-      } catch (err) {
-        setSegmentError(err instanceof Error ? err.message : 'Failed to upload image')
-      } finally {
-        setSegmentUploading(false)
-      }
     }
   }
 
@@ -328,7 +239,7 @@ function RouteComponent() {
   }
 
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!imageRef.current || !segmentImage.sessionId) return
+    if (!imageRef.current || !segmentImage.originalFile) return
 
     const coords = getCanvasCoordinates(e)
     if (!coords) return
@@ -430,7 +341,7 @@ function RouteComponent() {
   }
 
   const predictMask = async (pointsList: Point[]) => {
-    if (!segmentImage.sessionId || pointsList.length === 0) return
+    if (!segmentImage.originalFile || pointsList.length === 0) return
 
     console.log('Predicting mask with points:', pointsList)
 
@@ -439,9 +350,10 @@ function RouteComponent() {
 
     try {
       const formData = new FormData()
-      formData.append('session_id', segmentImage.sessionId)
+      formData.append('file', segmentImage.originalFile)
       formData.append('points', JSON.stringify(pointsList.map((p) => [p.x, p.y])))
       formData.append('labels', JSON.stringify(pointsList.map((p) => p.label)))
+      formData.append('padding', segmentImage.maskPadding.toString())
 
       const response = await fetch(`${API_BASE_URL}/segment/predict`, {
         method: 'POST',
@@ -466,7 +378,7 @@ function RouteComponent() {
   }
 
   const predictMaskFromBox = async (box: BoundingBox) => {
-    if (!segmentImage.sessionId) return
+    if (!segmentImage.originalFile) return
 
     console.log('Predicting mask with bounding box:', box)
 
@@ -475,7 +387,7 @@ function RouteComponent() {
 
     try {
       const formData = new FormData()
-      formData.append('session_id', segmentImage.sessionId)
+      formData.append('file', segmentImage.originalFile)
       // SAM expects bboxes as [x1, y1, x2, y2]
       formData.append(
         'bboxes',
@@ -486,6 +398,7 @@ function RouteComponent() {
           Math.max(box.y1, box.y2),
         ])
       )
+      formData.append('padding', segmentImage.maskPadding.toString())
 
       const response = await fetch(`${API_BASE_URL}/segment/predict`, {
         method: 'POST',
@@ -513,16 +426,16 @@ function RouteComponent() {
   }
 
   const handleCrop = async () => {
-    if (!segmentImage.sessionId || !segmentImage.maskDataUrl) return
+    if (!segmentImage.originalFile || !segmentImage.maskDataUrl) return
 
     setSegmentCropping(true)
     setSegmentError(null)
 
     try {
       const formData = new FormData()
-      formData.append('session_id', segmentImage.sessionId)
+      formData.append('file', segmentImage.originalFile)
       formData.append('mask', segmentImage.maskDataUrl.split(',')[1]) // Remove data:image/png;base64,
-      formData.append('padding', segmentImage.padding.toString())
+      formData.append('padding', segmentImage.cropPadding.toString())
       if (segmentImage.aspectRatio !== 'None') {
         formData.append('aspect_ratio', segmentImage.aspectRatio)
       }
@@ -539,8 +452,7 @@ function RouteComponent() {
       const data = await response.json()
       setSegmentResult(data.output_filename)
 
-      // Mark session as ended since cropping deletes the temp file
-      setSegmentSessionEnded(true)
+      // Don't end session - allow multiple crops with same mask
     } catch (err) {
       setSegmentError(err instanceof Error ? err.message : 'Failed to crop image')
     } finally {
@@ -549,7 +461,7 @@ function RouteComponent() {
   }
 
   const handleRemoveBackground = async () => {
-    if (!segmentImage.sessionId || !segmentImage.maskDataUrl) return
+    if (!segmentImage.originalFile || !segmentImage.maskDataUrl) return
 
     setSegmentCropping(true)
     setSegmentError(null)
@@ -559,7 +471,7 @@ function RouteComponent() {
       const base64Data = segmentImage.maskDataUrl.split(',')[1]
 
       const formData = new FormData()
-      formData.append('session_id', segmentImage.sessionId)
+      formData.append('file', segmentImage.originalFile)
       formData.append('mask', base64Data)
 
       const response = await fetch(`${API_BASE_URL}/segment/remove-background`, {
@@ -575,8 +487,7 @@ function RouteComponent() {
       const data = await response.json()
       setSegmentResult(data.output_filename)
 
-      // Mark session as ended
-      setSegmentSessionEnded(true)
+      // Don't end session - allow multiple operations with same mask
     } catch (err) {
       setSegmentError(err instanceof Error ? err.message : 'Failed to remove background')
     } finally {
@@ -659,42 +570,57 @@ function RouteComponent() {
     navigate({ to: '/edit', search: { filename: segmentImage.croppedFilename } })
   }
 
+  const handleFill = () => {
+    if (!segmentImage.croppedFilename) return
+    sendToFill()
+    navigate({ to: '/generative-fill', search: { filename: segmentImage.croppedFilename } })
+  }
+
+  const handleSendToFill = async () => {
+    if (!segmentImage.originalFile || !segmentImage.maskDataUrl) return
+
+    try {
+      // Convert mask data URL to File
+      const base64Data = segmentImage.maskDataUrl.split(',')[1]
+      const byteString = atob(base64Data)
+      const arrayBuffer = new ArrayBuffer(byteString.length)
+      const uint8Array = new Uint8Array(arrayBuffer)
+      
+      for (let i = 0; i < byteString.length; i++) {
+        uint8Array[i] = byteString.charCodeAt(i)
+      }
+
+      const blob = new Blob([uint8Array], { type: 'image/png' })
+      const maskFile = new File([blob], 'mask.png', { type: 'image/png' })
+
+      // Clear fill state first, then set new values
+      sendToFill()
+
+      // Get the fill state setters
+      const setFillOriginal = useImageStore.getState().setFillOriginal
+      const setFillMask = useImageStore.getState().setFillMask
+
+      // Set the original image and mask in fill state
+      setFillOriginal(segmentImage.originalFile)
+      setFillMask(maskFile)
+
+      // Navigate to generative fill
+      navigate({ to: '/generative-fill' })
+    } catch (err) {
+      console.error('Error sending to fill:', err)
+      setSegmentError('Failed to send mask to generative fill')
+    }
+  }
+
   const handleNewSegmentation = () => {
     if (!segmentImage.originalFile) return
 
-    // Keep the current image and cropped result, just reset the session state
+    // Reset the segmentation state while keeping the original image
     setSegmentPoints([])
     setSegmentBoxes([])
     setSegmentMask(null)
     setSegmentSessionEnded(false)
     setSegmentError(null)
-    setSegmentUploading(true)
-
-    // Cleanup old session first if it exists
-    const oldSessionId = segmentImage.sessionId
-    if (oldSessionId) {
-      cleanupSession(oldSessionId)
-    }
-
-    // Re-upload the original image to get a new session
-    const formData = new FormData()
-    formData.append('file', segmentImage.originalFile)
-
-    fetch(`${API_BASE_URL}/segment/upload`, {
-      method: 'POST',
-      body: formData,
-    })
-      .then((response) => response.json())
-      .then((data) => {
-        setSegmentSession(data.session_id)
-      })
-      .catch((err) => {
-        console.error('Failed to create new session:', err)
-        setSegmentError('Failed to create new session')
-      })
-      .finally(() => {
-        setSegmentUploading(false)
-      })
   }
 
   return (
@@ -819,16 +745,35 @@ function RouteComponent() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="padding">Padding (%)</Label>
+                <Label htmlFor="maskPadding">Mask Padding (px)</Label>
                 <Input
-                  id="padding"
+                  id="maskPadding"
                   type="number"
-                  value={segmentImage.padding}
-                  onChange={(e) => setSegmentPadding(parseFloat(e.target.value) || 0)}
+                  value={segmentImage.maskPadding}
+                  onChange={(e) => setSegmentMaskPadding(parseInt(e.target.value) || 0)}
                   min="0"
-                  max="100"
+                  max="50"
                   disabled={segmentImage.sessionEnded}
                 />
+                <p className="text-xs text-muted-foreground">
+                  Expands mask boundary for better inpainting blending
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="cropPadding">Crop Padding (px)</Label>
+                <Input
+                  id="cropPadding"
+                  type="number"
+                  value={segmentImage.cropPadding}
+                  onChange={(e) => setSegmentCropPadding(parseInt(e.target.value) || 0)}
+                  min="0"
+                  max="500"
+                  disabled={segmentImage.sessionEnded}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Padding around mask when cropping
+                </p>
               </div>
 
               <div className="space-y-2">
@@ -881,6 +826,17 @@ function RouteComponent() {
                 </Button>
               </div>
 
+              <Button
+                onClick={handleSendToFill}
+                disabled={!segmentImage.maskDataUrl || !segmentImage.originalFile}
+                variant="outline"
+                className="w-full"
+                size="lg"
+              >
+                <Sparkles className="w-4 h-4 mr-2" />
+                Send to Generative Fill
+              </Button>
+
               {segmentImage.error && (
                 <div className="p-3 bg-destructive/10 text-destructive rounded-md text-sm">
                   {segmentImage.error}
@@ -900,6 +856,7 @@ function RouteComponent() {
           onResize={handleResize}
           onSegment={handleSegment}
           onEdit={handleEdit}
+          onFill={handleFill}
           onDownload={handleDownload}
         />
       </div>

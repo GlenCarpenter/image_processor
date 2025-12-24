@@ -42,6 +42,7 @@ function RouteComponent() {
   const sendToUpscale = useImageStore((state) => state.sendToUpscale)
   const sendToSegment = useImageStore((state) => state.sendToSegment)
   const sendToEdit = useImageStore((state) => state.sendToEdit)
+  const sendToFill = useImageStore((state) => state.sendToFill)
 
   // Local state for UI only
   const [targetSize, setTargetSize] = useState<number>(1024)
@@ -228,6 +229,12 @@ function RouteComponent() {
     navigate({ to: '/edit', search: { filename: resizeImage.outputFilename } })
   }
 
+  const handleFillClick = () => {
+    if (!resizeImage.outputFilename) return
+    sendToFill()
+    navigate({ to: '/generative-fill', search: { filename: resizeImage.outputFilename } })
+  }
+
   const formatNumber = (num: string | number | null | undefined) => {
     if (!num) return 'N/A'
     const numValue = typeof num === 'string' ? parseInt(num) : num
@@ -299,6 +306,7 @@ function RouteComponent() {
           onResize={handleResizeAgain}
           onSegment={handleSegmentClick}
           onEdit={handleEditClick}
+          onFill={handleFillClick}
           onDownload={handleDownload}
           additionalInfo={
             resizeImage.resizeInfo && (

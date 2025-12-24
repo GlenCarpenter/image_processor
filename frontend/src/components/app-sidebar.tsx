@@ -9,7 +9,16 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar'
-import { Home, Expand, Edit, History, Scissors, ArrowBigUpDash, ListTodo } from 'lucide-react'
+import {
+  Home,
+  Expand,
+  Edit,
+  History,
+  Scissors,
+  ArrowBigUpDash,
+  ListTodo,
+  Sparkles,
+} from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
 const menuItems = [
@@ -37,6 +46,11 @@ const menuItems = [
     title: 'Edit',
     url: '/edit' as const,
     icon: Edit,
+  },
+  {
+    title: 'Generative Fill',
+    url: '/generative-fill' as const,
+    icon: Sparkles,
   },
   {
     title: 'Jobs',

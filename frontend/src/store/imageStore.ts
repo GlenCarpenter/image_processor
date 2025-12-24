@@ -79,15 +79,25 @@ interface ImageState {
     resultMetadata: any | null
   }
 
+  // Generative fill page state
+  fillImage: {
+    originalFile: File | null
+    maskFile: File | null
+    result: File | null
+    prompt: string
+    editing: boolean
+    error: string | null
+  }
+
   // Segment page state
   segmentImage: {
-    sessionId: string | null
     originalFile: File | null
     croppedFilename: string | null
     points: Array<{ x: number; y: number; label: number }>
     boxes: Array<{ x1: number; y1: number; x2: number; y2: number }>
     maskDataUrl: string | null
-    padding: number
+    cropPadding: number
+    maskPadding: number
     aspectRatio: string
     sessionEnded: boolean
     isUploading: boolean
@@ -147,14 +157,23 @@ interface ImageState {
   setEditOutputFormat: (format: string) => void
   setEditSeed: (seed: string) => void
 
+  // Fill page actions
+  setFillOriginal: (file: File | null) => void
+  setFillMask: (file: File | null) => void
+  setFillResult: (file: File | null) => void
+  setFillPrompt: (prompt: string) => void
+  setFillEditing: (editing: boolean) => void
+  setFillError: (error: string | null) => void
+  clearFillImages: () => void
+
   // Segment page actions
-  setSegmentSession: (sessionId: string | null) => void
   setSegmentOriginal: (file: File | null) => void
   setSegmentResult: (filename: string | null) => void
   setSegmentPoints: (points: Array<{ x: number; y: number; label: number }>) => void
   setSegmentBoxes: (boxes: Array<{ x1: number; y1: number; x2: number; y2: number }>) => void
   setSegmentMask: (maskDataUrl: string | null) => void
-  setSegmentPadding: (padding: number) => void
+  setSegmentCropPadding: (padding: number) => void
+  setSegmentMaskPadding: (maskPadding: number) => void
   setSegmentAspectRatio: (aspectRatio: string) => void
   setSegmentSessionEnded: (ended: boolean) => void
   setSegmentUploading: (loading: boolean) => void
@@ -168,6 +187,7 @@ interface ImageState {
   sendToEdit: () => void
   sendToUpscale: () => void
   sendToSegment: () => void
+  sendToFill: () => void
 
   // Presets actions
   presets: EditPreset[]
@@ -186,13 +206,13 @@ export const useImageStore = create<ImageState>()(
         url: null,
       },
       segmentImage: {
-        sessionId: null,
         originalFile: null,
         croppedFilename: null,
         points: [],
         boxes: [],
         maskDataUrl: null,
-        padding: 10,
+        cropPadding: 0,
+        maskPadding: 0,
         aspectRatio: 'None',
         sessionEnded: false,
         isUploading: false,
@@ -232,6 +252,14 @@ export const useImageStore = create<ImageState>()(
         error: null,
         originalMetadata: null,
         resultMetadata: null,
+      },
+      fillImage: {
+        originalFile: null,
+        maskFile: null,
+        result: null,
+        prompt: '',
+        editing: false,
+        error: null,
       },
 
       // Home page actions
@@ -358,9 +386,29 @@ export const useImageStore = create<ImageState>()(
         set((state) => ({ editImage: { ...state.editImage, outputFormat: format } })),
       setEditSeed: (seed) => set((state) => ({ editImage: { ...state.editImage, seed } })),
 
+      // Fill page actions
+      setFillOriginal: (file) =>
+        set((state) => ({ fillImage: { ...state.fillImage, originalFile: file } })),
+      setFillMask: (file) =>
+        set((state) => ({ fillImage: { ...state.fillImage, maskFile: file } })),
+      setFillResult: (file) =>
+        set((state) => ({ fillImage: { ...state.fillImage, result: file } })),
+      setFillPrompt: (prompt) => set((state) => ({ fillImage: { ...state.fillImage, prompt } })),
+      setFillEditing: (editing) => set((state) => ({ fillImage: { ...state.fillImage, editing } })),
+      setFillError: (error) => set((state) => ({ fillImage: { ...state.fillImage, error } })),
+      clearFillImages: () =>
+        set({
+          fillImage: {
+            originalFile: null,
+            maskFile: null,
+            result: null,
+            prompt: '',
+            editing: false,
+            error: null,
+          },
+        }),
+
       // Segment page actions
-      setSegmentSession: (sessionId) =>
-        set((state) => ({ segmentImage: { ...state.segmentImage, sessionId } })),
       setSegmentOriginal: (file) =>
         set((state) => ({
           segmentImage: { ...state.segmentImage, originalFile: file },
@@ -373,8 +421,10 @@ export const useImageStore = create<ImageState>()(
         set((state) => ({ segmentImage: { ...state.segmentImage, boxes } })),
       setSegmentMask: (maskDataUrl) =>
         set((state) => ({ segmentImage: { ...state.segmentImage, maskDataUrl } })),
-      setSegmentPadding: (padding) =>
-        set((state) => ({ segmentImage: { ...state.segmentImage, padding } })),
+      setSegmentCropPadding: (cropPadding) =>
+        set((state) => ({ segmentImage: { ...state.segmentImage, cropPadding } })),
+      setSegmentMaskPadding: (maskPadding) =>
+        set((state) => ({ segmentImage: { ...state.segmentImage, maskPadding } })),
       setSegmentAspectRatio: (aspectRatio) =>
         set((state) => ({ segmentImage: { ...state.segmentImage, aspectRatio } })),
       setSegmentSessionEnded: (ended) =>
@@ -390,13 +440,13 @@ export const useImageStore = create<ImageState>()(
       clearSegmentImages: () =>
         set({
           segmentImage: {
-            sessionId: null,
             originalFile: null,
             croppedFilename: null,
             points: [],
             boxes: [],
             maskDataUrl: null,
-            padding: 10,
+            cropPadding: 0,
+            maskPadding: 0,
             aspectRatio: 'None',
             sessionEnded: false,
             isUploading: false,
@@ -466,13 +516,13 @@ export const useImageStore = create<ImageState>()(
         // Other pages use filename query params and will load from server
         set({
           segmentImage: {
-            sessionId: null,
             originalFile: homeImage.file,
             croppedFilename: null,
             points: [],
             boxes: [],
             maskDataUrl: null,
-            padding: 10,
+            cropPadding: 0,
+            maskPadding: 0,
             aspectRatio: 'None',
             sessionEnded: false,
             isUploading: false,
@@ -485,6 +535,19 @@ export const useImageStore = create<ImageState>()(
         if (homeImage.file) {
           set({ homeImage: { file: null, url: null } })
         }
+      },
+      sendToFill: () => {
+        // Clear fill state for new operation
+        set({
+          fillImage: {
+            originalFile: null,
+            maskFile: null,
+            result: null,
+            prompt: '',
+            editing: false,
+            error: null,
+          },
+        })
       },
       loadPresets: async () => {
         try {

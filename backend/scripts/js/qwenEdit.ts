@@ -102,7 +102,7 @@ async function editImage(
     console.log(`  Processing with Qwen AI...`);
 
     // Call the edit API
-    const result = await fal.subscribe("fal-ai/qwen-image-edit-plus-lora-gallery/remove-element", {
+    const result = await fal.subscribe("fal-ai/qwen-image-edit-2511-lora-gallery/remove-element", {
         input: {
             image_urls: [imageUrl],
             prompt: options.prompt || "Remove all text from the image",

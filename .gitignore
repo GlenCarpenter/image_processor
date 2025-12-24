@@ -56,3 +56,4 @@ models/
 *.db
 *.sqlite
 *.sqlite3
+sdxl/

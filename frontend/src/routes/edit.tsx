@@ -48,6 +48,7 @@ function RouteComponent() {
   const sendToUpscale = useImageStore((state) => state.sendToUpscale)
   const sendToResize = useImageStore((state) => state.sendToResize)
   const sendToSegment = useImageStore((state) => state.sendToSegment)
+  const sendToFill = useImageStore((state) => state.sendToFill)
   const presets = useImageStore((state) => state.presets)
   const loadPresets = useImageStore((state) => state.loadPresets)
   const savePreset = useImageStore((state) => state.savePreset)
@@ -236,6 +237,12 @@ function RouteComponent() {
     if (!editImage.outputFilename) return
     sendToSegment()
     navigate({ to: '/segment', search: { filename: editImage.outputFilename } })
+  }
+
+  const handleFillClick = () => {
+    if (!editImage.outputFilename) return
+    sendToFill()
+    navigate({ to: '/generative-fill', search: { filename: editImage.outputFilename } })
   }
 
   const handleSavePreset = async () => {
@@ -520,6 +527,7 @@ function RouteComponent() {
           onResize={handleResizeClick}
           onSegment={handleSegmentClick}
           onEdit={handleEditAgain}
+          onFill={handleFillClick}
           onDownload={handleDownload}
           additionalInfo={
             editImage.resultMetadata ? (

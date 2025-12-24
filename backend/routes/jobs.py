@@ -130,7 +130,7 @@ async def poll_job_status(job_id: int, background_tasks: BackgroundTasks):
     # For now, determine based on job_type
     job_type = job["job_type"]
     if job_type == "edit":
-        endpoint = "fal-ai/qwen-image-edit-plus"
+        endpoint = "fal-ai/qwen-image-edit-2511"
     elif job_type == "upscale":
         endpoint = "fal-ai/seedvr/upscale/image"
     else:

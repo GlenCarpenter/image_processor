@@ -77,7 +77,7 @@ def submit_edit_image(
     if seed is not None:
         arguments["seed"] = seed
 
-    endpoint = "fal-ai/qwen-image-edit-plus"
+    endpoint = "fal-ai/qwen-image-edit-2511"
 
     # Submit the job asynchronously
     handler = fal_client.submit(
@@ -156,7 +156,7 @@ def edit_image_with_fal(
 
     # Call the Fal AI edit API
     result = fal_client.subscribe(
-        "fal-ai/qwen-image-edit-plus",
+        "fal-ai/qwen-image-edit-2511",
         arguments=arguments,
         with_logs=with_logs,
         on_queue_update=on_queue_update,

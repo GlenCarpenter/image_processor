@@ -14,6 +14,7 @@ import { Route as SegmentRouteImport } from './routes/segment'
 import { Route as ResizeImageRouteImport } from './routes/resize-image'
 import { Route as JobsRouteImport } from './routes/jobs'
 import { Route as HistoryRouteImport } from './routes/history'
+import { Route as GenerativeFillRouteImport } from './routes/generative-fill'
 import { Route as EditRouteImport } from './routes/edit'
 import { Route as IndexRouteImport } from './routes/index'
 
@@ -42,6 +43,11 @@ const HistoryRoute = HistoryRouteImport.update({
   path: '/history',
   getParentRoute: () => rootRouteImport,
 } as any)
+const GenerativeFillRoute = GenerativeFillRouteImport.update({
+  id: '/generative-fill',
+  path: '/generative-fill',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const EditRoute = EditRouteImport.update({
   id: '/edit',
   path: '/edit',
@@ -56,6 +62,7 @@ const IndexRoute = IndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/edit': typeof EditRoute
+  '/generative-fill': typeof GenerativeFillRoute
   '/history': typeof HistoryRoute
   '/jobs': typeof JobsRoute
   '/resize-image': typeof ResizeImageRoute
@@ -65,6 +72,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/edit': typeof EditRoute
+  '/generative-fill': typeof GenerativeFillRoute
   '/history': typeof HistoryRoute
   '/jobs': typeof JobsRoute
   '/resize-image': typeof ResizeImageRoute
@@ -75,6 +83,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/edit': typeof EditRoute
+  '/generative-fill': typeof GenerativeFillRoute
   '/history': typeof HistoryRoute
   '/jobs': typeof JobsRoute
   '/resize-image': typeof ResizeImageRoute
@@ -86,6 +95,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/edit'
+    | '/generative-fill'
     | '/history'
     | '/jobs'
     | '/resize-image'
@@ -95,6 +105,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/edit'
+    | '/generative-fill'
     | '/history'
     | '/jobs'
     | '/resize-image'
@@ -104,6 +115,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/edit'
+    | '/generative-fill'
     | '/history'
     | '/jobs'
     | '/resize-image'
@@ -114,6 +126,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   EditRoute: typeof EditRoute
+  GenerativeFillRoute: typeof GenerativeFillRoute
   HistoryRoute: typeof HistoryRoute
   JobsRoute: typeof JobsRoute
   ResizeImageRoute: typeof ResizeImageRoute
@@ -158,6 +171,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof HistoryRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/generative-fill': {
+      id: '/generative-fill'
+      path: '/generative-fill'
+      fullPath: '/generative-fill'
+      preLoaderRoute: typeof GenerativeFillRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/edit': {
       id: '/edit'
       path: '/edit'
@@ -178,6 +198,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   EditRoute: EditRoute,
+  GenerativeFillRoute: GenerativeFillRoute,
   HistoryRoute: HistoryRoute,
   JobsRoute: JobsRoute,
   ResizeImageRoute: ResizeImageRoute,

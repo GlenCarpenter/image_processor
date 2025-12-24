@@ -44,6 +44,7 @@ function RouteComponent() {
   const sendToResize = useImageStore((state) => state.sendToResize)
   const sendToSegment = useImageStore((state) => state.sendToSegment)
   const sendToEdit = useImageStore((state) => state.sendToEdit)
+  const sendToFill = useImageStore((state) => state.sendToFill)
 
   // Load image from URL query param on mount
   useEffect(() => {
@@ -205,6 +206,12 @@ function RouteComponent() {
     navigate({ to: '/edit', search: { filename: upscaleImage.outputFilename } })
   }
 
+  const handleFillClick = () => {
+    if (!upscaleImage.outputFilename) return
+    sendToFill()
+    navigate({ to: '/generative-fill', search: { filename: upscaleImage.outputFilename } })
+  }
+
   const formatNumber = (num: string | number | null | undefined) => {
     if (!num) return 'N/A'
     const numValue = typeof num === 'string' ? parseInt(num) : num
@@ -286,6 +293,7 @@ function RouteComponent() {
           onResize={handleResizeClick}
           onSegment={handleSegmentClick}
           onEdit={handleEditClick}
+          onFill={handleFillClick}
           onDownload={handleDownload}
           additionalInfo={
             <>
