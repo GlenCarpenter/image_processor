@@ -47,6 +47,9 @@ async def edit_image(
         "png", description="Output image format"
     ),
     seed: Optional[int] = Form(None, description="Random seed for reproducibility"),
+    target_resolution: Optional[int] = Form(
+        1328, description="Target resolution in pixels (max dimension, max: 1536)"
+    ),
 ):
     """
     Edit an image using Fal AI's Qwen image editing service.
@@ -62,6 +65,7 @@ async def edit_image(
     - **enable_safety_checker**: Enable NSFW filtering (default: True)
     - **output_format**: Output format - png or jpeg (default: png)
     - **seed**: Random seed for reproducibility (optional)
+    - **target_resolution**: Target resolution in pixels (max dimension, max: 1536, default: 1328)
 
     **Returns:** Job metadata with ID to retrieve the edited image
     """
@@ -93,6 +97,12 @@ async def edit_image(
             status_code=400, detail="Number of inference steps must be between 1 and 50"
         )
 
+    # Validate target_resolution
+    if target_resolution < 1 or target_resolution > 1536:
+        raise HTTPException(
+            status_code=400, detail="Target resolution must be between 1 and 1536"
+        )
+
     try:
         # Read the uploaded file
         image_bytes = await file.read()
@@ -100,28 +110,22 @@ async def edit_image(
         # Check image size and get dimensions
         img = Image.open(BytesIO(image_bytes))
         width, height = img.size
-        total_pixels = width * height
 
-        # Store original dimensions for custom image_size parameter
-        output_width = width
-        output_height = height
+        # Calculate target pixels based on target_resolution (square)
+        target_pixels = target_resolution * target_resolution
 
-        # Target pixels: 1024x1024 = 1,048,576
-        target_pixels = 1024 * 1024
+        # Use resize_image_bytes to resize to target resolution
+        resized_bytes, resize_info = resize_image_bytes(
+            image_bytes, target_pixels=target_pixels
+        )
+        output_width = resize_info["target_size"]["width"]
+        output_height = resize_info["target_size"]["height"]
+        print(
+            f"Resized image from {width}x{height} to {output_width}x{output_height} (target: {target_resolution})"
+        )
 
-        # If image is larger than target, downscale it first
-        if total_pixels > target_pixels:
-            # Use resize_image_bytes to downscale
-            downscaled_bytes, resize_info = resize_image_bytes(
-                image_bytes, target_pixels=target_pixels
-            )
-            output_width = resize_info["target_size"]["width"]
-            output_height = resize_info["target_size"]["height"]
-            print(
-                f"Downscaled image from {width}x{height} to {output_width}x{output_height}"
-            )
-            # Use the downscaled version
-            image_bytes = downscaled_bytes
+        # Use the resized version
+        image_bytes = resized_bytes
 
         # Upload to Fal storage
         print(f"Uploading image to Fal storage...")

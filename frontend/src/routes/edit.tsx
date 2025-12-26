@@ -44,6 +44,7 @@ function RouteComponent() {
   const setEditEnableSafetyChecker = useImageStore((state) => state.setEditEnableSafetyChecker)
   const setEditOutputFormat = useImageStore((state) => state.setEditOutputFormat)
   const setEditSeed = useImageStore((state) => state.setEditSeed)
+  const setEditTargetResolution = useImageStore((state) => state.setEditTargetResolution)
   const sendToEdit = useImageStore((state) => state.sendToEdit)
   const sendToUpscale = useImageStore((state) => state.sendToUpscale)
   const sendToResize = useImageStore((state) => state.sendToResize)
@@ -175,6 +176,7 @@ function RouteComponent() {
       if (editImage.seed) {
         formData.append('seed', editImage.seed)
       }
+      formData.append('target_resolution', String(editImage.targetResolution ?? 1328))
 
       const response = await fetch(`${API_BASE_URL}/edit/edit`, {
         method: 'POST',
@@ -397,12 +399,33 @@ function RouteComponent() {
                     type="range"
                     min="1"
                     max="50"
-                    value={editImage.numInferenceSteps || 50}
+                    value={editImage.numInferenceSteps || 30}
                     onChange={(e) => setEditNumInferenceSteps(Number(e.target.value))}
                     className="w-full mt-2"
                   />
                   <p className="text-xs text-muted-foreground mt-1">
-                    Higher values improve quality but take longer (1-50, default: 50)
+                    Higher values improve quality but take longer (1-50, default: 30)
+                  </p>
+                </div>
+
+                {/* Target Resolution */}
+                <div>
+                  <Label htmlFor="target-resolution">
+                    Target Resolution: {editImage.targetResolution || 1328}px
+                  </Label>
+                  <input
+                    id="target-resolution"
+                    type="range"
+                    min="512"
+                    max="1536"
+                    step="64"
+                    value={editImage.targetResolution || 1328}
+                    onChange={(e) => setEditTargetResolution(Number(e.target.value))}
+                    className="w-full mt-2"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Image will be resized to this resolution before editing (512-1536, default:
+                    1328)
                   </p>
                 </div>
 

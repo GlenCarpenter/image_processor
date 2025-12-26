@@ -73,6 +73,7 @@ interface ImageState {
     enableSafetyChecker?: boolean
     outputFormat?: string
     seed?: string
+    targetResolution?: number
     isEditing: boolean
     error: string | null
     originalMetadata: any | null
@@ -156,6 +157,7 @@ interface ImageState {
   setEditEnableSafetyChecker: (enabled: boolean) => void
   setEditOutputFormat: (format: string) => void
   setEditSeed: (seed: string) => void
+  setEditTargetResolution: (resolution: number) => void
 
   // Fill page actions
   setFillOriginal: (file: File | null) => void
@@ -243,11 +245,12 @@ export const useImageStore = create<ImageState>()(
         outputFilename: null,
         info: null,
         prompt: '',
-        numInferenceSteps: 50,
+        numInferenceSteps: 30,
         negativePrompt: '',
         enableSafetyChecker: true,
         outputFormat: 'png',
         seed: '',
+        targetResolution: 1328,
         isEditing: false,
         error: null,
         originalMetadata: null,
@@ -385,6 +388,8 @@ export const useImageStore = create<ImageState>()(
       setEditOutputFormat: (format) =>
         set((state) => ({ editImage: { ...state.editImage, outputFormat: format } })),
       setEditSeed: (seed) => set((state) => ({ editImage: { ...state.editImage, seed } })),
+      setEditTargetResolution: (resolution) =>
+        set((state) => ({ editImage: { ...state.editImage, targetResolution: resolution } })),
 
       // Fill page actions
       setFillOriginal: (file) =>
