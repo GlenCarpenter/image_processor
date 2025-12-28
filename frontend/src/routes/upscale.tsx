@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { useImageStore } from '@/store/imageStore'
-import { extractImageMetadata, fetchExifData, fetchPrompt, fetchImageInfo } from '@/lib/imageUtils'
+import { extractImageMetadata, fetchExifData, fetchPrompt, fetchImageInfo, fetchGenerationParams } from '@/lib/imageUtils'
 import { ImageMetadataDisplay } from '@/components/image-metadata-display'
 import { InputCard } from '@/components/input-card'
 import { OriginalImagePreview } from '@/components/original-image-preview'
@@ -60,14 +60,16 @@ function RouteComponent() {
 
           extractImageMetadata(file, imageUrl)
             .then(async (metadata) => {
-              // Fetch EXIF data, prompt, and image info for the output image
+              // Fetch EXIF data, prompt, generation params, and image info for the output image
               const exifData = await fetchExifData(search.filename!, API_BASE_URL)
               const prompt = await fetchPrompt(search.filename!, API_BASE_URL)
+              const generationParams = await fetchGenerationParams(search.filename!, API_BASE_URL)
               const imageInfo = await fetchImageInfo(search.filename!, API_BASE_URL)
               setUpscaleOriginalMetadata({
                 ...metadata,
                 exif: exifData || undefined,
                 prompt: prompt || undefined,
+                generationParams: generationParams || undefined,
                 imageInfo: imageInfo || undefined,
               })
             })

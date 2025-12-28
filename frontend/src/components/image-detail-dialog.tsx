@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -18,6 +19,15 @@ import {
   ExternalLink,
 } from 'lucide-react'
 import { API_BASE_URL } from '@/lib/constants'
+import { ImageMetadataDisplay } from '@/components/image-metadata-display'
+import {
+  extractImageMetadata,
+  fetchExifData,
+  fetchPrompt,
+  fetchGenerationParams,
+  fetchImageInfo,
+  type ImageMetadata,
+} from '@/lib/imageUtils'
 
 interface ImageDetailDialogProps {
   open: boolean
@@ -64,6 +74,50 @@ export function ImageDetailDialog({
   errorMessage,
   metadata,
 }: ImageDetailDialogProps) {
+  const [imageMetadata, setImageMetadata] = useState<ImageMetadata | null>(null)
+  const [loadingMetadata, setLoadingMetadata] = useState(false)
+
+  // Fetch full image metadata when dialog opens with a filename
+  useEffect(() => {
+    if (!open || !filename) {
+      setImageMetadata(null)
+      return
+    }
+
+    setLoadingMetadata(true)
+    const imageUrl = `${API_BASE_URL}/images/output/${filename}`
+    
+    fetch(imageUrl)
+      .then((res) => res.blob())
+      .then((blob) => {
+        const file = new File([blob], filename, { type: blob.type })
+        return extractImageMetadata(file, imageUrl)
+      })
+      .then(async (basicMetadata) => {
+        // Fetch additional metadata from backend
+        const [exifData, promptData, generationParams, imageInfo] = await Promise.all([
+          fetchExifData(filename, API_BASE_URL),
+          fetchPrompt(filename, API_BASE_URL),
+          fetchGenerationParams(filename, API_BASE_URL),
+          fetchImageInfo(filename, API_BASE_URL),
+        ])
+
+        setImageMetadata({
+          ...basicMetadata,
+          exif: exifData || undefined,
+          prompt: promptData || undefined,
+          generationParams: generationParams || undefined,
+          imageInfo: imageInfo || undefined,
+        })
+      })
+      .catch((err) => {
+        console.error('Failed to load image metadata:', err)
+      })
+      .finally(() => {
+        setLoadingMetadata(false)
+      })
+  }, [open, filename])
+
   const handleDownload = () => {
     if (!filename) return
     const link = document.createElement('a')
@@ -84,9 +138,10 @@ export function ImageDetailDialog({
 
         <div className="flex gap-4 my-6">
           {/* Metadata Column */}
-          {metadata && (
-            <div className="w-64 flex-shrink-0 max-h-[70vh] overflow-y-auto pr-2">
-              <div className="space-y-4 text-sm">
+          <div className="w-80 flex-shrink-0 max-h-[70vh] overflow-y-auto pr-2">
+            {/* Job Metadata */}
+            {metadata && (
+              <div className="space-y-4 text-sm mb-6">
                 {metadata.originalWidth && metadata.originalHeight && (
                   <div>
                     <span className="text-muted-foreground font-medium">Original Size</span>
@@ -136,8 +191,21 @@ export function ImageDetailDialog({
                   </div>
                 )}
               </div>
-            </div>
-          )}
+            )}
+
+            {/* Full Image Metadata */}
+            {loadingMetadata && (
+              <div className="text-center text-muted-foreground py-4">
+                <Loader2 className="w-6 h-6 mx-auto mb-2 animate-spin" />
+                <p className="text-sm">Loading metadata...</p>
+              </div>
+            )}
+            {!loadingMetadata && imageMetadata && (
+              <div className="border-t border-border pt-4">
+                <ImageMetadataDisplay metadata={imageMetadata} />
+              </div>
+            )}
+          </div>
 
           {/* Image Container */}
           <div className="flex-1 flex items-center justify-center">

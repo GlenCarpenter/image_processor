@@ -7,6 +7,7 @@ from fastapi import APIRouter, UploadFile, File, HTTPException, Form
 from typing import Optional
 from pathlib import Path
 import uuid
+import json
 from datetime import datetime
 from io import BytesIO
 from PIL import Image
@@ -170,6 +171,21 @@ async def generative_fill(
         with open(output_path, "wb") as f:
             f.write(output_bytes)
 
+        # Add metadata to the output image
+        fill_metadata = {
+            "prompt": prompt,
+            "negative_prompt": negative_prompt or "",
+            "model": model_name,
+            "num_inference_steps": num_inference_steps,
+            "guidance_scale": guidance_scale,
+            "strength": strength,
+            "seed": seed,
+            "original_filename": file.filename or "unknown",
+        }
+        
+        from backend.utils.image_processing import add_metadata_to_image
+        add_metadata_to_image(str(output_path), fill_metadata, format='png')
+
         # Get output image dimensions
         output_img = Image.open(BytesIO(output_bytes))
         output_width, output_height = output_img.size
@@ -184,7 +200,7 @@ async def generative_fill(
             width=output_width,
             height=output_height,
             pixels=output_pixels,
-            metadata=f"model={model_name}, steps={num_inference_steps}, guidance={guidance_scale}",
+            metadata=json.dumps(fill_metadata),
         )
 
         # Create job record (marked as completed immediately since it's synchronous)
@@ -193,7 +209,7 @@ async def generative_fill(
             input_filename=file.filename or "unknown",
             fal_request_id=None,  # Local processing, no Fal request
             job_status="completed",
-            metadata=f"model={model_name}, steps={num_inference_steps}, guidance={guidance_scale}, output={output_filename}",
+            metadata=json.dumps(fill_metadata),
         )
 
         # Update job with output information

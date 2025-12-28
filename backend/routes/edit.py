@@ -182,13 +182,30 @@ async def edit_image(
         )
         print(f"Job submitted with request_id: {request_id}")
 
-        # Create database job record with pending status
+        # Create database job record with pending status and metadata
         input_filename = ", ".join(processed_filenames) if len(processed_filenames) > 1 else processed_filenames[0]
+        
+        # Store all parameters as metadata
+        job_metadata = {
+            "prompt": prompt,
+            "negative_prompt": negative_prompt,
+            "guidance_scale": guidance_scale,
+            "num_inference_steps": num_inference_steps,
+            "acceleration": acceleration,
+            "enable_safety_checker": enable_safety_checker,
+            "output_format": output_format,
+            "seed": seed,
+            "target_resolution": target_resolution,
+            "num_images": len(image_urls),
+        }
+        
+        import json
         job_id = create_job(
             job_type="edit",
             input_filename=input_filename,
             fal_request_id=request_id,
             job_status="pending",
+            metadata=json.dumps(job_metadata),
         )
         print(f"Job created with ID: {job_id}")
 

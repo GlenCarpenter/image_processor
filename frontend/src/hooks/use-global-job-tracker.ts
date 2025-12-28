@@ -7,7 +7,7 @@ import { useEffect, useCallback, useRef } from 'react'
 import { toast } from 'sonner'
 import { useImageStore } from '@/store/imageStore'
 import { API_BASE_URL } from '@/lib/constants'
-import { extractImageMetadata } from '@/lib/imageUtils'
+import { extractImageMetadata, fetchExifData, fetchPrompt, fetchGenerationParams, fetchImageInfo } from '@/lib/imageUtils'
 
 interface Job {
   id: number
@@ -52,6 +52,21 @@ export function useGlobalJobTracker() {
           const file = new File([blob], job.output_filename, { type: blob.type })
 
           const metadata = await extractImageMetadata(file, imageUrl)
+          
+          // Fetch additional metadata from backend
+          const exifData = await fetchExifData(job.output_filename, API_BASE_URL)
+          const promptData = await fetchPrompt(job.output_filename, API_BASE_URL)
+          const generationParams = await fetchGenerationParams(job.output_filename, API_BASE_URL)
+          const imageInfo = await fetchImageInfo(job.output_filename, API_BASE_URL)
+          
+          // Combine all metadata
+          const fullMetadata = {
+            ...metadata,
+            exif: exifData || undefined,
+            prompt: promptData || undefined,
+            generationParams: generationParams || undefined,
+            imageInfo: imageInfo || undefined,
+          }
 
           // Update store based on job type
           if (job.job_type === 'upscale') {
@@ -75,7 +90,7 @@ export function useGlobalJobTracker() {
               upscaleFactor: upscaleFactor,
             }
             setUpscaleResult(job.id, job.output_filename, info)
-            setUpscaleResultMetadata(metadata)
+            setUpscaleResultMetadata(fullMetadata)
             setUpscaleUpscaling(false)
           } else if (job.job_type === 'edit') {
             const info = {
@@ -83,7 +98,7 @@ export function useGlobalJobTracker() {
               outputHeight: job.output_height || 0,
             }
             setEditResult(job.id, job.output_filename, info)
-            setEditResultMetadata(metadata)
+            setEditResultMetadata(fullMetadata)
             setEditEditing(false)
           }
         } catch (error) {

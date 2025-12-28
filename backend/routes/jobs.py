@@ -19,6 +19,7 @@ from backend.database import (
     clear_all_jobs,
 )
 from backend.utils.fal_utils import download_from_url
+from backend.utils.image_processing import add_metadata_to_image
 
 router = APIRouter()
 
@@ -303,6 +304,17 @@ async def process_completed_job(job_id: int, job_type: str, result: Dict[str, An
 
         # Download the result
         download_from_url(result_url, str(output_path))
+
+        # Add metadata to the image if job has metadata stored
+        if job.get("metadata"):
+            import json
+            try:
+                job_metadata = json.loads(job["metadata"])
+                # Add generation parameters to the image
+                add_metadata_to_image(str(output_path), job_metadata, format=extension.lstrip('.'))
+                print(f"Added metadata to output image: {output_filename}")
+            except Exception as e:
+                print(f"Warning: Could not add metadata to image: {str(e)}")
 
         # Calculate output pixels
         output_pixels = None

@@ -12,6 +12,7 @@ import {
   fetchExifData,
   fetchPrompt,
   fetchImageInfo,
+  fetchGenerationParams,
   type ImageMetadata,
 } from '@/lib/imageUtils'
 import { ImageMetadataDisplay } from '@/components/image-metadata-display'
@@ -63,14 +64,16 @@ function RouteComponent() {
 
           extractImageMetadata(file, imageUrl)
             .then(async (metadata) => {
-              // Fetch EXIF data, prompt, and image info for the output image
+              // Fetch EXIF data, prompt, generation params, and image info for the output image
               const exifData = await fetchExifData(search.filename!, API_BASE_URL)
               const prompt = await fetchPrompt(search.filename!, API_BASE_URL)
+              const generationParams = await fetchGenerationParams(search.filename!, API_BASE_URL)
               const imageInfo = await fetchImageInfo(search.filename!, API_BASE_URL)
               setOriginalMetadata({
                 ...metadata,
                 exif: exifData || undefined,
                 prompt: prompt || undefined,
+                generationParams: generationParams || undefined,
                 imageInfo: imageInfo || undefined,
               })
             })

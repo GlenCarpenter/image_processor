@@ -67,9 +67,11 @@ async def upload_temp_for_exif(
             "success": True,
             "exif": result.get("exif", {}),
             "prompt": result.get("prompt"),
+            "generation_params": result.get("generation_params", {}),
             "image_info": result.get("image_info", {}),
             "has_exif": len(result.get("exif", {})) > 0,
             "has_prompt": result.get("prompt") is not None,
+            "has_generation_params": len(result.get("generation_params", {})) > 0,
             "has_image_info": len(result.get("image_info", {})) > 0,
         }
 
@@ -289,9 +291,11 @@ async def get_image_exif(filename: str):
         "filename": filename,
         "exif": result.get("exif", {}),
         "prompt": result.get("prompt"),
+        "generation_params": result.get("generation_params", {}),
         "image_info": result.get("image_info", {}),
         "has_exif": len(result.get("exif", {})) > 0,
         "has_prompt": result.get("prompt") is not None,
+        "has_generation_params": len(result.get("generation_params", {})) > 0,
         "has_image_info": len(result.get("image_info", {})) > 0,
     }
 

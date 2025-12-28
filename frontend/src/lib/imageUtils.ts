@@ -18,6 +18,7 @@ export interface ImageMetadata {
   type: string
   exif?: ExifData
   prompt?: string
+  generationParams?: Record<string, any>
   imageInfo?: Record<string, any>
 }
 
@@ -197,6 +198,28 @@ export const fetchPrompt = async (filename: string, apiBaseUrl: string): Promise
 }
 
 /**
+ * Fetch generation parameters from backend for an output image
+ * @param filename - Output filename
+ * @param apiBaseUrl - API base URL
+ * @returns Promise with generation parameters object or null
+ */
+export const fetchGenerationParams = async (
+  filename: string,
+  apiBaseUrl: string
+): Promise<Record<string, any> | null> => {
+  try {
+    const response = await fetch(`${apiBaseUrl}/images/output/${filename}/exif`)
+    if (!response.ok) return null
+
+    const data = await response.json()
+    return data.has_generation_params ? data.generation_params : null
+  } catch (error) {
+    console.error('Failed to fetch generation params:', error)
+    return null
+  }
+}
+
+/**
  * Fetch image info metadata from backend for an output image
  * @param filename - Output filename
  * @param apiBaseUrl - API base URL
@@ -217,3 +240,4 @@ export const fetchImageInfo = async (
     return null
   }
 }
+

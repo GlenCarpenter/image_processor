@@ -15,6 +15,7 @@ interface ImageMetadataDisplayProps {
 export function ImageMetadataDisplay({ metadata }: ImageMetadataDisplayProps) {
   const hasExif = metadata.exif && Object.keys(metadata.exif).length > 0
   const hasPrompt = !!metadata.prompt
+  const hasGenerationParams = !!metadata.generationParams && Object.keys(metadata.generationParams).length > 0
   const hasImageInfo = !!metadata.imageInfo && Object.keys(metadata.imageInfo).length > 0
   const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set())
 
@@ -67,6 +68,42 @@ export function ImageMetadataDisplay({ metadata }: ImageMetadataDisplayProps) {
           <div className="space-y-2 bg-primary/5 p-3 rounded-md border border-primary/20">
             <Label className="text-xs font-medium text-primary">Prompt</Label>
             <p className="text-sm font-medium break-words whitespace-pre-wrap">{metadata.prompt}</p>
+          </div>
+        </>
+      )}
+
+      {hasGenerationParams && (
+        <>
+          <div className="border-t border-border pt-3">
+            <Label className="text-xs font-semibold uppercase text-muted-foreground">
+              Generation Parameters
+            </Label>
+          </div>
+
+          <div className="space-y-2 bg-secondary/20 p-3 rounded-md border border-secondary/40">
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              {Object.entries(metadata.generationParams!).map(([key, value]) => {
+                // Format the key to be more readable
+                const formattedKey = key
+                  .replace(/_/g, ' ')
+                  .replace(/\b\w/g, (l) => l.toUpperCase())
+
+                // Format the value
+                let formattedValue = String(value)
+                if (typeof value === 'boolean') {
+                  formattedValue = value ? 'Yes' : 'No'
+                } else if (typeof value === 'number') {
+                  formattedValue = value.toString()
+                }
+
+                return (
+                  <div key={key} className="break-words">
+                    <span className="text-muted-foreground">{formattedKey}:</span>
+                    <p className="font-medium">{formattedValue}</p>
+                  </div>
+                )
+              })}
+            </div>
           </div>
         </>
       )}
