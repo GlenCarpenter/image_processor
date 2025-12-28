@@ -33,6 +33,7 @@ function RouteComponent() {
   // Store actions
   const editImage = useImageStore((state) => state.editImage)
   const setEditOriginal = useImageStore((state) => state.setEditOriginal)
+  const setEditOriginalFiles = useImageStore((state) => state.setEditOriginalFiles)
   const setEditResult = useImageStore((state) => state.setEditResult)
   const setEditPrompt = useImageStore((state) => state.setEditPrompt)
   const setEditEditing = useImageStore((state) => state.setEditEditing)
@@ -68,14 +69,14 @@ function RouteComponent() {
 
   // Load image from URL query param on mount
   useEffect(() => {
-    if (search.filename && !editImage.originalFile) {
+    if (search.filename && editImage.originalFiles.length === 0) {
       const imageUrl = `${API_BASE_URL}/images/output/${search.filename}`
 
       fetch(imageUrl)
         .then((res) => res.blob())
         .then((blob) => {
           const file = new File([blob], search.filename!, { type: blob.type })
-          setEditOriginal(file)
+          setEditOriginalFiles([file])
           setEditEditing(false)
 
           extractImageMetadata(file, imageUrl)
@@ -98,24 +99,36 @@ function RouteComponent() {
           setEditError('Failed to load image from URL')
         })
     }
-  }, [search.filename, editImage.originalFile])
+  }, [search.filename])
 
   const handleFileDrop = (acceptedFiles: File[]) => {
     if (acceptedFiles.length > 0) {
-      const file = acceptedFiles[0]
-      setEditOriginal(file)
+      // Get current files and append new ones, up to 4 total
+      const currentFiles = editImage.originalFiles
+      const availableSlots = 4 - currentFiles.length
+
+      if (availableSlots <= 0) {
+        setEditError('Maximum 4 images allowed. Clear existing images first.')
+        return
+      }
+
+      const filesToAdd = acceptedFiles.slice(0, availableSlots)
+      const updatedFiles = [...currentFiles, ...filesToAdd]
+
+      // Update state with accumulated files
+      setEditOriginalFiles(updatedFiles)
       setEditResult(null, null, null)
       setEditError(null)
       setEditResultMetadata(null)
       setEditEditing(false)
 
-      // Extract image metadata
-      const url = URL.createObjectURL(file)
-      extractImageMetadata(file, url)
+      // Extract image metadata from first file
+      const url = URL.createObjectURL(updatedFiles[0])
+      extractImageMetadata(updatedFiles[0], url)
         .then(async (metadata) => {
           // Upload file temporarily to extract EXIF data and prompt
           const formData = new FormData()
-          formData.append('file', file)
+          formData.append('file', updatedFiles[0])
 
           try {
             const response = await fetch(`${API_BASE_URL}/images/upload-temp`, {
@@ -148,8 +161,10 @@ function RouteComponent() {
   }
 
   const handleEdit = async () => {
-    if (!editImage.originalFile) {
-      setEditError('Please select an image first')
+    const files = editImage.originalFiles
+
+    if (files.length === 0) {
+      setEditError('Please select at least one image first')
       return
     }
 
@@ -163,10 +178,15 @@ function RouteComponent() {
 
     try {
       const formData = new FormData()
-      formData.append('file', editImage.originalFile)
+
+      // Append all files
+      files.forEach((file) => {
+        formData.append('files', file)
+      })
+
       formData.append('prompt', editImage.prompt)
-      formData.append('guidance_scale', '1.0')
-      formData.append('num_inference_steps', String(editImage.numInferenceSteps ?? 6))
+      formData.append('guidance_scale', '4.5')
+      formData.append('num_inference_steps', String(editImage.numInferenceSteps ?? 28))
       formData.append('acceleration', 'regular')
       formData.append('output_format', editImage.outputFormat ?? 'png')
       if (editImage.negativePrompt) {
@@ -257,11 +277,12 @@ function RouteComponent() {
       await savePreset({
         name: presetName,
         prompt: editImage.prompt,
-        numInferenceSteps: editImage.numInferenceSteps || 50,
+        numInferenceSteps: editImage.numInferenceSteps || 28,
         negativePrompt: editImage.negativePrompt,
         enableSafetyChecker: editImage.enableSafetyChecker !== false,
         outputFormat: editImage.outputFormat || 'png',
         seed: editImage.seed ? parseInt(editImage.seed) : undefined,
+        targetResolution: editImage.targetResolution || 1328,
       })
       toast.success(`Preset "${presetName}" saved successfully`)
       setPresetName('')
@@ -294,25 +315,79 @@ function RouteComponent() {
         {/* Input Section */}
         <InputCard title="Upload And Configure" description="Select an image to edit using AI">
           <div>
-            <Label>Image File</Label>
+            <Label>Image Files ({editImage.originalFiles.length}/4 images)</Label>
             <Dropzone
               accept={{ 'image/*': ['.jpg', '.jpeg', '.png', '.bmp', '.webp', '.tiff'] }}
-              src={editImage.originalFile ? [editImage.originalFile] : undefined}
+              src={editImage.originalFiles.length > 0 ? editImage.originalFiles : undefined}
               onDrop={handleFileDrop}
               className="mt-2"
+              multiple
+              maxFiles={4}
             >
               <DropzoneEmptyState />
               <DropzoneContent />
             </Dropzone>
+            {editImage.originalFiles.length > 0 && (
+              <div className="mt-2 flex items-center justify-between">
+                <p className="text-xs text-muted-foreground">
+                  {editImage.originalFiles.length} image
+                  {editImage.originalFiles.length > 1 ? 's' : ''} selected
+                  {editImage.originalFiles.length < 4 &&
+                    ` • Drop more to add (${4 - editImage.originalFiles.length} slot${
+                      4 - editImage.originalFiles.length > 1 ? 's' : ''
+                    } available)`}
+                </p>
+                <Button
+                  onClick={() => {
+                    setEditOriginalFiles([])
+                    setEditOriginalMetadata(null)
+                    setEditError(null)
+                    // Clear the filename query parameter if it exists
+                    if (search.filename) {
+                      navigate({ to: '/edit', search: {} })
+                    }
+                  }}
+                  variant="outline"
+                  size="sm"
+                  className="text-xs"
+                >
+                  Clear Images
+                </Button>
+              </div>
+            )}
           </div>
 
-          {(editImage.originalFile || search.filename) && (
+          {(editImage.originalFiles.length > 0 || search.filename) && (
             <>
               <OriginalImagePreview
-                file={editImage.originalFile}
+                file={editImage.originalFiles[0]}
                 filename={search.filename}
                 apiBaseUrl={API_BASE_URL}
               />
+
+              {/* Show thumbnails of all uploaded files if multiple */}
+              {editImage.originalFiles.length > 1 && (
+                <div className="space-y-2">
+                  <Label>Uploaded Images</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {editImage.originalFiles.map((file, idx) => (
+                      <div
+                        key={idx}
+                        className="relative aspect-square rounded-lg overflow-hidden border"
+                      >
+                        <img
+                          src={URL.createObjectURL(file)}
+                          alt={`Image ${idx + 1}`}
+                          className="w-full h-full object-cover"
+                        />
+                        <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs p-1 text-center">
+                          Image {idx + 1}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div>
                 <Label htmlFor="prompt">Editing Prompt</Label>
@@ -399,12 +474,12 @@ function RouteComponent() {
                     type="range"
                     min="1"
                     max="50"
-                    value={editImage.numInferenceSteps || 30}
+                    value={editImage.numInferenceSteps || 28}
                     onChange={(e) => setEditNumInferenceSteps(Number(e.target.value))}
                     className="w-full mt-2"
                   />
                   <p className="text-xs text-muted-foreground mt-1">
-                    Higher values improve quality but take longer (1-50, default: 30)
+                    Higher values improve quality but take longer (1-50, default: 28)
                   </p>
                 </div>
 
@@ -440,6 +515,7 @@ function RouteComponent() {
                   >
                     <option value="png">PNG</option>
                     <option value="jpeg">JPEG</option>
+                    <option value="webp">WebP</option>
                   </select>
                 </div>
 

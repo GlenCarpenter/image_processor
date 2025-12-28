@@ -136,6 +136,7 @@ def init_db():
                 enable_safety_checker INTEGER DEFAULT 1,
                 output_format TEXT DEFAULT 'png',
                 seed INTEGER,
+                target_resolution INTEGER DEFAULT 1328,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
@@ -149,6 +150,18 @@ def init_db():
             ON edit_presets(name)
         """
         )
+
+        # Migration: Add target_resolution column if it doesn't exist
+        cursor.execute("PRAGMA table_info(edit_presets)")
+        columns = [row[1] for row in cursor.fetchall()]
+        if "target_resolution" not in columns:
+            cursor.execute(
+                """
+                ALTER TABLE edit_presets 
+                ADD COLUMN target_resolution INTEGER DEFAULT 1328
+            """
+            )
+            print("Migration: Added target_resolution column to edit_presets table")
 
 
 def create_output(
@@ -465,6 +478,7 @@ def create_edit_preset(
     enable_safety_checker: bool = True,
     output_format: str = "png",
     seed: Optional[int] = None,
+    target_resolution: int = 1328,
 ) -> int:
     """
     Create a new edit preset
@@ -478,8 +492,8 @@ def create_edit_preset(
             """
             INSERT INTO edit_presets (
                 name, prompt, num_inference_steps, negative_prompt,
-                enable_safety_checker, output_format, seed
-            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                enable_safety_checker, output_format, seed, target_resolution
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """,
             (
                 name,
@@ -489,6 +503,7 @@ def create_edit_preset(
                 1 if enable_safety_checker else 0,
                 output_format,
                 seed,
+                target_resolution,
             ),
         )
         return cursor.lastrowid
@@ -529,6 +544,7 @@ def update_edit_preset(
     enable_safety_checker: Optional[bool] = None,
     output_format: Optional[str] = None,
     seed: Optional[int] = None,
+    target_resolution: Optional[int] = None,
 ) -> bool:
     """
     Update an edit preset
@@ -570,6 +586,9 @@ def update_edit_preset(
         if seed is not None:
             updates.append("seed = ?")
             values.append(seed)
+        if target_resolution is not None:
+            updates.append("target_resolution = ?")
+            values.append(target_resolution)
 
         if not updates:
             return True  # Nothing to update

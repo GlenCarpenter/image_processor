@@ -10,7 +10,7 @@ import asyncio
 
 from backend.database import create_job
 from backend.utils.fal_utils import upload_bytes_to_fal, poll_fal_job
-from backend.utils.fal_edit import submit_edit_image
+from backend.utils.fal_edit import submit_edit_image, submit_edit_image_multi
 from backend.utils.image_processing import resize_image_bytes
 from PIL import Image
 from io import BytesIO
@@ -24,26 +24,26 @@ OUTPUTS_DIR.mkdir(exist_ok=True)
 
 @router.post("/edit")
 async def edit_image(
-    file: UploadFile = File(..., description="Image file to edit"),
+    files: list[UploadFile] = File(..., description="Image files to edit (1-4 images)"),
     prompt: str = Form(
         "Remove all text from the image", description="Editing instruction for the AI"
     ),
     guidance_scale: Optional[float] = Form(
-        4.0, description="How closely to follow the prompt (0.0-20.0)"
+        4.5, description="How closely to follow the prompt (1.0-20.0)"
     ),
     num_inference_steps: Optional[int] = Form(
-        50, description="Number of denoising steps (1-50)"
+        28, description="Number of denoising steps (1-50)"
     ),
-    acceleration: Optional[Literal["none", "regular"]] = Form(
+    acceleration: Optional[Literal["none", "regular", "high"]] = Form(
         "regular", description="Generation speed mode"
     ),
     negative_prompt: Optional[str] = Form(
-        " ", description="What to avoid in the output"
+        "", description="What to avoid in the output"
     ),
     enable_safety_checker: Optional[bool] = Form(
         True, description="Enable NSFW content filtering"
     ),
-    output_format: Optional[Literal["png", "jpeg"]] = Form(
+    output_format: Optional[Literal["png", "jpeg", "webp"]] = Form(
         "png", description="Output image format"
     ),
     seed: Optional[int] = Form(None, description="Random seed for reproducibility"),
@@ -56,14 +56,14 @@ async def edit_image(
     Saves the output to disk and returns metadata with job ID.
 
     **Parameters:**
-    - **file**: Image file to edit
+    - **files**: Image files to edit (1-4 images)
     - **prompt**: Editing instruction (e.g., "Remove all text from the image")
-    - **guidance_scale**: How closely to follow the prompt (0.0-20.0, default: 4.0)
-    - **num_inference_steps**: Number of denoising steps (1-50, default: 50)
-    - **acceleration**: 'none' or 'regular' generation speed (default: 'regular')
-    - **negative_prompt**: What to avoid in the output (default: " ")
+    - **guidance_scale**: How closely to follow the prompt (1.0-20.0, default: 4.5)
+    - **num_inference_steps**: Number of denoising steps (1-50, default: 28)
+    - **acceleration**: 'none', 'regular', or 'high' generation speed (default: 'regular')
+    - **negative_prompt**: What to avoid in the output (default: "")
     - **enable_safety_checker**: Enable NSFW filtering (default: True)
-    - **output_format**: Output format - png or jpeg (default: png)
+    - **output_format**: Output format - png, jpeg, or webp (default: png)
     - **seed**: Random seed for reproducibility (optional)
     - **target_resolution**: Target resolution in pixels (max dimension, max: 1536, default: 1328)
 
@@ -78,17 +78,31 @@ async def edit_image(
             detail="FAL_KEY not configured. Please set FAL_KEY environment variable in .env file",
         )
 
-    # Validate file type
-    if not file.content_type or not file.content_type.startswith("image/"):
+    # Validate number of files
+    if not files or len(files) == 0:
         raise HTTPException(
             status_code=400,
-            detail=f"Invalid file type: {file.content_type}. Must be an image.",
+            detail="At least one image file is required",
+        )
+    
+    if len(files) > 4:
+        raise HTTPException(
+            status_code=400,
+            detail="Maximum 4 images allowed",
         )
 
+    # Validate file types
+    for file in files:
+        if not file.content_type or not file.content_type.startswith("image/"):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid file type: {file.content_type}. All files must be images.",
+            )
+
     # Validate guidance_scale
-    if guidance_scale < 0 or guidance_scale > 20:
+    if guidance_scale < 1 or guidance_scale > 20:
         raise HTTPException(
-            status_code=400, detail="Guidance scale must be between 0 and 20"
+            status_code=400, detail="Guidance scale must be between 1 and 20"
         )
 
     # Validate num_inference_steps
@@ -104,40 +118,55 @@ async def edit_image(
         )
 
     try:
-        # Read the uploaded file
-        image_bytes = await file.read()
+        # Process all uploaded files
+        image_urls = []
+        processed_filenames = []
+        output_dimensions = None
+        
+        for file in files:
+            # Read the uploaded file
+            image_bytes = await file.read()
 
-        # Check image size and get dimensions
-        img = Image.open(BytesIO(image_bytes))
-        width, height = img.size
+            # Check image size and get dimensions
+            img = Image.open(BytesIO(image_bytes))
+            width, height = img.size
 
-        # Calculate target pixels based on target_resolution (square)
-        target_pixels = target_resolution * target_resolution
+            # Calculate target pixels based on target_resolution (square)
+            target_pixels = target_resolution * target_resolution
 
-        # Use resize_image_bytes to resize to target resolution
-        resized_bytes, resize_info = resize_image_bytes(
-            image_bytes, target_pixels=target_pixels
-        )
-        output_width = resize_info["target_size"]["width"]
-        output_height = resize_info["target_size"]["height"]
+            # Use resize_image_bytes to resize to target resolution
+            resized_bytes, resize_info = resize_image_bytes(
+                image_bytes, target_pixels=target_pixels
+            )
+            output_width = resize_info["target_size"]["width"]
+            output_height = resize_info["target_size"]["height"]
+            
+            # Store dimensions from first image for the job
+            if output_dimensions is None:
+                output_dimensions = (output_width, output_height)
+            
+            print(
+                f"Resized image from {width}x{height} to {output_width}x{output_height} (target: {target_resolution})"
+            )
+
+            # Use the resized version
+            image_bytes = resized_bytes
+
+            # Upload to Fal storage
+            print(f"Uploading image {file.filename} to Fal storage...")
+            image_url = upload_bytes_to_fal(image_bytes, file.filename)
+            print(f"Image uploaded: {image_url}")
+            
+            image_urls.append(image_url)
+            processed_filenames.append(file.filename or "unknown")
+
+        # Submit async job to Fal AI with all image URLs
+        output_width, output_height = output_dimensions
         print(
-            f"Resized image from {width}x{height} to {output_width}x{output_height} (target: {target_resolution})"
+            f"Submitting Fal AI edit job with {len(image_urls)} image(s) and prompt: '{prompt}' (guidance: {guidance_scale}, steps: {num_inference_steps}, size: {output_width}x{output_height})"
         )
-
-        # Use the resized version
-        image_bytes = resized_bytes
-
-        # Upload to Fal storage
-        print(f"Uploading image to Fal storage...")
-        image_url = upload_bytes_to_fal(image_bytes, file.filename)
-        print(f"Image uploaded: {image_url}")
-
-        # Submit async job to Fal AI with custom image size matching source
-        print(
-            f"Submitting Fal AI edit job with prompt: '{prompt}' (guidance: {guidance_scale}, steps: {num_inference_steps}, size: {output_width}x{output_height})"
-        )
-        request_id, endpoint = submit_edit_image(
-            image_url=image_url,
+        request_id, endpoint = submit_edit_image_multi(
+            image_urls=image_urls,
             prompt=prompt,
             image_width=output_width,
             image_height=output_height,
@@ -154,9 +183,10 @@ async def edit_image(
         print(f"Job submitted with request_id: {request_id}")
 
         # Create database job record with pending status
+        input_filename = ", ".join(processed_filenames) if len(processed_filenames) > 1 else processed_filenames[0]
         job_id = create_job(
             job_type="edit",
-            input_filename=file.filename or "unknown",
+            input_filename=input_filename,
             fal_request_id=request_id,
             job_status="pending",
         )

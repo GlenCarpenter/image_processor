@@ -30,6 +30,7 @@ export interface EditPreset {
   enableSafetyChecker: boolean
   outputFormat: string
   seed?: number
+  targetResolution: number
   created_at: string
   updated_at: string
 }
@@ -63,7 +64,7 @@ interface ImageState {
 
   // Edit page image
   editImage: {
-    originalFile: File | null
+    originalFiles: File[] // Support multiple files (1-4)
     jobId: number | null
     outputFilename: string | null
     info: { outputWidth: number; outputHeight: number } | null
@@ -135,6 +136,7 @@ interface ImageState {
 
   // Edit page actions
   setEditOriginal: (file: File | null) => void
+  setEditOriginalFiles: (files: File[]) => void
   setEditResult: (
     jobId: number | null,
     outputFilename: string | null,
@@ -240,7 +242,7 @@ export const useImageStore = create<ImageState>()(
         resultMetadata: null,
       },
       editImage: {
-        originalFile: null,
+        originalFiles: [],
         jobId: null,
         outputFilename: null,
         info: null,
@@ -328,7 +330,11 @@ export const useImageStore = create<ImageState>()(
       // Edit page actions
       setEditOriginal: (file) =>
         set({
-          editImage: { ...get().editImage, originalFile: file },
+          editImage: { ...get().editImage, originalFiles: file ? [file] : [] },
+        }),
+      setEditOriginalFiles: (files) =>
+        set({
+          editImage: { ...get().editImage, originalFiles: files },
         }),
       setEditResult: (jobId, outputFilename, info) =>
         set({
@@ -345,7 +351,7 @@ export const useImageStore = create<ImageState>()(
       clearEditImages: () =>
         set({
           editImage: {
-            originalFile: null,
+            originalFiles: [],
             jobId: null,
             outputFilename: null,
             info: null,
@@ -368,7 +374,7 @@ export const useImageStore = create<ImageState>()(
       clearEditImage: () =>
         set({
           editImage: {
-            originalFile: null,
+            originalFiles: [],
             jobId: null,
             outputFilename: null,
             info: null,
@@ -482,7 +488,7 @@ export const useImageStore = create<ImageState>()(
       sendToEdit: () => {
         set({
           editImage: {
-            originalFile: null,
+            originalFiles: [],
             jobId: null,
             outputFilename: null,
             info: null,
@@ -631,6 +637,7 @@ export const useImageStore = create<ImageState>()(
             enableSafetyChecker: preset.enableSafetyChecker,
             outputFormat: preset.outputFormat,
             seed: preset.seed ? String(preset.seed) : '',
+            targetResolution: preset.targetResolution,
           },
         }))
       },

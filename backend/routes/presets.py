@@ -28,6 +28,7 @@ class EditPresetCreate(BaseModel):
     enable_safety_checker: bool = True
     output_format: str = "png"
     seed: Optional[int] = None
+    target_resolution: int = 1328
 
 
 class EditPresetUpdate(BaseModel):
@@ -40,6 +41,7 @@ class EditPresetUpdate(BaseModel):
     enable_safety_checker: Optional[bool] = None
     output_format: Optional[str] = None
     seed: Optional[int] = None
+    target_resolution: Optional[int] = None
 
 
 class EditPresetResponse(BaseModel):
@@ -53,6 +55,7 @@ class EditPresetResponse(BaseModel):
     enable_safety_checker: bool
     output_format: str
     seed: Optional[int]
+    target_resolution: int
     created_at: str
     updated_at: str
 
@@ -97,6 +100,7 @@ async def create_preset(preset: EditPresetCreate):
     - **enable_safety_checker**: Enable NSFW filtering (default: true)
     - **output_format**: Output format - png or jpeg (default: png)
     - **seed**: Random seed for reproducibility (optional)
+    - **target_resolution**: Target resolution in pixels (default: 1328)
 
     **Returns:** The created preset with ID
     """
@@ -109,6 +113,7 @@ async def create_preset(preset: EditPresetCreate):
             enable_safety_checker=preset.enable_safety_checker,
             output_format=preset.output_format,
             seed=preset.seed,
+            target_resolution=preset.target_resolution,
         )
         created_preset = get_edit_preset(preset_id)
         if not created_preset:
@@ -137,6 +142,7 @@ async def update_preset(preset_id: int, preset: EditPresetUpdate):
     - **enable_safety_checker**: Enable NSFW filtering (optional)
     - **output_format**: Output format (optional)
     - **seed**: Random seed (optional)
+    - **target_resolution**: Target resolution in pixels (optional)
 
     **Returns:** The updated preset
     """
@@ -149,6 +155,7 @@ async def update_preset(preset_id: int, preset: EditPresetUpdate):
         enable_safety_checker=preset.enable_safety_checker,
         output_format=preset.output_format,
         seed=preset.seed,
+        target_resolution=preset.target_resolution,
     )
     if not success:
         raise HTTPException(status_code=404, detail="Preset not found")
