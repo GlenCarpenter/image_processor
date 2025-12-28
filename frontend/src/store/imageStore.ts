@@ -564,7 +564,21 @@ export const useImageStore = create<ImageState>()(
         try {
           const response = await fetch(`${API_BASE_URL}/presets`)
           if (response.ok) {
-            const presets = await response.json()
+            const apiPresets = await response.json()
+            // Transform snake_case to camelCase
+            const presets = apiPresets.map((p: any) => ({
+              id: p.id,
+              name: p.name,
+              prompt: p.prompt,
+              numInferenceSteps: p.num_inference_steps,
+              negativePrompt: p.negative_prompt,
+              enableSafetyChecker: p.enable_safety_checker,
+              outputFormat: p.output_format,
+              seed: p.seed,
+              targetResolution: p.target_resolution,
+              created_at: p.created_at,
+              updated_at: p.updated_at,
+            }))
             set({ presets })
           }
         } catch (error) {
@@ -576,29 +590,55 @@ export const useImageStore = create<ImageState>()(
           const state = get()
           const existingPreset = state.presets.find((p) => p.name === preset.name)
 
+          // Transform camelCase to snake_case for API
+          const apiPayload = {
+            name: preset.name,
+            prompt: preset.prompt,
+            num_inference_steps: preset.numInferenceSteps,
+            negative_prompt: preset.negativePrompt,
+            enable_safety_checker: preset.enableSafetyChecker,
+            output_format: preset.outputFormat,
+            seed: preset.seed,
+            target_resolution: preset.targetResolution,
+          }
+
           let response
           if (existingPreset) {
             // Update existing preset
             response = await fetch(`${API_BASE_URL}/presets/${existingPreset.id}`, {
               method: 'PUT',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(preset),
+              body: JSON.stringify(apiPayload),
             })
           } else {
             // Create new preset
             response = await fetch(`${API_BASE_URL}/presets`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(preset),
+              body: JSON.stringify(apiPayload),
             })
           }
 
           if (response.ok) {
             const savedPreset = await response.json()
+            // Transform snake_case response to camelCase
+            const transformedPreset = {
+              id: savedPreset.id,
+              name: savedPreset.name,
+              prompt: savedPreset.prompt,
+              numInferenceSteps: savedPreset.num_inference_steps,
+              negativePrompt: savedPreset.negative_prompt,
+              enableSafetyChecker: savedPreset.enable_safety_checker,
+              outputFormat: savedPreset.output_format,
+              seed: savedPreset.seed,
+              targetResolution: savedPreset.target_resolution,
+              created_at: savedPreset.created_at,
+              updated_at: savedPreset.updated_at,
+            }
             set((state) => {
-              const filtered = state.presets.filter((p) => p.id !== savedPreset.id)
+              const filtered = state.presets.filter((p) => p.id !== transformedPreset.id)
               return {
-                presets: [...filtered, savedPreset].sort((a, b) => a.name.localeCompare(b.name)),
+                presets: [...filtered, transformedPreset].sort((a, b) => a.name.localeCompare(b.name)),
               }
             })
           } else {

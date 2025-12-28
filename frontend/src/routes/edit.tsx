@@ -32,7 +32,6 @@ function RouteComponent() {
 
   // Store actions
   const editImage = useImageStore((state) => state.editImage)
-  const setEditOriginal = useImageStore((state) => state.setEditOriginal)
   const setEditOriginalFiles = useImageStore((state) => state.setEditOriginalFiles)
   const setEditResult = useImageStore((state) => state.setEditResult)
   const setEditPrompt = useImageStore((state) => state.setEditPrompt)
