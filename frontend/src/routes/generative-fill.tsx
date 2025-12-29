@@ -89,8 +89,6 @@ function RouteComponent() {
   const [guidanceScale, setGuidanceScale] = useState(7.5)
   const [strength, setStrength] = useState(1.0)
   const [seed, setSeed] = useState<number | null>(null)
-
-  // New state for scheduler and LoRAs
   const [selectedScheduler, setSelectedScheduler] = useState<string>('')
   const [availableLoras, setAvailableLoras] = useState<LoRA[]>([])
   const [loadingLoras, setLoadingLoras] = useState(true)
@@ -536,8 +534,16 @@ function RouteComponent() {
                       value={numSteps}
                       onChange={(e) => {
                         const val = parseInt(e.target.value)
-                        if (!isNaN(val) && val >= 20 && val <= 50) {
+                        if (!isNaN(val)) {
                           setNumSteps(val)
+                        }
+                      }}
+                      onBlur={(e) => {
+                        const val = parseInt(e.target.value)
+                        if (isNaN(val) || val < 20) {
+                          setNumSteps(20)
+                        } else if (val > 50) {
+                          setNumSteps(50)
                         }
                       }}
                       className="w-16 px-2 py-1 border rounded-md text-sm text-center"
@@ -568,8 +574,16 @@ function RouteComponent() {
                       value={guidanceScale}
                       onChange={(e) => {
                         const val = parseFloat(e.target.value)
-                        if (!isNaN(val) && val >= 1 && val <= 20) {
+                        if (!isNaN(val)) {
                           setGuidanceScale(val)
+                        }
+                      }}
+                      onBlur={(e) => {
+                        const val = parseFloat(e.target.value)
+                        if (isNaN(val) || val < 1) {
+                          setGuidanceScale(1)
+                        } else if (val > 20) {
+                          setGuidanceScale(20)
                         }
                       }}
                       className="w-16 px-2 py-1 border rounded-md text-sm text-center"
@@ -597,11 +611,19 @@ function RouteComponent() {
                       min="0"
                       max="1"
                       step="0.01"
-                      value={strength.toFixed(2)}
+                      value={strength}
                       onChange={(e) => {
                         const val = parseFloat(e.target.value)
-                        if (!isNaN(val) && val >= 0 && val <= 1) {
+                        if (!isNaN(val)) {
                           setStrength(val)
+                        }
+                      }}
+                      onBlur={(e) => {
+                        const val = parseFloat(e.target.value)
+                        if (isNaN(val) || val < 0) {
+                          setStrength(0)
+                        } else if (val > 1) {
+                          setStrength(1)
                         }
                       }}
                       className="w-16 px-2 py-1 border rounded-md text-sm text-center"
