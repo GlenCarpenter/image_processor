@@ -25,6 +25,8 @@ interface BoundingBox {
 
 export function AdvancedMaskCanvas({ imageFile, onMaskCreated }: AdvancedMaskCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const cursorCanvasRef = useRef<HTMLCanvasElement>(null)
+  const maskLayerRef = useRef<HTMLCanvasElement | null>(null)
   const [isDrawing, setIsDrawing] = useState(false)
   const [brushSize, setBrushSize] = useState(50)
   const [mode, setMode] = useState<'draw' | 'erase' | 'select'>('draw')
@@ -32,6 +34,9 @@ export function AdvancedMaskCanvas({ imageFile, onMaskCreated }: AdvancedMaskCan
   const imageRef = useRef<HTMLImageElement | null>(null)
   const historyRef = useRef<ImageData[]>([])
   const [predicting, setPredicting] = useState(false)
+  const lastPosRef = useRef<{ x: number; y: number } | null>(null)
+  const [cursorPos, setCursorPos] = useState<{ x: number; y: number } | null>(null)
+  const [maskVersion, setMaskVersion] = useState(0)
 
   // Segmentation state
   const [points, setPoints] = useState<Point[]>([])
@@ -45,7 +50,8 @@ export function AdvancedMaskCanvas({ imageFile, onMaskCreated }: AdvancedMaskCan
   // Load image and initialize canvas
   useEffect(() => {
     const canvas = canvasRef.current
-    if (!canvas) return
+    const cursorCanvas = cursorCanvasRef.current
+    if (!canvas || !cursorCanvas) return
 
     const ctx = canvas.getContext('2d')
     if (!ctx) return
@@ -55,6 +61,14 @@ export function AdvancedMaskCanvas({ imageFile, onMaskCreated }: AdvancedMaskCan
       // Set canvas size to match image
       canvas.width = img.width
       canvas.height = img.height
+      cursorCanvas.width = img.width
+      cursorCanvas.height = img.height
+
+      // Create mask layer canvas
+      const maskCanvas = document.createElement('canvas')
+      maskCanvas.width = img.width
+      maskCanvas.height = img.height
+      maskLayerRef.current = maskCanvas
 
       // Draw the image as background
       ctx.drawImage(img, 0, 0)
@@ -77,6 +91,7 @@ export function AdvancedMaskCanvas({ imageFile, onMaskCreated }: AdvancedMaskCan
   useEffect(() => {
     const canvas = canvasRef.current
     const img = imageRef.current
+    const maskLayer = maskLayerRef.current
     if (!canvas || !img) return
 
     const ctx = canvas.getContext('2d')
@@ -86,8 +101,15 @@ export function AdvancedMaskCanvas({ imageFile, onMaskCreated }: AdvancedMaskCan
       ctx.clearRect(0, 0, canvas.width, canvas.height)
       ctx.drawImage(img, 0, 0)
 
-      // Draw SAM mask if available
-      if (maskDataUrl) {
+      // Draw drawn mask layer with transparency
+      if (maskLayer) {
+        ctx.globalAlpha = 0.5
+        ctx.drawImage(maskLayer, 0, 0)
+        ctx.globalAlpha = 1.0
+      }
+
+      // Draw SAM mask if available (preview only in select mode)
+      if (maskDataUrl && mode === 'select') {
         const maskImg = new Image()
         maskImg.onload = () => {
           ctx.globalAlpha = 0.3
@@ -102,7 +124,50 @@ export function AdvancedMaskCanvas({ imageFile, onMaskCreated }: AdvancedMaskCan
     }
 
     redrawCanvas()
-  }, [maskDataUrl, points, currentBox])
+  }, [maskDataUrl, points, currentBox, maskVersion, mode])
+
+  // Draw cursor on separate canvas layer
+  useEffect(() => {
+    const cursorCanvas = cursorCanvasRef.current
+    if (!cursorCanvas) return
+
+    const ctx = cursorCanvas.getContext('2d')
+    if (!ctx) return
+
+    // Clear cursor canvas
+    ctx.clearRect(0, 0, cursorCanvas.width, cursorCanvas.height)
+
+    // Draw cursor based on mode
+    if (cursorPos) {
+      if (mode === 'draw' || mode === 'erase') {
+        // Circle cursor for draw/erase
+        ctx.beginPath()
+        ctx.arc(cursorPos.x, cursorPos.y, brushSize, 0, 2 * Math.PI)
+        ctx.strokeStyle = mode === 'draw' ? 'rgba(255, 255, 255, 0.8)' : 'rgba(255, 100, 100, 0.8)'
+        ctx.lineWidth = 2
+        ctx.stroke()
+      } else if (mode === 'select') {
+        // Crosshair/target cursor for select mode
+        const size = 20
+        ctx.strokeStyle = 'rgba(0, 255, 0, 0.8)'
+        ctx.lineWidth = 2
+
+        // Draw crosshair
+        ctx.beginPath()
+        ctx.moveTo(cursorPos.x - size, cursorPos.y)
+        ctx.lineTo(cursorPos.x + size, cursorPos.y)
+        ctx.moveTo(cursorPos.x, cursorPos.y - size)
+        ctx.lineTo(cursorPos.x, cursorPos.y + size)
+        ctx.stroke()
+
+        // Draw center circle
+        ctx.beginPath()
+        ctx.arc(cursorPos.x, cursorPos.y, 3, 0, 2 * Math.PI)
+        ctx.fillStyle = 'rgba(0, 255, 0, 0.8)'
+        ctx.fill()
+      }
+    }
+  }, [cursorPos, brushSize, mode])
 
   const drawPoints = (ctx: CanvasRenderingContext2D, img: HTMLImageElement) => {
     const canvas = canvasRef.current
@@ -140,13 +205,13 @@ export function AdvancedMaskCanvas({ imageFile, onMaskCreated }: AdvancedMaskCan
   }
 
   const saveHistory = () => {
-    const canvas = canvasRef.current
-    if (!canvas) return
+    const maskLayer = maskLayerRef.current
+    if (!maskLayer) return
 
-    const ctx = canvas.getContext('2d')
+    const ctx = maskLayer.getContext('2d')
     if (!ctx) return
 
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+    const imageData = ctx.getImageData(0, 0, maskLayer.width, maskLayer.height)
     historyRef.current.push(imageData)
 
     // Limit history to last 20 states
@@ -168,19 +233,20 @@ export function AdvancedMaskCanvas({ imageFile, onMaskCreated }: AdvancedMaskCan
         }
       }
     } else {
-      // Undo drawing/erasing
+      // Undo drawing/erasing on mask layer
       if (historyRef.current.length <= 1) return
 
       historyRef.current.pop()
       const previousState = historyRef.current[historyRef.current.length - 1]
 
-      const canvas = canvasRef.current
-      if (!canvas) return
+      const maskLayer = maskLayerRef.current
+      if (!maskLayer) return
 
-      const ctx = canvas.getContext('2d')
+      const ctx = maskLayer.getContext('2d')
       if (!ctx) return
 
       ctx.putImageData(previousState, 0, 0)
+      setMaskVersion((v) => v + 1)
     }
   }
 
@@ -210,6 +276,10 @@ export function AdvancedMaskCanvas({ imageFile, onMaskCreated }: AdvancedMaskCan
       setCurrentBox({ x1: coords.x, y1: coords.y, x2: coords.x, y2: coords.y })
     } else {
       // Start drawing/erasing
+      const coords = getCanvasCoordinates(e)
+      if (!coords) return
+
+      lastPosRef.current = coords
       setIsDrawing(true)
       draw(e)
     }
@@ -249,17 +319,21 @@ export function AdvancedMaskCanvas({ imageFile, onMaskCreated }: AdvancedMaskCan
       // Handle drawing/erasing completion
       if (isDrawing) {
         setIsDrawing(false)
+        lastPosRef.current = null
         saveHistory()
       }
     }
   }
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const coords = getCanvasCoordinates(e)
+    if (!coords) return
+
+    // Update cursor position for visual feedback
+    setCursorPos(coords)
+
     if (mode === 'select' && isDragging.current && dragStartPos.current) {
       // Update bounding box
-      const coords = getCanvasCoordinates(e)
-      if (!coords) return
-
       setCurrentBox({
         x1: dragStartPos.current.x,
         y1: dragStartPos.current.y,
@@ -285,32 +359,86 @@ export function AdvancedMaskCanvas({ imageFile, onMaskCreated }: AdvancedMaskCan
     const coords = getCanvasCoordinates(e)
     if (!coords) return
 
-    ctx.beginPath()
-    ctx.arc(coords.x, coords.y, brushSize, 0, Math.PI * 2)
-
     if (mode === 'draw') {
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.3)'
-      ctx.fill()
-    } else if (mode === 'erase') {
-      // Erase mode: redraw the original image area
-      ctx.save()
-      ctx.clip()
-      if (imageRef.current) {
-        ctx.drawImage(imageRef.current, 0, 0)
+      // Draw to mask layer at full opacity to prevent accumulation
+      const maskLayer = maskLayerRef.current
+      if (!maskLayer) return
+
+      const maskCtx = maskLayer.getContext('2d')
+      if (!maskCtx) return
+
+      // Draw pure white at full opacity
+      maskCtx.fillStyle = 'rgba(255, 255, 255, 1.0)'
+      maskCtx.strokeStyle = 'rgba(255, 255, 255, 1.0)'
+      maskCtx.lineWidth = brushSize * 2
+      maskCtx.lineCap = 'round'
+      maskCtx.lineJoin = 'round'
+
+      // If we have a last position, draw a line to create continuous stroke
+      if (lastPosRef.current) {
+        maskCtx.beginPath()
+        maskCtx.moveTo(lastPosRef.current.x, lastPosRef.current.y)
+        maskCtx.lineTo(coords.x, coords.y)
+        maskCtx.stroke()
       }
-      ctx.restore()
+
+      // Draw a circle at the current position
+      maskCtx.beginPath()
+      maskCtx.arc(coords.x, coords.y, brushSize, 0, Math.PI * 2)
+      maskCtx.fill()
+
+      lastPosRef.current = coords
+
+      // Trigger redraw of display canvas
+      setMaskVersion((v) => v + 1)
+    } else if (mode === 'erase') {
+      // Erase from mask layer
+      const maskLayer = maskLayerRef.current
+      if (!maskLayer) return
+
+      const maskCtx = maskLayer.getContext('2d')
+      if (!maskCtx) return
+
+      maskCtx.globalCompositeOperation = 'destination-out'
+      maskCtx.fillStyle = 'rgba(0, 0, 0, 1.0)'
+      maskCtx.strokeStyle = 'rgba(0, 0, 0, 1.0)'
+      maskCtx.lineWidth = brushSize * 2
+      maskCtx.lineCap = 'round'
+      maskCtx.lineJoin = 'round'
+
+      // If we have a last position, erase along the path
+      if (lastPosRef.current) {
+        maskCtx.beginPath()
+        maskCtx.moveTo(lastPosRef.current.x, lastPosRef.current.y)
+        maskCtx.lineTo(coords.x, coords.y)
+        maskCtx.stroke()
+      }
+
+      // Erase at current position
+      maskCtx.beginPath()
+      maskCtx.arc(coords.x, coords.y, brushSize, 0, Math.PI * 2)
+      maskCtx.fill()
+
+      maskCtx.globalCompositeOperation = 'source-over'
+
+      lastPosRef.current = coords
+
+      // Trigger redraw of display canvas
+      setMaskVersion((v) => v + 1)
+
+      lastPosRef.current = coords
     }
   }
 
   const clearMask = () => {
-    const canvas = canvasRef.current
-    if (!canvas || !imageRef.current) return
+    const maskLayer = maskLayerRef.current
+    if (!maskLayer) return
 
-    const ctx = canvas.getContext('2d')
+    const ctx = maskLayer.getContext('2d')
     if (!ctx) return
 
-    // Redraw image without any overlay
-    ctx.drawImage(imageRef.current, 0, 0)
+    // Clear the mask layer
+    ctx.clearRect(0, 0, maskLayer.width, maskLayer.height)
 
     // Clear SAM state
     setPoints([])
@@ -319,6 +447,74 @@ export function AdvancedMaskCanvas({ imageFile, onMaskCreated }: AdvancedMaskCan
 
     historyRef.current = []
     saveHistory()
+    setMaskVersion((v) => v + 1)
+  }
+
+  const applySamMaskToLayer = async () => {
+    if (!maskDataUrl) return
+
+    const maskLayer = maskLayerRef.current
+    if (!maskLayer) return
+
+    const maskCtx = maskLayer.getContext('2d')
+    if (!maskCtx) return
+
+    // Load the SAM mask image
+    const maskImg = new Image()
+    await new Promise<void>((resolve) => {
+      maskImg.onload = async () => {
+        // Create a temporary canvas to read SAM mask data
+        const tempCanvas = document.createElement('canvas')
+        tempCanvas.width = maskImg.width
+        tempCanvas.height = maskImg.height
+        const tempCtx = tempCanvas.getContext('2d')
+        if (!tempCtx) return
+
+        // Draw SAM mask to temp canvas
+        tempCtx.drawImage(maskImg, 0, 0)
+
+        // Get the image data
+        const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height)
+        const data = imageData.data
+
+        // Only draw white pixels (mask areas), ignore black pixels (background)
+        // Use lighten mode or manually filter pixels
+        for (let i = 0; i < data.length; i += 4) {
+          const r = data[i]
+          const g = data[i + 1]
+          const b = data[i + 2]
+
+          // If pixel is mostly black (background), make it transparent
+          if (r < 128 && g < 128 && b < 128) {
+            data[i + 3] = 0 // Set alpha to 0 (transparent)
+          } else {
+            // Keep white pixels as white
+            data[i] = 255
+            data[i + 1] = 255
+            data[i + 2] = 255
+            data[i + 3] = 255
+          }
+        }
+
+        // Draw the filtered mask to mask layer
+        tempCtx.putImageData(imageData, 0, 0)
+        maskCtx.drawImage(tempCanvas, 0, 0)
+
+        resolve()
+      }
+      maskImg.src = maskDataUrl
+    })
+
+    // Clear SAM state since it's now in the mask layer
+    setPoints([])
+    setMaskDataUrl(null)
+    setCurrentBox(null)
+
+    // Save to history and trigger redraw
+    saveHistory()
+    setMaskVersion((v) => v + 1)
+
+    toast.success('SAM mask applied to drawing layer')
   }
 
   const predictMask = async (pointsList: Point[]) => {
@@ -392,6 +588,7 @@ export function AdvancedMaskCanvas({ imageFile, onMaskCreated }: AdvancedMaskCan
 
   const generateMask = async () => {
     const canvas = canvasRef.current
+    const maskLayer = maskLayerRef.current
     if (!canvas || !imageRef.current) return
 
     // Create a new canvas for the pure black/white mask
@@ -415,37 +612,9 @@ export function AdvancedMaskCanvas({ imageFile, onMaskCreated }: AdvancedMaskCan
         }
         maskImg.src = maskDataUrl
       })
-    } else {
-      // Use drawn mask
-      const ctx = canvas.getContext('2d')
-      if (!ctx) return
-
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
-      const data = imageData.data
-
-      // Get original image data for comparison
-      const originalCanvas = document.createElement('canvas')
-      originalCanvas.width = canvas.width
-      originalCanvas.height = canvas.height
-      const originalCtx = originalCanvas.getContext('2d')
-      if (!originalCtx) return
-      originalCtx.drawImage(imageRef.current, 0, 0)
-      const originalData = originalCtx.getImageData(0, 0, canvas.width, canvas.height).data
-
-      // Create white mask where overlay exists
-      maskCtx.fillStyle = 'white'
-      for (let i = 0; i < data.length; i += 4) {
-        const rDiff = Math.abs(data[i] - originalData[i])
-        const gDiff = Math.abs(data[i + 1] - originalData[i + 1])
-        const bDiff = Math.abs(data[i + 2] - originalData[i + 2])
-
-        if (rDiff > 30 || gDiff > 30 || bDiff > 30) {
-          const pixelIndex = i / 4
-          const x = pixelIndex % canvas.width
-          const y = Math.floor(pixelIndex / canvas.width)
-          maskCtx.fillRect(x, y, 1, 1)
-        }
-      }
+    } else if (maskLayer) {
+      // Use drawn mask layer directly
+      maskCtx.drawImage(maskLayer, 0, 0)
     }
 
     // Convert to blob and create file
@@ -459,6 +628,7 @@ export function AdvancedMaskCanvas({ imageFile, onMaskCreated }: AdvancedMaskCan
 
   const downloadMask = async () => {
     const canvas = canvasRef.current
+    const maskLayer = maskLayerRef.current
     if (!canvas || !imageRef.current) return
 
     const maskCanvas = document.createElement('canvas')
@@ -480,35 +650,9 @@ export function AdvancedMaskCanvas({ imageFile, onMaskCreated }: AdvancedMaskCan
         }
         maskImg.src = maskDataUrl
       })
-    } else {
-      // Use drawn mask
-      const ctx = canvas.getContext('2d')
-      if (!ctx) return
-
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
-      const data = imageData.data
-
-      const originalCanvas = document.createElement('canvas')
-      originalCanvas.width = canvas.width
-      originalCanvas.height = canvas.height
-      const originalCtx = originalCanvas.getContext('2d')
-      if (!originalCtx) return
-      originalCtx.drawImage(imageRef.current, 0, 0)
-      const originalData = originalCtx.getImageData(0, 0, canvas.width, canvas.height).data
-
-      maskCtx.fillStyle = 'white'
-      for (let i = 0; i < data.length; i += 4) {
-        const rDiff = Math.abs(data[i] - originalData[i])
-        const gDiff = Math.abs(data[i + 1] - originalData[i + 1])
-        const bDiff = Math.abs(data[i + 2] - originalData[i + 2])
-
-        if (rDiff > 30 || gDiff > 30 || bDiff > 30) {
-          const pixelIndex = i / 4
-          const x = pixelIndex % canvas.width
-          const y = Math.floor(pixelIndex / canvas.width)
-          maskCtx.fillRect(x, y, 1, 1)
-        }
-      }
+    } else if (maskLayer) {
+      // Use drawn mask layer directly
+      maskCtx.drawImage(maskLayer, 0, 0)
     }
 
     const url = maskCanvas.toDataURL('image/png')
@@ -566,6 +710,17 @@ export function AdvancedMaskCanvas({ imageFile, onMaskCreated }: AdvancedMaskCan
             Undo
           </Button>
 
+          {maskDataUrl && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={applySamMaskToLayer}
+              title="Apply SAM mask to drawing layer for editing"
+            >
+              Apply to Layer
+            </Button>
+          )}
+
           <Button variant="outline" size="sm" onClick={clearMask} title="Clear all mask data">
             Clear
           </Button>
@@ -599,16 +754,26 @@ export function AdvancedMaskCanvas({ imageFile, onMaskCreated }: AdvancedMaskCan
             <div className="text-white text-sm">Generating mask...</div>
           </div>
         )}
-        <canvas
-          ref={canvasRef}
-          onMouseDown={startDrawing}
-          onMouseMove={handleMouseMove}
-          onMouseUp={stopDrawing}
-          onMouseLeave={stopDrawing}
-          onContextMenu={(e) => e.preventDefault()}
-          className="max-w-full h-auto cursor-crosshair"
-          style={{ display: imageLoaded ? 'block' : 'none' }}
-        />
+        <div className="relative">
+          <canvas
+            ref={canvasRef}
+            onMouseDown={startDrawing}
+            onMouseMove={handleMouseMove}
+            onMouseUp={stopDrawing}
+            onMouseLeave={() => {
+              stopDrawing({ clientX: 0, clientY: 0 } as React.MouseEvent<HTMLCanvasElement>)
+              setCursorPos(null)
+            }}
+            onContextMenu={(e) => e.preventDefault()}
+            className="max-w-full h-auto cursor-none"
+            style={{ display: imageLoaded ? 'block' : 'none' }}
+          />
+          <canvas
+            ref={cursorCanvasRef}
+            className="absolute top-0 left-0 max-w-full h-auto pointer-events-none"
+            style={{ display: imageLoaded ? 'block' : 'none' }}
+          />
+        </div>
         {!imageLoaded && (
           <div className="flex items-center justify-center h-64 text-muted-foreground">
             Loading image...

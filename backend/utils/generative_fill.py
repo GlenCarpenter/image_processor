@@ -76,7 +76,8 @@ def load_sdxl_pipeline(
     device: str = "cuda",
     lora_paths: Optional[List[str]] = None,
     lora_scales: Optional[List[float]] = None,
-    scheduler_type: Optional[str] = None,
+    sampler_type: Optional[str] = None,
+    schedule_type: Optional[str] = None,
 ) -> StableDiffusionXLInpaintPipeline:
     """
     Load an SDXL inpaint pipeline from a safetensors model
@@ -86,7 +87,8 @@ def load_sdxl_pipeline(
         device: Device to load model on ('cuda' or 'cpu')
         lora_paths: List of paths to LoRA files to load
         lora_scales: List of scales for each LoRA (default: 1.0 for each)
-        scheduler_type: Scheduler type to use (e.g., 'DDIM', 'DPMSolverMultistep', 'EulerAncestralDiscrete')
+        sampler_type: Sampler algorithm to use
+        schedule_type: Noise schedule type ('karras', 'exponential', etc.)
 
     Returns:
         Loaded pipeline ready for inference
@@ -128,8 +130,8 @@ def load_sdxl_pipeline(
                 pipeline.load_lora_weights(lora_path, adapter_name=Path(lora_path).stem)
                 pipeline.fuse_lora(lora_scale=lora_scale)
 
-        # Set scheduler if specified
-        if scheduler_type:
+        # Set sampler if specified
+        if sampler_type:
             from diffusers import (
                 DDIMScheduler,
                 DPMSolverMultistepScheduler,
@@ -137,26 +139,40 @@ def load_sdxl_pipeline(
                 EulerDiscreteScheduler,
                 PNDMScheduler,
                 LMSDiscreteScheduler,
+                LCMScheduler,
+                EDMEulerScheduler,
             )
 
-            scheduler_map = {
+            sampler_map = {
                 "DDIM": DDIMScheduler,
                 "DPMSolverMultistep": DPMSolverMultistepScheduler,
                 "EulerAncestralDiscrete": EulerAncestralDiscreteScheduler,
                 "EulerDiscrete": EulerDiscreteScheduler,
                 "PNDM": PNDMScheduler,
                 "LMSDiscrete": LMSDiscreteScheduler,
+                "LCM": LCMScheduler,
+                "EDMEuler": EDMEulerScheduler,
             }
 
-            if scheduler_type in scheduler_map:
-                print(f"Setting scheduler to: {scheduler_type}")
-                pipeline.scheduler = scheduler_map[scheduler_type].from_config(
-                    pipeline.scheduler.config
-                )
+            if sampler_type in sampler_map:
+                print(f"Setting sampler to: {sampler_type}")
+                scheduler_class = sampler_map[sampler_type]
+                scheduler_config = pipeline.scheduler.config
+
+                # Apply schedule type if specified
+                if schedule_type == "karras":
+                    # Karras sigmas are supported by some schedulers
+                    if hasattr(scheduler_class, "use_karras_sigmas"):
+                        scheduler_config["use_karras_sigmas"] = True
+                        print("Using Karras noise schedule")
+                elif schedule_type == "exponential":
+                    # For exponential, use EDMEulerScheduler regardless of sampler
+                    scheduler_class = EDMEulerScheduler
+                    print("Using Exponential (EDM) noise schedule")
+
+                pipeline.scheduler = scheduler_class.from_config(scheduler_config)
             else:
-                print(
-                    f"Warning: Unknown scheduler type '{scheduler_type}', using default"
-                )
+                print(f"Warning: Unknown sampler type '{sampler_type}', using default")
 
         print("Model loaded successfully")
         return pipeline
@@ -180,7 +196,8 @@ def perform_generative_fill(
     target_height: Optional[int] = None,
     lora_paths: Optional[List[str]] = None,
     lora_scales: Optional[List[float]] = None,
-    scheduler_type: Optional[str] = None,
+    sampler_type: Optional[str] = None,
+    schedule_type: Optional[str] = None,
 ) -> bytes:
     """
     Perform generative fill on an image using an SDXL model
@@ -200,7 +217,8 @@ def perform_generative_fill(
         target_height: Target height for output (if None, preserves input height)
         lora_paths: List of paths to LoRA files to load
         lora_scales: List of scales for each LoRA (default: 1.0 for each)
-        scheduler_type: Scheduler type to use (e.g., 'DDIM', 'DPMSolverMultistep')
+        sampler_type: Sampler algorithm (e.g., 'DPMSolverMultistep', 'EulerDiscrete')
+        schedule_type: Noise schedule type (e.g., 'karras', 'exponential')
 
     Returns:
         Generated image as bytes (PNG format)
@@ -234,7 +252,8 @@ def perform_generative_fill(
             device=device,
             lora_paths=lora_paths,
             lora_scales=lora_scales,
-            scheduler_type=scheduler_type,
+            sampler_type=sampler_type,
+            schedule_type=schedule_type,
         )
 
         # Set seed for reproducibility

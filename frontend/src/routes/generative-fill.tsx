@@ -19,14 +19,22 @@ import { API_BASE_URL } from '@/lib/constants'
 import { AdvancedMaskCanvas } from '@/components/advanced-mask-canvas'
 import { ImageDetailDialog } from '@/components/image-detail-dialog'
 
-const SCHEDULER_OPTIONS = [
-  { value: '_default', label: 'Default (auto)', description: 'Uses model default scheduler' },
+const SAMPLER_OPTIONS = [
+  { value: '_default', label: 'Default (auto)', description: 'Uses model default sampler' },
   { value: 'DPMSolverMultistep', label: 'DPM++', description: 'Recommended - Best quality/speed' },
   { value: 'DDIM', label: 'DDIM', description: 'Fast and deterministic' },
-  { value: 'EulerAncestralDiscrete', label: 'Euler Ancestral', description: 'Varied results' },
+  { value: 'EulerAncestralDiscrete', label: 'Euler A', description: 'Varied results' },
   { value: 'EulerDiscrete', label: 'Euler', description: 'Stable and deterministic' },
   { value: 'PNDM', label: 'PNDM', description: 'Balanced quality/speed' },
   { value: 'LMSDiscrete', label: 'LMS', description: 'Smooth results' },
+  { value: 'LCM', label: 'LCM', description: 'Latent Consistency - Very fast' },
+  { value: 'EDMEuler', label: 'EDM Euler', description: 'Exponential - High quality' },
+] as const
+
+const SCHEDULE_OPTIONS = [
+  { value: '_default', label: 'Default', description: 'Standard noise schedule' },
+  { value: 'karras', label: 'Karras', description: 'Improved noise schedule' },
+  { value: 'exponential', label: 'Exponential', description: 'EDM-style exponential' },
 ] as const
 
 type GenerativeFillSearch = {
@@ -89,7 +97,8 @@ function RouteComponent() {
   const [guidanceScale, setGuidanceScale] = useState(7.5)
   const [strength, setStrength] = useState(1.0)
   const [seed, setSeed] = useState<number | null>(null)
-  const [selectedScheduler, setSelectedScheduler] = useState<string>('')
+  const [selectedSampler, setSelectedSampler] = useState<string>('')
+  const [selectedSchedule, setSelectedSchedule] = useState<string>('')
   const [availableLoras, setAvailableLoras] = useState<LoRA[]>([])
   const [loadingLoras, setLoadingLoras] = useState(true)
   const [selectedLoras, setSelectedLoras] = useState<LoRASelection[]>([])
@@ -221,8 +230,11 @@ function RouteComponent() {
       if (seed !== null) {
         formData.append('seed', seed.toString())
       }
-      if (selectedScheduler && selectedScheduler !== '_default') {
-        formData.append('scheduler', selectedScheduler)
+      if (selectedSampler && selectedSampler !== '_default') {
+        formData.append('sampler', selectedSampler)
+      }
+      if (selectedSchedule && selectedSchedule !== '_default') {
+        formData.append('schedule', selectedSchedule)
       }
       if (selectedLoras.length > 0) {
         const loraNames = selectedLoras.map((l) => l.name).join(',')
@@ -416,25 +428,47 @@ function RouteComponent() {
               />
             </InputCard>
 
-            {/* Scheduler Selection */}
-            <InputCard title="Scheduler (Optional)" description="Choose the diffusion scheduler">
-              <Select value={selectedScheduler} onValueChange={setSelectedScheduler}>
+            {/* Sampler Selection */}
+            <InputCard title="Sampler (Optional)" description="Choose the sampling algorithm">
+              <Select value={selectedSampler} onValueChange={setSelectedSampler}>
                 <SelectTrigger>
                   <SelectValue placeholder="Default (auto)" />
                 </SelectTrigger>
                 <SelectContent>
-                  {SCHEDULER_OPTIONS.map((scheduler) => (
-                    <SelectItem key={scheduler.value} value={scheduler.value}>
-                      {scheduler.label}
-                      {scheduler.description && (
-                        <span className="text-muted-foreground"> - {scheduler.description}</span>
+                  {SAMPLER_OPTIONS.map((sampler) => (
+                    <SelectItem key={sampler.value} value={sampler.value}>
+                      {sampler.label}
+                      {sampler.description && (
+                        <span className="text-muted-foreground"> - {sampler.description}</span>
                       )}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground mt-2">
-                Different schedulers affect generation quality and speed
+                Different samplers affect generation quality and speed
+              </p>
+            </InputCard>
+
+            {/* Schedule Selection */}
+            <InputCard title="Schedule (Optional)" description="Choose the noise schedule">
+              <Select value={selectedSchedule} onValueChange={setSelectedSchedule}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Default" />
+                </SelectTrigger>
+                <SelectContent>
+                  {SCHEDULE_OPTIONS.map((schedule) => (
+                    <SelectItem key={schedule.value} value={schedule.value}>
+                      {schedule.label}
+                      {schedule.description && (
+                        <span className="text-muted-foreground"> - {schedule.description}</span>
+                      )}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-2">
+                Noise schedule affects how denoising progresses
               </p>
             </InputCard>
 
@@ -521,16 +555,16 @@ function RouteComponent() {
                   <div className="flex gap-2 items-center mt-2">
                     <input
                       type="range"
-                      min="20"
-                      max="50"
+                      min="1"
+                      max="100"
                       value={numSteps}
                       onChange={(e) => setNumSteps(parseInt(e.target.value))}
                       className="flex-1"
                     />
                     <input
                       type="number"
-                      min="20"
-                      max="50"
+                      min="1"
+                      max="100"
                       value={numSteps}
                       onChange={(e) => {
                         const val = parseInt(e.target.value)
@@ -540,17 +574,17 @@ function RouteComponent() {
                       }}
                       onBlur={(e) => {
                         const val = parseInt(e.target.value)
-                        if (isNaN(val) || val < 20) {
-                          setNumSteps(20)
-                        } else if (val > 50) {
-                          setNumSteps(50)
+                        if (isNaN(val) || val < 1) {
+                          setNumSteps(1)
+                        } else if (val > 100) {
+                          setNumSteps(100)
                         }
                       }}
                       className="w-16 px-2 py-1 border rounded-md text-sm text-center"
                     />
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    20-50 steps (more = better quality but slower)
+                    1-100 steps (more = better quality but slower)
                   </p>
                 </div>
 
@@ -613,9 +647,15 @@ function RouteComponent() {
                       step="0.01"
                       value={strength}
                       onChange={(e) => {
-                        const val = parseFloat(e.target.value)
-                        if (!isNaN(val)) {
-                          setStrength(val)
+                        const val = e.target.value
+                        // Allow empty string and incomplete decimals while typing
+                        if (val === '' || val === '.' || val === '0.') {
+                          setStrength(parseFloat(val) || 0)
+                        } else {
+                          const parsed = parseFloat(val)
+                          if (!isNaN(parsed)) {
+                            setStrength(parsed)
+                          }
                         }
                       }}
                       onBlur={(e) => {

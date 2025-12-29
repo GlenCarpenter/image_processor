@@ -22,6 +22,8 @@ diffusers==0.31.0
 transformers>=4.25.0
 accelerate>=0.20.0
 huggingface-hub>=0.20.0
+# PEFT for LoRA support
+peft>=0.7.0
 
 # PyTorch for GPU acceleration (Windows with CUDA 12.1)
 # NOTE: Install using setup_environment.py to get CUDA support

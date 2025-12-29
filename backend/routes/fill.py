@@ -95,9 +95,11 @@ async def generative_fill(
         None,
         description="Comma-separated list of scales for each LoRA (e.g., '0.8,1.0')",
     ),
-    scheduler: Optional[str] = Form(
-        None,
-        description="Scheduler type (DDIM, DPMSolverMultistep, EulerAncestralDiscrete, etc.)",
+    sampler: Optional[str] = Form(
+        None, description="Sampler type (DPM++, Euler, Euler A, LCM, etc.)"
+    ),
+    schedule: Optional[str] = Form(
+        None, description="Noise schedule (karras, exponential, etc.)"
     ),
 ):
     """
@@ -116,7 +118,8 @@ async def generative_fill(
     - **seed**: Random seed for reproducibility (optional)
     - **lora_names**: Comma-separated LoRA names (optional)
     - **lora_scales**: Comma-separated scales for each LoRA (optional)
-    - **scheduler**: Scheduler type like DDIM, DPMSolverMultistep, etc. (optional)
+    - **sampler**: Sampling algorithm like DPM++, Euler, etc. (optional)
+    - **schedule**: Noise schedule like karras, exponential (optional)
 
     **Returns:** Output image and job metadata
     """
@@ -134,10 +137,10 @@ async def generative_fill(
         )
 
     # Validate parameters
-    if num_inference_steps < 20 or num_inference_steps > 50:
+    if num_inference_steps < 1 or num_inference_steps > 100:
         raise HTTPException(
             status_code=400,
-            detail="Number of inference steps must be between 20 and 50",
+            detail="Number of inference steps must be between 1 and 100",
         )
 
     if guidance_scale < 1 or guidance_scale > 20:
@@ -220,7 +223,8 @@ async def generative_fill(
             target_height=height,
             lora_paths=lora_paths_list,
             lora_scales=lora_scales_list,
-            scheduler_type=scheduler,
+            sampler_type=sampler,
+            schedule_type=schedule,
         )
 
         # Save output
@@ -244,7 +248,8 @@ async def generative_fill(
             "original_filename": file.filename or "unknown",
             "lora_names": lora_names,
             "lora_scales": lora_scales,
-            "scheduler": scheduler,
+            "sampler": sampler,
+            "schedule": schedule,
         }
 
         from backend.utils.image_processing import add_metadata_to_image
