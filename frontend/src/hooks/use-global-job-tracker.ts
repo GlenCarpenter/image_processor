@@ -7,7 +7,13 @@ import { useEffect, useCallback, useRef } from 'react'
 import { toast } from 'sonner'
 import { useImageStore } from '@/store/imageStore'
 import { API_BASE_URL } from '@/lib/constants'
-import { extractImageMetadata, fetchExifData, fetchPrompt, fetchGenerationParams, fetchImageInfo } from '@/lib/imageUtils'
+import {
+  extractImageMetadata,
+  fetchExifData,
+  fetchPrompt,
+  fetchGenerationParams,
+  fetchImageInfo,
+} from '@/lib/imageUtils'
 
 interface Job {
   id: number
@@ -52,13 +58,13 @@ export function useGlobalJobTracker() {
           const file = new File([blob], job.output_filename, { type: blob.type })
 
           const metadata = await extractImageMetadata(file, imageUrl)
-          
+
           // Fetch additional metadata from backend
           const exifData = await fetchExifData(job.output_filename, API_BASE_URL)
           const promptData = await fetchPrompt(job.output_filename, API_BASE_URL)
           const generationParams = await fetchGenerationParams(job.output_filename, API_BASE_URL)
           const imageInfo = await fetchImageInfo(job.output_filename, API_BASE_URL)
-          
+
           // Combine all metadata
           const fullMetadata = {
             ...metadata,

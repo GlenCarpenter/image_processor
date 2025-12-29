@@ -84,7 +84,7 @@ async def edit_image(
             status_code=400,
             detail="At least one image file is required",
         )
-    
+
     if len(files) > 4:
         raise HTTPException(
             status_code=400,
@@ -122,7 +122,7 @@ async def edit_image(
         image_urls = []
         processed_filenames = []
         output_dimensions = None
-        
+
         for file in files:
             # Read the uploaded file
             image_bytes = await file.read()
@@ -140,11 +140,11 @@ async def edit_image(
             )
             output_width = resize_info["target_size"]["width"]
             output_height = resize_info["target_size"]["height"]
-            
+
             # Store dimensions from first image for the job
             if output_dimensions is None:
                 output_dimensions = (output_width, output_height)
-            
+
             print(
                 f"Resized image from {width}x{height} to {output_width}x{output_height} (target: {target_resolution})"
             )
@@ -156,7 +156,7 @@ async def edit_image(
             print(f"Uploading image {file.filename} to Fal storage...")
             image_url = upload_bytes_to_fal(image_bytes, file.filename)
             print(f"Image uploaded: {image_url}")
-            
+
             image_urls.append(image_url)
             processed_filenames.append(file.filename or "unknown")
 
@@ -183,8 +183,12 @@ async def edit_image(
         print(f"Job submitted with request_id: {request_id}")
 
         # Create database job record with pending status and metadata
-        input_filename = ", ".join(processed_filenames) if len(processed_filenames) > 1 else processed_filenames[0]
-        
+        input_filename = (
+            ", ".join(processed_filenames)
+            if len(processed_filenames) > 1
+            else processed_filenames[0]
+        )
+
         # Store all parameters as metadata
         job_metadata = {
             "prompt": prompt,
@@ -198,8 +202,9 @@ async def edit_image(
             "target_resolution": target_resolution,
             "num_images": len(image_urls),
         }
-        
+
         import json
+
         job_id = create_job(
             job_type="edit",
             input_filename=input_filename,

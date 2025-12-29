@@ -15,7 +15,8 @@ interface ImageMetadataDisplayProps {
 export function ImageMetadataDisplay({ metadata }: ImageMetadataDisplayProps) {
   const hasExif = metadata.exif && Object.keys(metadata.exif).length > 0
   const hasPrompt = !!metadata.prompt
-  const hasGenerationParams = !!metadata.generationParams && Object.keys(metadata.generationParams).length > 0
+  const hasGenerationParams =
+    !!metadata.generationParams && Object.keys(metadata.generationParams).length > 0
   const hasImageInfo = !!metadata.imageInfo && Object.keys(metadata.imageInfo).length > 0
   const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set())
 
@@ -84,9 +85,7 @@ export function ImageMetadataDisplay({ metadata }: ImageMetadataDisplayProps) {
             <div className="grid grid-cols-2 gap-3 text-sm">
               {Object.entries(metadata.generationParams!).map(([key, value]) => {
                 // Format the key to be more readable
-                const formattedKey = key
-                  .replace(/_/g, ' ')
-                  .replace(/\b\w/g, (l) => l.toUpperCase())
+                const formattedKey = key.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())
 
                 // Format the value
                 let formattedValue = String(value)

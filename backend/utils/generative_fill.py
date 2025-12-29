@@ -11,6 +11,36 @@ from PIL import Image
 from io import BytesIO
 
 
+def detect_loras() -> List[Dict[str, str]]:
+    """
+    Detect all available LoRA files in the lora directory
+
+    Returns:
+        List of dicts with 'name' and 'path' keys for each LoRA found
+    """
+    lora_dir = Path(__file__).parent.parent.parent / "lora"
+    loras = []
+
+    if not lora_dir.exists():
+        print(f"LoRA directory not found: {lora_dir}")
+        return loras
+
+    # Find all .safetensors files
+    for lora_file in lora_dir.glob("*.safetensors"):
+        loras.append(
+            {
+                "name": lora_file.stem,  # Filename without extension
+                "path": str(lora_file),
+                "filename": lora_file.name,
+            }
+        )
+
+    # Sort by name for consistent ordering
+    loras.sort(key=lambda x: x["name"])
+    print(f"Found {len(loras)} LoRA(s): {[lora['name'] for lora in loras]}")
+    return loras
+
+
 def detect_sdxl_models() -> List[Dict[str, str]]:
     """
     Detect all available SDXL safetensors models in the sdxl directory
@@ -42,7 +72,11 @@ def detect_sdxl_models() -> List[Dict[str, str]]:
 
 
 def load_sdxl_pipeline(
-    model_path: str, device: str = "cuda"
+    model_path: str,
+    device: str = "cuda",
+    lora_paths: Optional[List[str]] = None,
+    lora_scales: Optional[List[float]] = None,
+    scheduler_type: Optional[str] = None,
 ) -> StableDiffusionXLInpaintPipeline:
     """
     Load an SDXL inpaint pipeline from a safetensors model
@@ -50,6 +84,9 @@ def load_sdxl_pipeline(
     Args:
         model_path: Path to the SDXL safetensors model
         device: Device to load model on ('cuda' or 'cpu')
+        lora_paths: List of paths to LoRA files to load
+        lora_scales: List of scales for each LoRA (default: 1.0 for each)
+        scheduler_type: Scheduler type to use (e.g., 'DDIM', 'DPMSolverMultistep', 'EulerAncestralDiscrete')
 
     Returns:
         Loaded pipeline ready for inference
@@ -74,7 +111,54 @@ def load_sdxl_pipeline(
         if device == "cuda":
             pipeline.enable_attention_slicing()
 
-        print(f"Model loaded successfully")
+        # Load LoRAs if specified
+        if lora_paths:
+            if lora_scales is None:
+                lora_scales = [1.0] * len(lora_paths)
+            elif len(lora_scales) != len(lora_paths):
+                raise ValueError(
+                    "Number of LoRA scales must match number of LoRA paths"
+                )
+
+            for lora_path, lora_scale in zip(lora_paths, lora_scales):
+                if not Path(lora_path).exists():
+                    print(f"Warning: LoRA not found at {lora_path}, skipping...")
+                    continue
+                print(f"Loading LoRA: {lora_path} with scale {lora_scale}")
+                pipeline.load_lora_weights(lora_path, adapter_name=Path(lora_path).stem)
+                pipeline.fuse_lora(lora_scale=lora_scale)
+
+        # Set scheduler if specified
+        if scheduler_type:
+            from diffusers import (
+                DDIMScheduler,
+                DPMSolverMultistepScheduler,
+                EulerAncestralDiscreteScheduler,
+                EulerDiscreteScheduler,
+                PNDMScheduler,
+                LMSDiscreteScheduler,
+            )
+
+            scheduler_map = {
+                "DDIM": DDIMScheduler,
+                "DPMSolverMultistep": DPMSolverMultistepScheduler,
+                "EulerAncestralDiscrete": EulerAncestralDiscreteScheduler,
+                "EulerDiscrete": EulerDiscreteScheduler,
+                "PNDM": PNDMScheduler,
+                "LMSDiscrete": LMSDiscreteScheduler,
+            }
+
+            if scheduler_type in scheduler_map:
+                print(f"Setting scheduler to: {scheduler_type}")
+                pipeline.scheduler = scheduler_map[scheduler_type].from_config(
+                    pipeline.scheduler.config
+                )
+            else:
+                print(
+                    f"Warning: Unknown scheduler type '{scheduler_type}', using default"
+                )
+
+        print("Model loaded successfully")
         return pipeline
 
     except Exception as e:
@@ -94,6 +178,9 @@ def perform_generative_fill(
     device: str = "cuda",
     target_width: Optional[int] = None,
     target_height: Optional[int] = None,
+    lora_paths: Optional[List[str]] = None,
+    lora_scales: Optional[List[float]] = None,
+    scheduler_type: Optional[str] = None,
 ) -> bytes:
     """
     Perform generative fill on an image using an SDXL model
@@ -111,6 +198,9 @@ def perform_generative_fill(
         device: Device to run inference on
         target_width: Target width for output (if None, preserves input width)
         target_height: Target height for output (if None, preserves input height)
+        lora_paths: List of paths to LoRA files to load
+        lora_scales: List of scales for each LoRA (default: 1.0 for each)
+        scheduler_type: Scheduler type to use (e.g., 'DDIM', 'DPMSolverMultistep')
 
     Returns:
         Generated image as bytes (PNG format)
@@ -139,7 +229,13 @@ def perform_generative_fill(
         )
 
         # Load pipeline
-        pipeline = load_sdxl_pipeline(model_path, device=device)
+        pipeline = load_sdxl_pipeline(
+            model_path,
+            device=device,
+            lora_paths=lora_paths,
+            lora_scales=lora_scales,
+            scheduler_type=scheduler_type,
+        )
 
         # Set seed for reproducibility
         if seed is not None:

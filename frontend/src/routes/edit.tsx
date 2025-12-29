@@ -6,7 +6,13 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { useImageStore } from '@/store/imageStore'
-import { extractImageMetadata, fetchExifData, fetchPrompt, fetchImageInfo, fetchGenerationParams } from '@/lib/imageUtils'
+import {
+  extractImageMetadata,
+  fetchExifData,
+  fetchPrompt,
+  fetchImageInfo,
+  fetchGenerationParams,
+} from '@/lib/imageUtils'
 import { ImageMetadataDisplay } from '@/components/image-metadata-display'
 import { InputCard } from '@/components/input-card'
 import { OriginalImagePreview } from '@/components/original-image-preview'

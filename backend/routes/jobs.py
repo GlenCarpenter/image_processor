@@ -308,10 +308,13 @@ async def process_completed_job(job_id: int, job_type: str, result: Dict[str, An
         # Add metadata to the image if job has metadata stored
         if job.get("metadata"):
             import json
+
             try:
                 job_metadata = json.loads(job["metadata"])
                 # Add generation parameters to the image
-                add_metadata_to_image(str(output_path), job_metadata, format=extension.lstrip('.'))
+                add_metadata_to_image(
+                    str(output_path), job_metadata, format=extension.lstrip(".")
+                )
                 print(f"Added metadata to output image: {output_filename}")
             except Exception as e:
                 print(f"Warning: Could not add metadata to image: {str(e)}")

@@ -15,10 +15,9 @@ from PIL import Image
 from backend.database import create_job, create_output, update_job_status
 from backend.utils.generative_fill import (
     detect_sdxl_models,
+    detect_loras,
     perform_generative_fill,
-    create_simple_mask_from_polygon,
 )
-from backend.utils.image_processing import resize_image_bytes
 
 router = APIRouter()
 
@@ -52,6 +51,24 @@ async def get_available_models():
         raise HTTPException(status_code=500, detail=f"Error detecting models: {str(e)}")
 
 
+@router.get("/loras")
+async def get_available_loras():
+    """
+    Get list of available LoRAs detected in the lora directory
+
+    **Returns:** List of LoRA objects with name and path
+    """
+    try:
+        loras = detect_loras()
+        return {
+            "success": True,
+            "loras": loras,
+            "count": len(loras),
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error detecting LoRAs: {str(e)}")
+
+
 @router.post("/fill")
 async def generative_fill(
     file: UploadFile = File(..., description="Image file to fill"),
@@ -71,6 +88,17 @@ async def generative_fill(
         1.0, description="Inpaint strength (0-1, where 1 = full inpaint)"
     ),
     seed: Optional[int] = Form(None, description="Random seed for reproducibility"),
+    lora_names: Optional[str] = Form(
+        None, description="Comma-separated list of LoRA names to use"
+    ),
+    lora_scales: Optional[str] = Form(
+        None,
+        description="Comma-separated list of scales for each LoRA (e.g., '0.8,1.0')",
+    ),
+    scheduler: Optional[str] = Form(
+        None,
+        description="Scheduler type (DDIM, DPMSolverMultistep, EulerAncestralDiscrete, etc.)",
+    ),
 ):
     """
     Perform generative fill on an image using SDXL model.
@@ -86,6 +114,9 @@ async def generative_fill(
     - **guidance_scale**: Prompt guidance strength, 7-15 recommended (default: 7.5)
     - **strength**: Inpaint strength 0-1 (default: 1.0)
     - **seed**: Random seed for reproducibility (optional)
+    - **lora_names**: Comma-separated LoRA names (optional)
+    - **lora_scales**: Comma-separated scales for each LoRA (optional)
+    - **scheduler**: Scheduler type like DDIM, DPMSolverMultistep, etc. (optional)
 
     **Returns:** Output image and job metadata
     """
@@ -137,7 +168,6 @@ async def generative_fill(
         # Validate images can be opened
         try:
             img = Image.open(BytesIO(image_bytes))
-            mask_img = Image.open(BytesIO(mask_bytes))
             width, height = img.size
         except Exception as e:
             raise HTTPException(status_code=400, detail=f"Invalid image file: {str(e)}")
@@ -145,6 +175,34 @@ async def generative_fill(
         print(
             f"Performing generative fill: {model_name}, prompt='{prompt}', size={width}x{height}"
         )
+
+        # Process LoRA parameters
+        lora_paths_list = None
+        lora_scales_list = None
+
+        if lora_names:
+            available_loras = detect_loras()
+            lora_name_list = [name.strip() for name in lora_names.split(",")]
+            lora_paths_list = []
+
+            for lora_name in lora_name_list:
+                lora_info = next(
+                    (l for l in available_loras if l["name"] == lora_name), None
+                )
+                if lora_info:
+                    lora_paths_list.append(lora_info["path"])
+                else:
+                    print(f"Warning: LoRA '{lora_name}' not found, skipping...")
+
+            if lora_scales:
+                lora_scales_list = [
+                    float(scale.strip()) for scale in lora_scales.split(",")
+                ]
+                if len(lora_scales_list) != len(lora_paths_list):
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Number of LoRA scales ({len(lora_scales_list)}) must match number of valid LoRAs ({len(lora_paths_list)})",
+                    )
 
         # Perform generative fill
         output_bytes = perform_generative_fill(
@@ -160,6 +218,9 @@ async def generative_fill(
             device="cuda",  # Use CUDA if available, falls back to CPU
             target_width=width,  # Preserve original dimensions
             target_height=height,
+            lora_paths=lora_paths_list,
+            lora_scales=lora_scales_list,
+            scheduler_type=scheduler,
         )
 
         # Save output
@@ -181,10 +242,14 @@ async def generative_fill(
             "strength": strength,
             "seed": seed,
             "original_filename": file.filename or "unknown",
+            "lora_names": lora_names,
+            "lora_scales": lora_scales,
+            "scheduler": scheduler,
         }
-        
+
         from backend.utils.image_processing import add_metadata_to_image
-        add_metadata_to_image(str(output_path), fill_metadata, format='png')
+
+        add_metadata_to_image(str(output_path), fill_metadata, format="png")
 
         # Get output image dimensions
         output_img = Image.open(BytesIO(output_bytes))

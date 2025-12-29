@@ -86,7 +86,7 @@ export function ImageDetailDialog({
 
     setLoadingMetadata(true)
     const imageUrl = `${API_BASE_URL}/images/output/${filename}`
-    
+
     fetch(imageUrl)
       .then((res) => res.blob())
       .then((blob) => {

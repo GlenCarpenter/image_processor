@@ -240,4 +240,3 @@ export const fetchImageInfo = async (
     return null
   }
 }
-

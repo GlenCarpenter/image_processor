@@ -326,28 +326,37 @@ def extract_exif_data(image_path: str) -> Dict[str, Any]:
 
         # Extract all image metadata (PNG info chunks, etc.)
         image_metadata = extract_image_metadata(img)
-        
+
         # Extract generation parameters from PNG text chunks (if present)
         generation_params = {}
         if hasattr(img, "info"):
             # Look for our embedded parameters
             param_keys = [
-                "prompt", "negative_prompt", "guidance_scale", "num_inference_steps",
-                "acceleration", "enable_safety_checker", "output_format", "seed",
-                "target_resolution", "num_images", "model", "strength"
+                "prompt",
+                "negative_prompt",
+                "guidance_scale",
+                "num_inference_steps",
+                "acceleration",
+                "enable_safety_checker",
+                "output_format",
+                "seed",
+                "target_resolution",
+                "num_images",
+                "model",
+                "strength",
             ]
-            
+
             for key in param_keys:
                 if key in img.info:
                     value = img.info[key]
                     # Try to parse JSON if it's a string that looks like JSON
                     if isinstance(value, str):
-                        if value.lower() in ['true', 'false']:
-                            generation_params[key] = value.lower() == 'true'
-                        elif value.replace('.', '', 1).replace('-', '', 1).isdigit():
+                        if value.lower() in ["true", "false"]:
+                            generation_params[key] = value.lower() == "true"
+                        elif value.replace(".", "", 1).replace("-", "", 1).isdigit():
                             # Try to convert to number
                             try:
-                                if '.' in value:
+                                if "." in value:
                                     generation_params[key] = float(value)
                                 else:
                                     generation_params[key] = int(value)
@@ -494,10 +503,10 @@ def extract_exif_data(image_path: str) -> Dict[str, Any]:
 
         # Return EXIF, prompt, generation parameters, and all image metadata separately
         return {
-            "exif": exif_result, 
-            "prompt": prompt, 
+            "exif": exif_result,
+            "prompt": prompt,
             "generation_params": generation_params,
-            "image_info": image_metadata
+            "image_info": image_metadata,
         }
 
     except Exception as e:
@@ -508,20 +517,20 @@ def extract_exif_data(image_path: str) -> Dict[str, Any]:
 def add_metadata_to_png(image_path: str, metadata: Dict[str, Any]) -> None:
     """
     Add metadata to a PNG file as PNG text chunks
-    
+
     Args:
         image_path: Path to the PNG file
         metadata: Dictionary of metadata to embed (will be JSON serialized)
     """
     try:
         from PIL import PngImagePlugin
-        
+
         # Open the existing image
         img = Image.open(image_path)
-        
+
         # Create PNG info object
         png_info = PngImagePlugin.PngInfo()
-        
+
         # Add each metadata field as a separate text chunk
         for key, value in metadata.items():
             if value is not None:
@@ -531,19 +540,21 @@ def add_metadata_to_png(image_path: str, metadata: Dict[str, Any]) -> None:
                 else:
                     value_str = str(value)
                 png_info.add_text(key, value_str)
-        
+
         # Save with metadata
         img.save(image_path, "PNG", pnginfo=png_info)
         print(f"Added metadata to {image_path}")
-        
+
     except Exception as e:
         print(f"Warning: Failed to add metadata to PNG: {str(e)}")
 
 
-def add_metadata_to_image(image_path: str, metadata: Dict[str, Any], format: str = None) -> None:
+def add_metadata_to_image(
+    image_path: str, metadata: Dict[str, Any], format: str = None
+) -> None:
     """
     Add metadata to an image file (PNG, JPEG, or WEBP)
-    
+
     Args:
         image_path: Path to the image file
         metadata: Dictionary of metadata to embed
@@ -552,28 +563,31 @@ def add_metadata_to_image(image_path: str, metadata: Dict[str, Any], format: str
     try:
         if format is None:
             # Detect format from extension
-            ext = image_path.lower().split('.')[-1]
-            if ext == 'jpg':
-                ext = 'jpeg'
+            ext = image_path.lower().split(".")[-1]
+            if ext == "jpg":
+                ext = "jpeg"
             format = ext
-        
-        if format.lower() == 'png':
+
+        if format.lower() == "png":
             add_metadata_to_png(image_path, metadata)
         else:
             # For JPEG and WEBP, we can only add a comment
             # Convert metadata to JSON string
             metadata_str = json.dumps(metadata, indent=2)
-            
+
             img = Image.open(image_path)
-            
+
             # Save with comment in EXIF (best effort)
-            if format.lower() == 'jpeg':
+            if format.lower() == "jpeg":
                 # JPEG doesn't support text chunks like PNG, but we can try UserComment
-                print(f"Warning: JPEG format has limited metadata support. Metadata: {metadata_str[:100]}...")
-            elif format.lower() == 'webp':
+                print(
+                    f"Warning: JPEG format has limited metadata support. Metadata: {metadata_str[:100]}..."
+                )
+            elif format.lower() == "webp":
                 # WebP supports XMP metadata but it's complex
-                print(f"Warning: WebP format has limited metadata support. Metadata: {metadata_str[:100]}...")
-            
+                print(
+                    f"Warning: WebP format has limited metadata support. Metadata: {metadata_str[:100]}..."
+                )
+
     except Exception as e:
         print(f"Warning: Failed to add metadata to image: {str(e)}")
-

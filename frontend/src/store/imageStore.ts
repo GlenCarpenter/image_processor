@@ -638,7 +638,9 @@ export const useImageStore = create<ImageState>()(
             set((state) => {
               const filtered = state.presets.filter((p) => p.id !== transformedPreset.id)
               return {
-                presets: [...filtered, transformedPreset].sort((a, b) => a.name.localeCompare(b.name)),
+                presets: [...filtered, transformedPreset].sort((a, b) =>
+                  a.name.localeCompare(b.name)
+                ),
               }
             })
           } else {

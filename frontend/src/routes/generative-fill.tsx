@@ -19,6 +19,16 @@ import { API_BASE_URL } from '@/lib/constants'
 import { AdvancedMaskCanvas } from '@/components/advanced-mask-canvas'
 import { ImageDetailDialog } from '@/components/image-detail-dialog'
 
+const SCHEDULER_OPTIONS = [
+  { value: '_default', label: 'Default (auto)', description: 'Uses model default scheduler' },
+  { value: 'DPMSolverMultistep', label: 'DPM++', description: 'Recommended - Best quality/speed' },
+  { value: 'DDIM', label: 'DDIM', description: 'Fast and deterministic' },
+  { value: 'EulerAncestralDiscrete', label: 'Euler Ancestral', description: 'Varied results' },
+  { value: 'EulerDiscrete', label: 'Euler', description: 'Stable and deterministic' },
+  { value: 'PNDM', label: 'PNDM', description: 'Balanced quality/speed' },
+  { value: 'LMSDiscrete', label: 'LMS', description: 'Smooth results' },
+] as const
+
 type GenerativeFillSearch = {
   filename?: string
 }
@@ -36,6 +46,17 @@ interface SDXLModel {
   name: string
   path: string
   filename: string
+}
+
+interface LoRA {
+  name: string
+  path: string
+  filename: string
+}
+
+interface LoRASelection {
+  name: string
+  scale: number
 }
 
 function RouteComponent() {
@@ -69,6 +90,12 @@ function RouteComponent() {
   const [strength, setStrength] = useState(1.0)
   const [seed, setSeed] = useState<number | null>(null)
 
+  // New state for scheduler and LoRAs
+  const [selectedScheduler, setSelectedScheduler] = useState<string>('')
+  const [availableLoras, setAvailableLoras] = useState<LoRA[]>([])
+  const [loadingLoras, setLoadingLoras] = useState(true)
+  const [selectedLoras, setSelectedLoras] = useState<LoRASelection[]>([])
+
   // Dialog state
   const [dialogOpen, setDialogOpen] = useState(false)
   const [resultFilename, setResultFilename] = useState<string | null>(null)
@@ -100,6 +127,27 @@ function RouteComponent() {
     }
 
     loadModels()
+  }, [])
+
+  // Load LoRAs on mount
+  useEffect(() => {
+    const loadLoras = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/fill/loras`)
+        const data = await response.json()
+        if (data.success && data.loras.length > 0) {
+          setAvailableLoras(data.loras)
+          toast.success(`Found ${data.loras.length} LoRA(s)`)
+        }
+      } catch (error) {
+        console.error('Failed to load LoRAs:', error)
+        // Don't show error toast - LoRAs are optional
+      } finally {
+        setLoadingLoras(false)
+      }
+    }
+
+    loadLoras()
   }, [])
 
   // Load image from URL query param on mount
@@ -174,6 +222,15 @@ function RouteComponent() {
       formData.append('strength', strength.toString())
       if (seed !== null) {
         formData.append('seed', seed.toString())
+      }
+      if (selectedScheduler && selectedScheduler !== '_default') {
+        formData.append('scheduler', selectedScheduler)
+      }
+      if (selectedLoras.length > 0) {
+        const loraNames = selectedLoras.map((l) => l.name).join(',')
+        const loraScales = selectedLoras.map((l) => l.scale).join(',')
+        formData.append('lora_names', loraNames)
+        formData.append('lora_scales', loraScales)
       }
 
       const response = await fetch(`${API_BASE_URL}/fill/fill`, {
@@ -361,58 +418,195 @@ function RouteComponent() {
               />
             </InputCard>
 
+            {/* Scheduler Selection */}
+            <InputCard title="Scheduler (Optional)" description="Choose the diffusion scheduler">
+              <Select value={selectedScheduler} onValueChange={setSelectedScheduler}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Default (auto)" />
+                </SelectTrigger>
+                <SelectContent>
+                  {SCHEDULER_OPTIONS.map((scheduler) => (
+                    <SelectItem key={scheduler.value} value={scheduler.value}>
+                      {scheduler.label}
+                      {scheduler.description && (
+                        <span className="text-muted-foreground"> - {scheduler.description}</span>
+                      )}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-2">
+                Different schedulers affect generation quality and speed
+              </p>
+            </InputCard>
+
+            {/* LoRA Selection */}
+            {!loadingLoras && availableLoras.length > 0 && (
+              <InputCard
+                title="LoRAs (Optional)"
+                description="Customize style with Low-Rank Adaptations"
+              >
+                <div className="space-y-4">
+                  {selectedLoras.length > 0 && (
+                    <div className="space-y-2">
+                      {selectedLoras.map((lora, index) => (
+                        <div
+                          key={index}
+                          className="flex gap-2 items-center p-3 bg-muted rounded-lg"
+                        >
+                          <div className="flex-1">
+                            <p className="text-sm font-medium">{lora.name}</p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <Label className="text-xs text-muted-foreground">Scale:</Label>
+                              <input
+                                type="range"
+                                min="0"
+                                max="2"
+                                step="0.1"
+                                value={lora.scale}
+                                onChange={(e) => {
+                                  const newLoras = [...selectedLoras]
+                                  newLoras[index].scale = parseFloat(e.target.value)
+                                  setSelectedLoras(newLoras)
+                                }}
+                                className="flex-1"
+                              />
+                              <span className="text-xs font-mono w-8">{lora.scale.toFixed(1)}</span>
+                            </div>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedLoras(selectedLoras.filter((_, i) => i !== index))
+                            }}
+                          >
+                            Remove
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <Select
+                    value=""
+                    onValueChange={(value) => {
+                      if (value && !selectedLoras.find((l) => l.name === value)) {
+                        setSelectedLoras([...selectedLoras, { name: value, scale: 1.0 }])
+                      }
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Add LoRA..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableLoras
+                        .filter((lora) => !selectedLoras.find((l) => l.name === lora.name))
+                        .map((lora) => (
+                          <SelectItem key={lora.name} value={lora.name}>
+                            {lora.name}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    LoRAs modify the model for specific styles. Scale: 0.5-1.2 recommended
+                  </p>
+                </div>
+              </InputCard>
+            )}
+
             {/* Advanced Parameters */}
             <InputCard title="Advanced Parameters" description="Fine-tune generation settings">
               <div className="space-y-4">
                 <div>
-                  <Label className="text-sm">
-                    Inference Steps: <span className="font-semibold">{numSteps}</span>
-                  </Label>
-                  <input
-                    type="range"
-                    min="20"
-                    max="50"
-                    value={numSteps}
-                    onChange={(e) => setNumSteps(parseInt(e.target.value))}
-                    className="w-full mt-2"
-                  />
+                  <Label className="text-sm">Inference Steps</Label>
+                  <div className="flex gap-2 items-center mt-2">
+                    <input
+                      type="range"
+                      min="20"
+                      max="50"
+                      value={numSteps}
+                      onChange={(e) => setNumSteps(parseInt(e.target.value))}
+                      className="flex-1"
+                    />
+                    <input
+                      type="number"
+                      min="20"
+                      max="50"
+                      value={numSteps}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value)
+                        if (!isNaN(val) && val >= 20 && val <= 50) {
+                          setNumSteps(val)
+                        }
+                      }}
+                      className="w-16 px-2 py-1 border rounded-md text-sm text-center"
+                    />
+                  </div>
                   <p className="text-xs text-muted-foreground mt-1">
                     20-50 steps (more = better quality but slower)
                   </p>
                 </div>
 
                 <div>
-                  <Label className="text-sm">
-                    Guidance Scale:{' '}
-                    <span className="font-semibold">{guidanceScale.toFixed(1)}</span>
-                  </Label>
-                  <input
-                    type="range"
-                    min="1"
-                    max="20"
-                    step="0.5"
-                    value={guidanceScale}
-                    onChange={(e) => setGuidanceScale(parseFloat(e.target.value))}
-                    className="w-full mt-2"
-                  />
+                  <Label className="text-sm">Guidance Scale</Label>
+                  <div className="flex gap-2 items-center mt-2">
+                    <input
+                      type="range"
+                      min="1"
+                      max="20"
+                      step="0.5"
+                      value={guidanceScale}
+                      onChange={(e) => setGuidanceScale(parseFloat(e.target.value))}
+                      className="flex-1"
+                    />
+                    <input
+                      type="number"
+                      min="1"
+                      max="20"
+                      step="0.5"
+                      value={guidanceScale}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value)
+                        if (!isNaN(val) && val >= 1 && val <= 20) {
+                          setGuidanceScale(val)
+                        }
+                      }}
+                      className="w-16 px-2 py-1 border rounded-md text-sm text-center"
+                    />
+                  </div>
                   <p className="text-xs text-muted-foreground mt-1">
                     7-15 recommended (higher = more prompt adherence)
                   </p>
                 </div>
 
                 <div>
-                  <Label className="text-sm">
-                    Strength: <span className="font-semibold">{strength.toFixed(2)}</span>
-                  </Label>
-                  <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.1"
-                    value={strength}
-                    onChange={(e) => setStrength(parseFloat(e.target.value))}
-                    className="w-full mt-2"
-                  />
+                  <Label className="text-sm">Strength</Label>
+                  <div className="flex gap-2 items-center mt-2">
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.01"
+                      value={strength}
+                      onChange={(e) => setStrength(parseFloat(e.target.value))}
+                      className="flex-1"
+                    />
+                    <input
+                      type="number"
+                      min="0"
+                      max="1"
+                      step="0.01"
+                      value={strength.toFixed(2)}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value)
+                        if (!isNaN(val) && val >= 0 && val <= 1) {
+                          setStrength(val)
+                        }
+                      }}
+                      className="w-16 px-2 py-1 border rounded-md text-sm text-center"
+                    />
+                  </div>
                   <p className="text-xs text-muted-foreground mt-1">
                     1.0 = full inpaint, lower = more preservation
                   </p>

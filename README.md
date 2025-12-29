@@ -17,6 +17,24 @@ segment_markup/
 └── requirements.txt       # Python dependencies
 ```
 
+## Features
+
+### Generative Fill (SDXL Inpainting)
+- Local SDXL model support for inpainting
+- **Custom Schedulers**: Choose from multiple diffusion schedulers (DDIM, DPMSolverMultistep, EulerAncestralDiscrete, etc.)
+- **LoRA Support**: Load and combine multiple LoRAs for customized styles and effects
+- Configurable parameters: steps, guidance scale, strength, seed
+- Automatic model and LoRA detection
+- See [GENERATIVE_FILL_ADVANCED_FEATURES.md](GENERATIVE_FILL_ADVANCED_FEATURES.md) for details
+
+### Other Features
+- **Image Segmentation**: SAM2-based interactive segmentation
+- **Image Upscaling**: Fal AI-powered upscaling
+- **AI Image Editing**: Qwen-based image modifications
+- **Job Tracking**: Database-backed job and output management
+- **Image Resizing**: Batch and single image resizing
+- **Metadata Preservation**: Automatic metadata embedding in outputs
+
 ## Setup Instructions
 
 ### Quick Setup (Recommended)
