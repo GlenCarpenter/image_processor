@@ -45,6 +45,16 @@ def main():
     system = platform.system()
     python_exec = sys.executable
 
+    # Step 0: Update pip, setuptools, and wheel first (fixes many dependency issues)
+    print("\n" + "=" * 60)
+    print("Upgrading pip, setuptools, and wheel")
+    print("=" * 60)
+    run_command(
+        [python_exec, "-m", "pip", "install", "--upgrade", "pip", "setuptools", "wheel"],
+        "Upgrading pip and build tools",
+        shell=False
+    )
+
     # Build pip command as a list for better reliability
     pytorch_packages = ["torch", "torchvision", "torchaudio"]
 
@@ -63,8 +73,13 @@ def main():
             + ["--index-url", "https://download.pytorch.org/whl/cu121"]
         )
     elif system == "Darwin":
-        # MacOS: default (CPU/Metal) build
-        pip_command = [python_exec, "-m", "pip", "install"] + pytorch_packages
+        # MacOS: use CPU/Metal build with specific index
+        # This ensures compatibility with arm64 and x86_64 Macs
+        pip_command = (
+            [python_exec, "-m", "pip", "install"]
+            + pytorch_packages
+            + ["--index-url", "https://download.pytorch.org/whl/cpu"]
+        )
     else:
         print(f"Unknown OS: {system}. Attempting default PyTorch install.")
         pip_command = [python_exec, "-m", "pip", "install"] + pytorch_packages

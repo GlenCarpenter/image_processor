@@ -39,9 +39,15 @@ segment_markup/
 
 ### Quick Setup (Recommended)
 
-**Windows users:**
+**Windows:**
 ```bash
 build.bat
+```
+
+**macOS / Linux:**
+```bash
+chmod +x build.sh
+./build.sh
 ```
 
 This will automatically:
@@ -49,9 +55,7 @@ This will automatically:
 2. Install Python dependencies with GPU support
 3. Build the frontend
 
-**macOS/Linux user:**
-
-Currently not supported due to incompatibilities with Pydantic, this will be fixed on a later release.
+> **macOS users**: See [MACOS_SETUP_GUIDE.md](MACOS_SETUP_GUIDE.md) for solutions to common pydantic and setup issues.
 
 ### Manual Setup
 
@@ -59,13 +63,13 @@ If you prefer to set up manually or need more control:
 
 1. **Create a virtual environment:**
    ```bash
-   python -m venv venv
+   python3 -m venv venv
    ```
 
 2. **Activate the virtual environment:**
    - Windows:
      ```bash
-     .\venv\Scripts\activate
+     venv\Scripts\activate
      ```
    - macOS/Linux:
      ```bash
@@ -77,16 +81,24 @@ If you prefer to set up manually or need more control:
    python setup_environment.py
    ```
    
-   This will install PyTorch with CUDA 12.1 support for GPU acceleration.
+   This will install PyTorch with appropriate GPU support for your OS:
+   - **Windows/Linux**: NVIDIA CUDA 12.1 (if NVIDIA GPU available)
+   - **macOS**: CPU/Metal (Apple Silicon or Intel optimized)
    
-   *Alternative (CPU-only):*
+   *Alternative (if setup_environment.py fails):*
    ```bash
+   pip install --upgrade pip setuptools wheel
    pip install -r requirements.txt
    ```
 
 4. **Configure environment:**
    ```bash
+   # Windows
    copy .env.example .env
+   
+   # macOS/Linux
+   cp .env.example .env
+   
    # Edit .env with your settings
    ```
 

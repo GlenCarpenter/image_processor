@@ -1,26 +1,26 @@
 # Core FastAPI dependencies
 fastapi==0.109.0
 uvicorn[standard]==0.27.0
-pydantic==2.5.3
-pydantic-settings==2.1.0
+pydantic>=2.5.3,<3.0
+pydantic-settings>=2.1.0,<3.0
 
 # CORS middleware (included in FastAPI)
 python-multipart==0.0.6
 
 # Additional utilities
 python-dotenv==1.0.0
-pillow==12.0.0
+pillow>=10.0.0
 tqdm==4.67.1
 black==24.10.0
 
 # Fal AI client for image upscaling
 fal-client==0.5.7
-requests==2.32.3
+requests>=2.28.0
 
 # Hugging Face Diffusers for generative fill with SDXL
-diffusers==0.31.0
-transformers>=4.25.0
-accelerate>=0.20.0
+diffusers>=0.28.0
+transformers>=4.35.0
+accelerate>=0.24.0
 huggingface-hub>=0.20.0
 # PEFT for LoRA support
 peft>=0.7.0
@@ -31,4 +31,4 @@ peft>=0.7.0
 # torch, torchvision, torchaudio - installed separately via setup_environment.py with CUDA support
 
 # Ultralytics SAM 2 for segmentation
-ultralytics==8.3.50
+ultralytics>=8.0.0
