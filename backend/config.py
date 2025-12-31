@@ -16,11 +16,14 @@ class Settings(BaseSettings):
     DEBUG: bool = True
 
     # CORS Configuration
+    # Note: Server binds to 0.0.0.0 (all interfaces), but access via localhost or 127.0.0.1
     ALLOWED_ORIGINS: List[str] = [
         "http://localhost:5173",  # Vite default dev server
-        "http://localhost:3000",
-        "http://127.0.0.1:5173",
-        "http://127.0.0.1:3000",
+        "http://localhost:3000",  # Alternative dev port
+        "http://localhost:8000",  # Backend self-requests
+        "http://127.0.0.1:5173",  # IPv4 localhost Vite
+        "http://127.0.0.1:3000",  # IPv4 localhost alternative
+        "http://127.0.0.1:8000",  # IPv4 localhost backend
     ]
 
     # Script Configuration

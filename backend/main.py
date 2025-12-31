@@ -112,6 +112,14 @@ if __name__ == "__main__":
     import uvicorn
 
     # Note: When running with reload=True, the startup event will fire on each reload
+    print(f"\n{'='*60}")
+    print("Starting Image Processor API Server")
+    print(f"{'='*60}")
+    print(f"Server binds to: {settings.HOST}:{settings.PORT}")
+    print(f"Access the Image Processing app at: http://localhost:{settings.PORT}")
+    print(f"Swagger Docs: http://localhost:{settings.PORT}/docs")
+    print(f"{'='*60}\n")
+
     uvicorn.run(
         "backend.main:app",
         host=settings.HOST,
