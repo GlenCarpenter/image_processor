@@ -50,9 +50,18 @@ def main():
     print("Upgrading pip, setuptools, and wheel")
     print("=" * 60)
     run_command(
-        [python_exec, "-m", "pip", "install", "--upgrade", "pip", "setuptools", "wheel"],
+        [
+            python_exec,
+            "-m",
+            "pip",
+            "install",
+            "--upgrade",
+            "pip",
+            "setuptools",
+            "wheel",
+        ],
         "Upgrading pip and build tools",
-        shell=False
+        shell=False,
     )
 
     # Build pip command as a list for better reliability
