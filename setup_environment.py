@@ -108,10 +108,9 @@ def main():
 
         if requirements:
             print(f"\nFound {len(requirements)} additional dependencies to install")
-            # Install each requirement
-            for req in requirements:
-                req_command = [python_exec, "-m", "pip", "install", req]
-                run_command(req_command, f"Installing {req}", shell=False)
+            # Install all requirements at once (more reliable than one-by-one)
+            req_command = [python_exec, "-m", "pip", "install"] + requirements
+            run_command(req_command, "Installing remaining dependencies", shell=False)
     except FileNotFoundError:
         print("\n[WARNING] requirements.txt not found, skipping other dependencies")
 
