@@ -8,7 +8,7 @@ import json
 from io import BytesIO
 from PIL import Image
 from PIL.ExifTags import TAGS, GPSTAGS
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 # Predefined aspect ratios with their names
 ASPECT_RATIOS = {
@@ -221,7 +221,7 @@ def extract_comfyui_prompt(metadata):
     return None
 
 
-def extract_prompt_from_metadata(img: Image.Image) -> str | None:
+def extract_prompt_from_metadata(img: Image.Image) -> Optional[str]:
     """
     Extract prompt from image metadata.
     Handles three formats:

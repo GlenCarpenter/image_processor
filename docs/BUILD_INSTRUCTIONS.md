@@ -18,7 +18,7 @@ chmod +x build.sh
 ## Detailed Setup
 
 ### Prerequisites
-- **Python 3.8+** (3.10+ recommended)
+- **Python 3.10+** (required for code syntax compatibility)
 - **Node.js 16+** (for frontend build)
 - **pip** (comes with Python)
 

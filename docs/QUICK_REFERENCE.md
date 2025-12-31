@@ -1,5 +1,10 @@
 # Quick Reference - Building Image Processor
 
+## Requirements
+- **Python 3.10+** (Python 3.9 may have compatibility issues)
+- **Node.js 16+**
+- **npm 8+**
+
 ## TL;DR - Just Build It!
 
 ### Windows

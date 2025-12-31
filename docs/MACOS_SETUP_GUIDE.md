@@ -40,24 +40,32 @@ rm -rf venv build frontend/node_modules
 
 ---
 
-### 2. Python 3.8 vs Python 3.10+ Issues
+### 2. Python Version Issues (TypeError: unsupported operand type)
 
 **Symptoms**:
-- Various compatibility warnings
-- Slow performance
+- `TypeError: unsupported operand type(s) for |: 'type' and 'NoneType'`
+- Code uses Python 3.10+ syntax with Python 3.9
 
-**Solution**: Use Python 3.10+
+**Root Cause**: 
+The code uses `str | None` type union syntax, which requires Python 3.10+. Python 3.9 and earlier need `Optional[str]` instead.
+
+**Solution**: Use Python 3.10 or later
 
 ```bash
 # Check your Python version
 python3 --version
 
-# If you have Python 3.8, upgrade to 3.10+
+# If you have Python 3.9 or earlier, upgrade to 3.10+
 # Using Homebrew:
 brew install python@3.11
-brew unlink python@3.8
+brew unlink python@3.9
 brew link python@3.11
+
+# Or if using system Python, install from python.org
+# https://www.python.org/downloads/
 ```
+
+**Note**: The project now supports Python 3.9+ but the code uses modern syntax. Python 3.10+ is recommended.
 
 ---
 
