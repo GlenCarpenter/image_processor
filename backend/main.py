@@ -116,7 +116,7 @@ if __name__ == "__main__":
     print("Starting Image Processor API Server")
     print(f"{'='*60}")
     print(f"Server binds to: {settings.HOST}:{settings.PORT}")
-    print(f"Access the Image Processing app at: http://localhost:{settings.PORT}")
+    print(f"Access the Image Processor app at: http://localhost:{settings.PORT}")
     print(f"Swagger Docs: http://localhost:{settings.PORT}/docs")
     print(f"{'='*60}\n")
 
