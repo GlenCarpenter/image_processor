@@ -69,6 +69,7 @@ interface ImageState {
     outputFilename: string | null
     info: { outputWidth: number; outputHeight: number } | null
     prompt: string
+    endpoint?: string // 'qwen' or 'nano-banana-pro'
     numInferenceSteps?: number
     negativePrompt?: string
     enableSafetyChecker?: boolean
@@ -160,6 +161,7 @@ interface ImageState {
   setEditOutputFormat: (format: string) => void
   setEditSeed: (seed: string) => void
   setEditTargetResolution: (resolution: number) => void
+  setEditEndpoint: (endpoint: string) => void
 
   // Fill page actions
   setFillOriginal: (file: File | null) => void
@@ -247,6 +249,7 @@ export const useImageStore = create<ImageState>()(
         outputFilename: null,
         info: null,
         prompt: '',
+        endpoint: 'qwen',
         numInferenceSteps: 30,
         negativePrompt: '',
         enableSafetyChecker: true,
@@ -356,6 +359,7 @@ export const useImageStore = create<ImageState>()(
             outputFilename: null,
             info: null,
             prompt: '',
+            endpoint: 'qwen',
             isEditing: false,
             error: null,
             originalMetadata: null,
@@ -379,6 +383,7 @@ export const useImageStore = create<ImageState>()(
             outputFilename: null,
             info: null,
             prompt: '',
+            endpoint: 'qwen',
             isEditing: false,
             error: null,
             originalMetadata: null,
@@ -396,6 +401,8 @@ export const useImageStore = create<ImageState>()(
       setEditSeed: (seed) => set((state) => ({ editImage: { ...state.editImage, seed } })),
       setEditTargetResolution: (resolution) =>
         set((state) => ({ editImage: { ...state.editImage, targetResolution: resolution } })),
+      setEditEndpoint: (endpoint) =>
+        set((state) => ({ editImage: { ...state.editImage, endpoint } })),
 
       // Fill page actions
       setFillOriginal: (file) =>

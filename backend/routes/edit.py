@@ -11,6 +11,7 @@ import asyncio
 from backend.database import create_job
 from backend.utils.fal_utils import upload_bytes_to_fal, poll_fal_job
 from backend.utils.fal_edit import submit_edit_image, submit_edit_image_multi
+from backend.utils.fal_nano_banana import submit_nano_banana_edit
 from backend.utils.image_processing import resize_image_bytes
 from PIL import Image
 from io import BytesIO
@@ -28,6 +29,7 @@ async def edit_image(
     prompt: str = Form(
         "Remove all text from the image", description="Editing instruction for the AI"
     ),
+    endpoint: str = Form("qwen", description="Endpoint to use: 'qwen' or 'nano-banana-pro'"),
     guidance_scale: Optional[float] = Form(
         4.5, description="How closely to follow the prompt (1.0-20.0)"
     ),
@@ -52,20 +54,26 @@ async def edit_image(
     ),
 ):
     """
-    Edit an image using Fal AI's Qwen image editing service.
+    Edit an image using Fal AI's image editing services.
+    Supports Qwen Edit and Nano Banana Pro endpoints.
     Saves the output to disk and returns metadata with job ID.
 
     **Parameters:**
     - **files**: Image files to edit (1-4 images)
     - **prompt**: Editing instruction (e.g., "Remove all text from the image")
+    - **endpoint**: Editing endpoint to use - 'qwen' (default) or 'nano-banana-pro'
+    
+    **Qwen Edit Parameters:**
     - **guidance_scale**: How closely to follow the prompt (1.0-20.0, default: 4.5)
     - **num_inference_steps**: Number of denoising steps (1-50, default: 28)
     - **acceleration**: 'none', 'regular', or 'high' generation speed (default: 'regular')
     - **negative_prompt**: What to avoid in the output (default: "")
     - **enable_safety_checker**: Enable NSFW filtering (default: True)
+    - **target_resolution**: Target resolution in pixels (max dimension, max: 1536, default: 1328)
+    
+    **Common Parameters:**
     - **output_format**: Output format - png, jpeg, or webp (default: png)
     - **seed**: Random seed for reproducibility (optional)
-    - **target_resolution**: Target resolution in pixels (max dimension, max: 1536, default: 1328)
 
     **Returns:** Job metadata with ID to retrieve the edited image
     """
@@ -99,23 +107,25 @@ async def edit_image(
                 detail=f"Invalid file type: {file.content_type}. All files must be images.",
             )
 
-    # Validate guidance_scale
-    if guidance_scale < 1 or guidance_scale > 20:
-        raise HTTPException(
-            status_code=400, detail="Guidance scale must be between 1 and 20"
-        )
+    # Validate Qwen-specific parameters only when using Qwen endpoint
+    if endpoint == "qwen":
+        # Validate guidance_scale
+        if guidance_scale < 1 or guidance_scale > 20:
+            raise HTTPException(
+                status_code=400, detail="Guidance scale must be between 1 and 20"
+            )
 
-    # Validate num_inference_steps
-    if num_inference_steps < 1 or num_inference_steps > 50:
-        raise HTTPException(
-            status_code=400, detail="Number of inference steps must be between 1 and 50"
-        )
+        # Validate num_inference_steps
+        if num_inference_steps < 1 or num_inference_steps > 50:
+            raise HTTPException(
+                status_code=400, detail="Number of inference steps must be between 1 and 50"
+            )
 
-    # Validate target_resolution
-    if target_resolution < 1 or target_resolution > 1536:
-        raise HTTPException(
-            status_code=400, detail="Target resolution must be between 1 and 1536"
-        )
+        # Validate target_resolution
+        if target_resolution < 1 or target_resolution > 1536:
+            raise HTTPException(
+                status_code=400, detail="Target resolution must be between 1 and 1536"
+            )
 
     try:
         # Process all uploaded files
@@ -131,26 +141,32 @@ async def edit_image(
             img = Image.open(BytesIO(image_bytes))
             width, height = img.size
 
-            # Calculate target pixels based on target_resolution (square)
-            target_pixels = target_resolution * target_resolution
+            # Only resize for Qwen Edit endpoint
+            if endpoint == "qwen":
+                # Calculate target pixels based on target_resolution (square)
+                target_pixels = target_resolution * target_resolution
 
-            # Use resize_image_bytes to resize to target resolution
-            resized_bytes, resize_info = resize_image_bytes(
-                image_bytes, target_pixels=target_pixels
-            )
-            output_width = resize_info["target_size"]["width"]
-            output_height = resize_info["target_size"]["height"]
+                # Use resize_image_bytes to resize to target resolution
+                resized_bytes, resize_info = resize_image_bytes(
+                    image_bytes, target_pixels=target_pixels
+                )
+                output_width = resize_info["target_size"]["width"]
+                output_height = resize_info["target_size"]["height"]
 
-            # Store dimensions from first image for the job
-            if output_dimensions is None:
-                output_dimensions = (output_width, output_height)
+                # Store dimensions from first image for the job
+                if output_dimensions is None:
+                    output_dimensions = (output_width, output_height)
 
-            print(
-                f"Resized image from {width}x{height} to {output_width}x{output_height} (target: {target_resolution})"
-            )
+                print(
+                    f"Resized image from {width}x{height} to {output_width}x{output_height} (target: {target_resolution})"
+                )
 
-            # Use the resized version
-            image_bytes = resized_bytes
+                # Use the resized version
+                image_bytes = resized_bytes
+            else:
+                # For Nano Banana Pro, store original dimensions
+                if output_dimensions is None:
+                    output_dimensions = (width, height)
 
             # Upload to Fal storage
             print(f"Uploading image {file.filename} to Fal storage...")
@@ -160,27 +176,49 @@ async def edit_image(
             image_urls.append(image_url)
             processed_filenames.append(file.filename or "unknown")
 
-        # Submit async job to Fal AI with all image URLs
+        # Submit async job to Fal AI based on endpoint
         output_width, output_height = output_dimensions
-        print(
-            f"Submitting Fal AI edit job with {len(image_urls)} image(s) and prompt: '{prompt}' (guidance: {guidance_scale}, steps: {num_inference_steps}, size: {output_width}x{output_height})"
-        )
-        request_id, endpoint = submit_edit_image_multi(
-            image_urls=image_urls,
-            prompt=prompt,
-            image_width=output_width,
-            image_height=output_height,
-            guidance_scale=guidance_scale,
-            num_inference_steps=num_inference_steps,
-            acceleration=acceleration,
-            negative_prompt=negative_prompt,
-            enable_safety_checker=enable_safety_checker,
-            output_format=output_format,
-            num_images=1,
-            seed=seed,
-            webhook_url=None,  # Not supported for local apps
-        )
-        print(f"Job submitted with request_id: {request_id}")
+        
+        if endpoint == "nano-banana-pro":
+            print(
+                f"Submitting Nano Banana Pro edit job with {len(image_urls)} image(s) and prompt: '{prompt}'"
+            )
+            fal_request_id, fal_endpoint = submit_nano_banana_edit(
+                image_urls=image_urls,
+                prompt=prompt,
+                num_images=1,
+                seed=seed,
+                aspect_ratio="auto",
+                resolution="1K",
+                output_format=output_format,
+                safety_tolerance="4",
+                sync_mode=False,
+                enable_web_search=False,
+                limit_generations=False,
+                webhook_url=None,
+            )
+        else:
+            # Default to Qwen Edit
+            print(
+                f"Submitting Qwen AI edit job with {len(image_urls)} image(s) and prompt: '{prompt}' (guidance: {guidance_scale}, steps: {num_inference_steps}, size: {output_width}x{output_height})"
+            )
+            fal_request_id, fal_endpoint = submit_edit_image_multi(
+                image_urls=image_urls,
+                prompt=prompt,
+                image_width=output_width,
+                image_height=output_height,
+                guidance_scale=guidance_scale,
+                num_inference_steps=num_inference_steps,
+                acceleration=acceleration,
+                negative_prompt=negative_prompt,
+                enable_safety_checker=enable_safety_checker,
+                output_format=output_format,
+                num_images=1,
+                seed=seed,
+                webhook_url=None,  # Not supported for local apps
+            )
+        
+        print(f"Job submitted with request_id: {fal_request_id}")
 
         # Create database job record with pending status and metadata
         input_filename = (
@@ -191,37 +229,43 @@ async def edit_image(
 
         # Store all parameters as metadata
         job_metadata = {
+            "endpoint": endpoint,
             "prompt": prompt,
-            "negative_prompt": negative_prompt,
-            "guidance_scale": guidance_scale,
-            "num_inference_steps": num_inference_steps,
-            "acceleration": acceleration,
-            "enable_safety_checker": enable_safety_checker,
             "output_format": output_format,
             "seed": seed,
-            "target_resolution": target_resolution,
             "num_images": len(image_urls),
         }
+        
+        # Add endpoint-specific metadata
+        if endpoint == "qwen":
+            job_metadata.update({
+                "negative_prompt": negative_prompt,
+                "guidance_scale": guidance_scale,
+                "num_inference_steps": num_inference_steps,
+                "acceleration": acceleration,
+                "enable_safety_checker": enable_safety_checker,
+                "target_resolution": target_resolution,
+            })
 
         import json
 
         job_id = create_job(
             job_type="edit",
             input_filename=input_filename,
-            fal_request_id=request_id,
+            fal_request_id=fal_request_id,
             job_status="pending",
             metadata=json.dumps(job_metadata),
         )
         print(f"Job created with ID: {job_id}")
 
         # Start background polling
-        asyncio.create_task(poll_fal_job(job_id, request_id, endpoint, "edit"))
+        asyncio.create_task(poll_fal_job(job_id, fal_request_id, fal_endpoint, "edit"))
         print(f"Started background polling for job {job_id}")
 
         return {
             "success": True,
             "job_id": job_id,
-            "request_id": request_id,
+            "request_id": fal_request_id,
             "status": "pending",
             "message": "Image edit job submitted successfully. Use /api/jobs/{job_id}/poll to check status.",
         }

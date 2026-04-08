@@ -51,6 +51,7 @@ function RouteComponent() {
   const setEditOutputFormat = useImageStore((state) => state.setEditOutputFormat)
   const setEditSeed = useImageStore((state) => state.setEditSeed)
   const setEditTargetResolution = useImageStore((state) => state.setEditTargetResolution)
+  const setEditEndpoint = useImageStore((state) => state.setEditEndpoint)
   const sendToEdit = useImageStore((state) => state.sendToEdit)
   const sendToUpscale = useImageStore((state) => state.sendToUpscale)
   const sendToResize = useImageStore((state) => state.sendToResize)
@@ -192,18 +193,30 @@ function RouteComponent() {
       })
 
       formData.append('prompt', editImage.prompt)
-      formData.append('guidance_scale', '4.5')
-      formData.append('num_inference_steps', String(editImage.numInferenceSteps ?? 28))
-      formData.append('acceleration', 'regular')
-      formData.append('output_format', editImage.outputFormat ?? 'png')
-      if (editImage.negativePrompt) {
-        formData.append('negative_prompt', editImage.negativePrompt)
+      formData.append('endpoint', editImage.endpoint || 'qwen')
+
+      // Endpoint-specific parameters
+      if (editImage.endpoint === 'nano-banana-pro') {
+        // Nano Banana Pro parameters
+        formData.append('output_format', editImage.outputFormat ?? 'png')
+        if (editImage.seed) {
+          formData.append('seed', editImage.seed)
+        }
+      } else {
+        // Qwen Edit parameters (default)
+        formData.append('guidance_scale', '4.5')
+        formData.append('num_inference_steps', String(editImage.numInferenceSteps ?? 28))
+        formData.append('acceleration', 'regular')
+        formData.append('output_format', editImage.outputFormat ?? 'png')
+        if (editImage.negativePrompt) {
+          formData.append('negative_prompt', editImage.negativePrompt)
+        }
+        formData.append('enable_safety_checker', String(editImage.enableSafetyChecker ?? true))
+        if (editImage.seed) {
+          formData.append('seed', editImage.seed)
+        }
+        formData.append('target_resolution', String(editImage.targetResolution ?? 1328))
       }
-      formData.append('enable_safety_checker', String(editImage.enableSafetyChecker ?? true))
-      if (editImage.seed) {
-        formData.append('seed', editImage.seed)
-      }
-      formData.append('target_resolution', String(editImage.targetResolution ?? 1328))
 
       const response = await fetch(`${API_BASE_URL}/edit/edit`, {
         method: 'POST',
@@ -364,98 +377,118 @@ function RouteComponent() {
             )}
           </div>
 
-          {(editImage.originalFiles.length > 0 || search.filename) && (
-            <>
-              <OriginalImagePreview
-                file={editImage.originalFiles[0]}
-                filename={search.filename}
-                apiBaseUrl={API_BASE_URL}
-              />
+          <OriginalImagePreview
+            file={editImage.originalFiles[0]}
+            filename={search.filename}
+            apiBaseUrl={API_BASE_URL}
+          />
 
-              {/* Show thumbnails of all uploaded files if multiple */}
-              {editImage.originalFiles.length > 1 && (
-                <div className="space-y-2">
-                  <Label>Uploaded Images</Label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {editImage.originalFiles.map((file, idx) => (
-                      <div
-                        key={idx}
-                        className="relative aspect-square rounded-lg overflow-hidden border"
-                      >
-                        <img
-                          src={URL.createObjectURL(file)}
-                          alt={`Image ${idx + 1}`}
-                          className="w-full h-full object-cover"
-                        />
-                        <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs p-1 text-center">
-                          Image {idx + 1}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <div>
-                <Label htmlFor="prompt">Editing Prompt</Label>
-                <Textarea
-                  id="prompt"
-                  value={editImage.prompt}
-                  onChange={(e) => setEditPrompt(e.target.value)}
-                  placeholder="e.g., Remove all text from the image, Replace the sky with sunset, Remove the person in red"
-                  className="mt-2 min-h-[100px]"
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Describe what you want to edit or remove from the image
-                </p>
-              </div>
-
-              {/* Presets Section */}
-              {presets.length > 0 && (
-                <div className="space-y-2">
-                  <Label htmlFor="preset-select">Load Preset</Label>
-                  <select
-                    id="preset-select"
-                    onChange={(e) => {
-                      if (e.target.value) {
-                        handleApplyPreset(Number(e.target.value))
-                        e.target.value = ''
-                      }
-                    }}
-                    className="w-full px-3 py-2 border rounded-md bg-background text-foreground"
-                    defaultValue=""
+          {/* Show thumbnails of all uploaded files if multiple */}
+          {editImage.originalFiles.length > 1 && (
+            <div className="space-y-2">
+              <Label>Uploaded Images</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {editImage.originalFiles.map((file, idx) => (
+                  <div
+                    key={idx}
+                    className="relative aspect-square rounded-lg overflow-hidden border"
                   >
-                    <option value="">Select a preset...</option>
-                    {presets.map((preset) => (
-                      <option key={preset.id} value={preset.id}>
-                        {preset.name}
-                      </option>
-                    ))}
-                  </select>
-                  <div className="flex gap-2 flex-wrap">
-                    {presets.map((preset) => (
-                      <div
-                        key={preset.id}
-                        className="flex items-center gap-1 bg-secondary px-2 py-1 rounded text-xs"
-                      >
-                        <span>{preset.name}</span>
-                        <button
-                          onClick={() => handleDeletePreset(preset.id)}
-                          className="ml-1 hover:text-red-500 cursor-pointer"
-                          title="Delete preset"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    ))}
+                    <img
+                      src={URL.createObjectURL(file)}
+                      alt={`Image ${idx + 1}`}
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs p-1 text-center">
+                      Image {idx + 1}
+                    </div>
                   </div>
-                </div>
-              )}
+                ))}
+              </div>
+            </div>
+          )}
 
-              {/* Optional Parameters */}
-              <div className="space-y-4 border-t pt-4">
-                <h3 className="text-sm font-semibold">Advanced Options</h3>
+          {/* Endpoint Selection */}
+          <div>
+            <Label htmlFor="endpoint-select">Endpoint</Label>
+            <select
+              id="endpoint-select"
+              value={editImage.endpoint || 'qwen'}
+              onChange={(e) => setEditEndpoint(e.target.value)}
+              className="w-full mt-2 px-3 py-2 border rounded-md bg-background text-foreground"
+            >
+              <option value="qwen">Qwen Edit</option>
+              <option value="nano-banana-pro">Nano Banana Pro</option>
+            </select>
+            <p className="text-xs text-muted-foreground mt-1">
+              {editImage.endpoint === 'nano-banana-pro'
+                ? 'High-quality text-to-image generation with advanced features'
+                : 'AI-powered image editing with Qwen'}
+            </p>
+          </div>
 
+          <div>
+            <Label htmlFor="prompt">Editing Prompt</Label>
+            <Textarea
+              id="prompt"
+              value={editImage.prompt}
+              onChange={(e) => setEditPrompt(e.target.value)}
+              placeholder="e.g., Remove all text from the image, Replace the sky with sunset, Remove the person in red"
+              className="mt-2 min-h-[100px]"
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Describe what you want to edit or remove from the image
+            </p>
+          </div>
+
+          {/* Presets Section */}
+          {presets.length > 0 && (
+            <div className="space-y-2">
+              <Label htmlFor="preset-select">Load Preset</Label>
+              <select
+                id="preset-select"
+                onChange={(e) => {
+                  if (e.target.value) {
+                    handleApplyPreset(Number(e.target.value))
+                    e.target.value = ''
+                  }
+                }}
+                className="w-full px-3 py-2 border rounded-md bg-background text-foreground"
+                defaultValue=""
+              >
+                <option value="">Select a preset...</option>
+                {presets.map((preset) => (
+                  <option key={preset.id} value={preset.id}>
+                    {preset.name}
+                  </option>
+                ))}
+              </select>
+              <div className="flex gap-2 flex-wrap">
+                {presets.map((preset) => (
+                  <div
+                    key={preset.id}
+                    className="flex items-center gap-1 bg-secondary px-2 py-1 rounded text-xs"
+                  >
+                    <span>{preset.name}</span>
+                    <button
+                      onClick={() => handleDeletePreset(preset.id)}
+                      className="ml-1 hover:text-red-500 cursor-pointer"
+                      title="Delete preset"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Optional Parameters */}
+          <div className="space-y-4 border-t pt-4">
+            <h3 className="text-sm font-semibold">Advanced Options</h3>
+
+            {/* Qwen Edit specific options */}
+            {editImage.endpoint !== 'nano-banana-pro' && (
+              <>
                 {/* Negative Prompt */}
                 <div>
                   <Label htmlFor="negative-prompt">Negative Prompt (optional)</Label>
@@ -511,21 +544,6 @@ function RouteComponent() {
                   </p>
                 </div>
 
-                {/* Output Format */}
-                <div>
-                  <Label htmlFor="output-format">Output Format</Label>
-                  <select
-                    id="output-format"
-                    value={editImage.outputFormat || 'png'}
-                    onChange={(e) => setEditOutputFormat(e.target.value)}
-                    className="w-full mt-2 px-3 py-2 border rounded-md bg-background text-foreground"
-                  >
-                    <option value="png">PNG</option>
-                    <option value="jpeg">JPEG</option>
-                    <option value="webp">WebP</option>
-                  </select>
-                </div>
-
                 {/* Enable Safety Checker */}
                 <div className="flex items-center gap-2">
                   <input
@@ -539,87 +557,98 @@ function RouteComponent() {
                     Enable Safety Checker (filter NSFW content)
                   </Label>
                 </div>
+              </>
+            )}
 
-                {/* Seed */}
-                <div>
-                  <Label htmlFor="seed">Seed (optional)</Label>
-                  <input
-                    id="seed"
-                    type="number"
-                    value={editImage.seed || ''}
-                    onChange={(e) => setEditSeed(e.target.value)}
-                    placeholder="Leave empty for random seed"
-                    className="w-full mt-2 px-3 py-2 border rounded-md"
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Use the same seed to get reproducible results
-                  </p>
-                </div>
-              </div>
-
-              <Button
-                onClick={handleEdit}
-                disabled={!editImage.prompt.trim() || editImage.isEditing}
-                className="w-full"
-                size="lg"
+            {/* Output Format - common to both */}
+            <div>
+              <Label htmlFor="output-format">Output Format</Label>
+              <select
+                id="output-format"
+                value={editImage.outputFormat || 'png'}
+                onChange={(e) => setEditOutputFormat(e.target.value)}
+                className="w-full mt-2 px-3 py-2 border rounded-md bg-background text-foreground"
               >
-                Edit Image
+                <option value="png">PNG</option>
+                <option value="jpeg">JPEG</option>
+                <option value="webp">WebP</option>
+              </select>
+            </div>
+
+            {/* Seed - common to both */}
+            <div>
+              <Label htmlFor="seed">Seed (optional)</Label>
+              <input
+                id="seed"
+                type="number"
+                value={editImage.seed || ''}
+                onChange={(e) => setEditSeed(e.target.value)}
+                placeholder="Leave empty for random seed"
+                className="w-full mt-2 px-3 py-2 border rounded-md"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Use the same seed to get reproducible results
+              </p>
+            </div>
+          </div>
+
+          <Button
+            onClick={handleEdit}
+            disabled={!editImage.prompt.trim() || editImage.isEditing}
+            className="w-full"
+            size="lg"
+          >
+            Edit Image
+          </Button>
+
+          {/* Save Preset Section */}
+          <div className="space-y-2 border-t pt-4">
+            {!showSavePreset ? (
+              <Button onClick={() => setShowSavePreset(true)} variant="outline" className="w-full">
+                Save Current Settings as Preset
               </Button>
-
-              {/* Save Preset Section */}
-              <div className="space-y-2 border-t pt-4">
-                {!showSavePreset ? (
-                  <Button
-                    onClick={() => setShowSavePreset(true)}
-                    variant="outline"
-                    className="w-full"
-                  >
-                    Save Current Settings as Preset
-                  </Button>
-                ) : (
-                  <div className="space-y-2">
-                    <input
-                      type="text"
-                      value={presetName}
-                      onChange={(e) => setPresetName(e.target.value)}
-                      placeholder="Enter preset name (e.g., 'Remove Text')"
-                      className="w-full px-3 py-2 border rounded-md"
-                    />
-                    {existingPresetWithName && (
-                      <p className="text-xs text-amber-600 dark:text-amber-400">
-                        A preset with this name already exists. Saving will overwrite it.
-                      </p>
-                    )}
-                    <div className="flex gap-2">
-                      <Button onClick={handleSavePreset} className="flex-1" size="sm">
-                        {existingPresetWithName ? 'Update Preset' : 'Save Preset'}
-                      </Button>
-                      <Button
-                        onClick={() => {
-                          setShowSavePreset(false)
-                          setPresetName('')
-                        }}
-                        variant="outline"
-                        className="flex-1"
-                        size="sm"
-                      >
-                        Cancel
-                      </Button>
-                    </div>
-                  </div>
+            ) : (
+              <div className="space-y-2">
+                <input
+                  type="text"
+                  value={presetName}
+                  onChange={(e) => setPresetName(e.target.value)}
+                  placeholder="Enter preset name (e.g., 'Remove Text')"
+                  className="w-full px-3 py-2 border rounded-md"
+                />
+                {existingPresetWithName && (
+                  <p className="text-xs text-amber-600 dark:text-amber-400">
+                    A preset with this name already exists. Saving will overwrite it.
+                  </p>
                 )}
-              </div>
-
-              {editImage.originalMetadata && (
-                <ImageMetadataDisplay metadata={editImage.originalMetadata} />
-              )}
-
-              {editImage.error && (
-                <div className="text-sm text-red-500 bg-red-50 dark:bg-red-950 p-3 rounded-md">
-                  {editImage.error}
+                <div className="flex gap-2">
+                  <Button onClick={handleSavePreset} className="flex-1" size="sm">
+                    {existingPresetWithName ? 'Update Preset' : 'Save Preset'}
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setShowSavePreset(false)
+                      setPresetName('')
+                    }}
+                    variant="outline"
+                    className="flex-1"
+                    size="sm"
+                  >
+                    Cancel
+                  </Button>
                 </div>
-              )}
-            </>
+              </div>
+            )}
+          </div>
+
+          {editImage.originalMetadata && (
+            <ImageMetadataDisplay metadata={editImage.originalMetadata} />
+          )}
+
+          {editImage.error && (
+            <div className="text-sm text-red-500 bg-red-50 dark:bg-red-950 p-3 rounded-md">
+              {editImage.error}
+            </div>
           )}
         </InputCard>
 
