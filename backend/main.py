@@ -13,7 +13,7 @@ import asyncio
 from backend.routes import api_router
 from backend.config import settings
 from backend.database import get_active_jobs, init_db
-from backend.utils.fal_utils import poll_fal_job
+from backend.utils.fal_utils import poll_fal_job, resolve_fal_endpoint
 
 app = FastAPI(
     title="Image Processor API",
@@ -42,12 +42,9 @@ async def startup_event():
             fal_request_id = job.get("fal_request_id")
 
             if fal_request_id:
-                # Determine the endpoint based on job type
-                if job_type == "upscale":
-                    endpoint = "fal-ai/seedvr/upscale/image"
-                elif job_type == "edit":
-                    endpoint = "fal-ai/qwen-image-edit-2511"
-                else:
+                try:
+                    endpoint = resolve_fal_endpoint(job_type, job.get("metadata"))
+                except ValueError:
                     print(
                         f"[Startup] Unknown job type '{job_type}' for job {job_id}, skipping"
                     )

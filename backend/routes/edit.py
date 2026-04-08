@@ -11,7 +11,11 @@ import asyncio
 from backend.database import create_job
 from backend.utils.fal_utils import upload_bytes_to_fal, poll_fal_job
 from backend.utils.fal_edit import submit_edit_image, submit_edit_image_multi
-from backend.utils.fal_nano_banana import submit_nano_banana_edit
+from backend.utils.fal_nano_banana import (
+    submit_nano_banana_edit,
+    submit_nano_banana_2_edit,
+    submit_seedream_edit,
+)
 from backend.utils.image_processing import resize_image_bytes
 from PIL import Image
 from io import BytesIO
@@ -25,11 +29,11 @@ OUTPUTS_DIR.mkdir(exist_ok=True)
 
 @router.post("/edit")
 async def edit_image(
-    files: list[UploadFile] = File(..., description="Image files to edit (1-4 images)"),
+    files: list[UploadFile] = File(..., description="Image files to edit (1-10 images depending on endpoint)"),
     prompt: str = Form(
         "Remove all text from the image", description="Editing instruction for the AI"
     ),
-    endpoint: str = Form("qwen", description="Endpoint to use: 'qwen' or 'nano-banana-pro'"),
+    endpoint: str = Form("qwen", description="Endpoint to use: 'qwen', 'nano-banana-pro', 'nano-banana-2', or 'seedream'"),
     guidance_scale: Optional[float] = Form(
         4.5, description="How closely to follow the prompt (1.0-20.0)"
     ),
@@ -52,16 +56,20 @@ async def edit_image(
     target_resolution: Optional[int] = Form(
         1328, description="Target resolution in pixels (max dimension, max: 1536)"
     ),
+    # SeeDream-specific parameters
+    num_images: Optional[int] = Form(1, description="Number of generations (SeeDream: 1-6)"),
+    max_images: Optional[int] = Form(1, description="Multi-image generation per run (SeeDream: 1-6)"),
+    image_size: Optional[str] = Form("auto_4K", description="Image size preset (SeeDream)"),
 ):
     """
     Edit an image using Fal AI's image editing services.
-    Supports Qwen Edit and Nano Banana Pro endpoints.
+    Supports Qwen Edit, Nano Banana Pro, Nano Banana 2, and SeeDream v4.5 endpoints.
     Saves the output to disk and returns metadata with job ID.
 
     **Parameters:**
-    - **files**: Image files to edit (1-4 images)
+    - **files**: Image files to edit (1-4 for most endpoints, 1-10 for SeeDream)
     - **prompt**: Editing instruction (e.g., "Remove all text from the image")
-    - **endpoint**: Editing endpoint to use - 'qwen' (default) or 'nano-banana-pro'
+    - **endpoint**: Editing endpoint - 'qwen' (default), 'nano-banana-pro', 'nano-banana-2', or 'seedream'
     
     **Qwen Edit Parameters:**
     - **guidance_scale**: How closely to follow the prompt (1.0-20.0, default: 4.5)
@@ -71,8 +79,16 @@ async def edit_image(
     - **enable_safety_checker**: Enable NSFW filtering (default: True)
     - **target_resolution**: Target resolution in pixels (max dimension, max: 1536, default: 1328)
     
-    **Common Parameters:**
+    **Common Parameters (Nano Banana Pro/2):**
     - **output_format**: Output format - png, jpeg, or webp (default: png)
+    - **seed**: Random seed for reproducibility (optional)
+    
+    **SeeDream v4.5 Parameters:**
+    - **num_images**: Number of generations (1-6, default: 1)
+    - **max_images**: Multi-image generation per run (1-6, default: 1)
+    - **image_size**: Size preset - square_hd, square, portrait_4_3, portrait_16_9, landscape_4_3,
+                     landscape_16_9, auto_2K, auto_4K (default: auto_4K)
+    - **enable_safety_checker**: Enable NSFW filtering (default: True)
     - **seed**: Random seed for reproducibility (optional)
 
     **Returns:** Job metadata with ID to retrieve the edited image
@@ -93,10 +109,11 @@ async def edit_image(
             detail="At least one image file is required",
         )
 
-    if len(files) > 4:
+    max_files = 10 if endpoint == "seedream" else 4
+    if len(files) > max_files:
         raise HTTPException(
             status_code=400,
-            detail="Maximum 4 images allowed",
+            detail=f"Maximum {max_files} images allowed for {endpoint} endpoint",
         )
 
     # Validate file types
@@ -164,7 +181,7 @@ async def edit_image(
                 # Use the resized version
                 image_bytes = resized_bytes
             else:
-                # For Nano Banana Pro, store original dimensions
+                # For Nano Banana Pro/2, store original dimensions
                 if output_dimensions is None:
                     output_dimensions = (width, height)
 
@@ -195,6 +212,40 @@ async def edit_image(
                 sync_mode=False,
                 enable_web_search=False,
                 limit_generations=False,
+                webhook_url=None,
+            )
+        elif endpoint == "nano-banana-2":
+            print(
+                f"Submitting Nano Banana 2 edit job with {len(image_urls)} image(s) and prompt: '{prompt}'"
+            )
+            fal_request_id, fal_endpoint = submit_nano_banana_2_edit(
+                image_urls=image_urls,
+                prompt=prompt,
+                num_images=1,
+                seed=seed,
+                aspect_ratio="auto",
+                resolution="1K",
+                output_format=output_format,
+                safety_tolerance="4",
+                sync_mode=False,
+                enable_web_search=False,
+                limit_generations=True,
+                thinking_level=None,
+                webhook_url=None,
+            )
+        elif endpoint == "seedream":
+            print(
+                f"Submitting SeeDream v4.5 edit job with {len(image_urls)} image(s) and prompt: '{prompt}'"
+            )
+            fal_request_id, fal_endpoint = submit_seedream_edit(
+                image_urls=image_urls,
+                prompt=prompt,
+                num_images=num_images,
+                max_images=max_images,
+                seed=seed,
+                image_size=image_size,
+                enable_safety_checker=enable_safety_checker,
+                sync_mode=False,
                 webhook_url=None,
             )
         else:

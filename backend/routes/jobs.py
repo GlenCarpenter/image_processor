@@ -18,7 +18,12 @@ from backend.database import (
     get_all_jobs,
     clear_all_jobs,
 )
-from backend.utils.fal_utils import download_from_url
+from backend.utils.fal_utils import (
+    download_from_url,
+    resolve_fal_endpoint,
+    format_fal_error_message,
+    is_terminal_fal_error,
+)
 from backend.utils.image_processing import add_metadata_to_image
 
 router = APIRouter()
@@ -127,18 +132,15 @@ async def poll_job_status(job_id: int, background_tasks: BackgroundTasks):
             detail="Job does not have a Fal request ID (might be a synchronous job)",
         )
 
-    # Extract endpoint from metadata (we'll need to store this)
-    # For now, determine based on job_type
     job_type = job["job_type"]
-    if job_type == "edit":
-        endpoint = "fal-ai/qwen-image-edit-2511"
-    elif job_type == "upscale":
-        endpoint = "fal-ai/seedvr/upscale/image"
-    else:
+
+    try:
+        endpoint = resolve_fal_endpoint(job_type, job.get("metadata"))
+    except ValueError as e:
         raise HTTPException(
             status_code=400,
-            detail=f"Unknown job type: {job_type}",
-        )
+            detail=str(e),
+        ) from e
 
     try:
         # Check status with Fal
@@ -152,8 +154,21 @@ async def poll_job_status(job_id: int, background_tasks: BackgroundTasks):
 
         # Map Fal status to our status
         if fal_status == "Completed":
-            # Get the result
-            result = fal_client.result(endpoint, fal_request_id)
+            try:
+                result = fal_client.result(endpoint, fal_request_id)
+            except Exception as e:
+                error_msg = format_fal_error_message(e)
+                if is_terminal_fal_error(e):
+                    update_job_status(job_id, "failed", error_message=error_msg)
+                    job["job_status"] = "failed"
+                    job["error_message"] = error_msg
+                    return {
+                        "success": True,
+                        "job": job,
+                        "message": "Fal reported a terminal failure while retrieving the result.",
+                        "fal_status": "Failed",
+                    }
+                raise
 
             # Process the result in background
             background_tasks.add_task(
@@ -189,10 +204,23 @@ async def poll_job_status(job_id: int, background_tasks: BackgroundTasks):
         }
 
     except Exception as e:
-        print(f"Error polling job {job_id}: {str(e)}")
+        error_msg = format_fal_error_message(e)
+        print(f"Error polling job {job_id}: {error_msg}")
+
+        if is_terminal_fal_error(e):
+            update_job_status(job_id, "failed", error_message=error_msg)
+            job["job_status"] = "failed"
+            job["error_message"] = error_msg
+            return {
+                "success": True,
+                "job": job,
+                "message": "Fal reported a terminal failure.",
+                "fal_status": "Failed",
+            }
+
         raise HTTPException(
             status_code=500,
-            detail=f"Error polling job status: {str(e)}",
+            detail=f"Error polling job status: {error_msg}",
         )
 
 

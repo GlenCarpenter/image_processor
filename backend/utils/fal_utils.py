@@ -3,14 +3,17 @@ Shared Fal AI utilities
 Provides common functions for interacting with Fal AI services (upscaling, editing, etc.)
 """
 
+import ast
 import os
 import tempfile
 import asyncio
 from pathlib import Path
 from datetime import datetime
+import json
 import uuid
+
 import fal_client
-from fal_client.client import Queued, InProgress, Completed
+from fal_client.client import Queued, InProgress, Completed, FalClientError
 import requests
 from dotenv import load_dotenv
 
@@ -21,6 +24,74 @@ load_dotenv()
 FAL_KEY = os.getenv("FAL_KEY")
 if FAL_KEY:
     os.environ["FAL_KEY"] = FAL_KEY
+
+
+EDIT_FAL_ENDPOINTS = {
+    "qwen": "fal-ai/qwen-image-edit-2511",
+    "nano-banana-pro": "fal-ai/nano-banana-pro/edit",
+    "nano-banana-2": "fal-ai/nano-banana-2/edit",
+    "seedream": "fal-ai/bytedance/seedream/v4.5/edit",
+}
+
+
+def resolve_fal_endpoint(job_type: str, metadata: str | None = None) -> str:
+    """Resolve the Fal endpoint for a stored job, including edit endpoint variants."""
+    if job_type == "upscale":
+        return "fal-ai/seedvr/upscale/image"
+
+    if job_type != "edit":
+        raise ValueError(f"Unknown job type: {job_type}")
+
+    endpoint_name = "qwen"
+    if metadata:
+        try:
+            parsed_metadata = json.loads(metadata) if isinstance(metadata, str) else metadata
+            if isinstance(parsed_metadata, dict):
+                endpoint_name = parsed_metadata.get("endpoint", "qwen")
+        except Exception:
+            pass
+
+    return EDIT_FAL_ENDPOINTS.get(endpoint_name, EDIT_FAL_ENDPOINTS["qwen"])
+
+
+def format_fal_error_message(error: Exception) -> str:
+    """Extract a cleaner message from Fal client errors."""
+    raw_message = str(error).strip()
+    if not raw_message:
+        return "Unknown Fal API error"
+
+    try:
+        parsed = ast.literal_eval(raw_message)
+        if isinstance(parsed, list) and parsed:
+            first = parsed[0]
+            if isinstance(first, dict):
+                message = first.get("msg") or raw_message
+                error_type = first.get("type")
+                return f"{message} ({error_type})" if error_type else message
+        elif isinstance(parsed, dict):
+            message = parsed.get("msg") or raw_message
+            error_type = parsed.get("type")
+            return f"{message} ({error_type})" if error_type else message
+    except (ValueError, SyntaxError):
+        pass
+
+    return raw_message
+
+
+def is_terminal_fal_error(error: Exception) -> bool:
+    """Return True when Fal indicates the request cannot succeed and should be failed."""
+    message = str(error).lower()
+    terminal_markers = (
+        "no_media_generated",
+        "unprocessable entity",
+        "the model did not generate the expected output",
+        "unsafe content",
+        "missing attachments",
+        "cannot be processed as the requested output type",
+    )
+    return isinstance(error, FalClientError) and (
+        "422" in message or any(marker in message for marker in terminal_markers)
+    )
 
 
 def upload_file_to_fal(file_path: str) -> str:
@@ -125,8 +196,18 @@ async def poll_fal_job(job_id: int, request_id: str, endpoint: str, job_type: st
                 elif isinstance(status_obj, InProgress):
                     update_job_status(job_id, "processing")
                 elif isinstance(status_obj, Completed):
-                    # Get the result
-                    result = fal_client.result(endpoint, request_id)
+                    try:
+                        result = fal_client.result(endpoint, request_id)
+                    except Exception as e:
+                        error_msg = format_fal_error_message(e)
+                        if is_terminal_fal_error(e):
+                            update_job_status(job_id, "failed", error_message=error_msg)
+                            print(
+                                f"[Job {job_id}] Fal reported a terminal failure after completion: {error_msg}"
+                            )
+                            return
+                        raise
+
                     print(f"[Job {job_id}] Job completed, processing result")
 
                     # Process and download the result
@@ -144,10 +225,17 @@ async def poll_fal_job(job_id: int, request_id: str, endpoint: str, job_type: st
                 retry_count += 1
 
             except Exception as e:
-                print(f"[Job {job_id}] Error polling Fal: {str(e)}")
+                error_msg = format_fal_error_message(e)
+                print(f"[Job {job_id}] Error polling Fal: {error_msg}")
                 import traceback
 
                 traceback.print_exc()
+
+                if is_terminal_fal_error(e):
+                    update_job_status(job_id, "failed", error_message=error_msg)
+                    print(f"[Job {job_id}] Marked as failed due to terminal Fal error")
+                    return
+
                 await asyncio.sleep(poll_interval)
                 retry_count += 1
 

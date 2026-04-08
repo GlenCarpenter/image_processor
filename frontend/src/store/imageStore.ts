@@ -64,18 +64,21 @@ interface ImageState {
 
   // Edit page image
   editImage: {
-    originalFiles: File[] // Support multiple files (1-4)
+    originalFiles: File[] // Support multiple files (1-4 for most, 1-10 for SeeDream)
     jobId: number | null
     outputFilename: string | null
     info: { outputWidth: number; outputHeight: number } | null
     prompt: string
-    endpoint?: string // 'qwen' or 'nano-banana-pro'
+    endpoint?: string // 'qwen', 'nano-banana-pro', 'nano-banana-2', or 'seedream'
     numInferenceSteps?: number
     negativePrompt?: string
     enableSafetyChecker?: boolean
     outputFormat?: string
     seed?: string
     targetResolution?: number
+    numImages?: number // SeeDream: number of images to generate (1-6)
+    maxImages?: number // SeeDream: max images per run (1-6)
+    imageSize?: string // SeeDream: image size preset
     isEditing: boolean
     error: string | null
     originalMetadata: any | null
@@ -162,6 +165,9 @@ interface ImageState {
   setEditSeed: (seed: string) => void
   setEditTargetResolution: (resolution: number) => void
   setEditEndpoint: (endpoint: string) => void
+  setEditNumImages: (numImages: number) => void
+  setEditMaxImages: (maxImages: number) => void
+  setEditImageSize: (imageSize: string) => void
 
   // Fill page actions
   setFillOriginal: (file: File | null) => void
@@ -403,6 +409,12 @@ export const useImageStore = create<ImageState>()(
         set((state) => ({ editImage: { ...state.editImage, targetResolution: resolution } })),
       setEditEndpoint: (endpoint) =>
         set((state) => ({ editImage: { ...state.editImage, endpoint } })),
+      setEditNumImages: (numImages) =>
+        set((state) => ({ editImage: { ...state.editImage, numImages } })),
+      setEditMaxImages: (maxImages) =>
+        set((state) => ({ editImage: { ...state.editImage, maxImages } })),
+      setEditImageSize: (imageSize) =>
+        set((state) => ({ editImage: { ...state.editImage, imageSize } })),
 
       // Fill page actions
       setFillOriginal: (file) =>

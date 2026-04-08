@@ -52,6 +52,9 @@ function RouteComponent() {
   const setEditSeed = useImageStore((state) => state.setEditSeed)
   const setEditTargetResolution = useImageStore((state) => state.setEditTargetResolution)
   const setEditEndpoint = useImageStore((state) => state.setEditEndpoint)
+  const setEditNumImages = useImageStore((state) => state.setEditNumImages)
+  const setEditMaxImages = useImageStore((state) => state.setEditMaxImages)
+  const setEditImageSize = useImageStore((state) => state.setEditImageSize)
   const sendToEdit = useImageStore((state) => state.sendToEdit)
   const sendToUpscale = useImageStore((state) => state.sendToUpscale)
   const sendToResize = useImageStore((state) => state.sendToResize)
@@ -196,9 +199,18 @@ function RouteComponent() {
       formData.append('endpoint', editImage.endpoint || 'qwen')
 
       // Endpoint-specific parameters
-      if (editImage.endpoint === 'nano-banana-pro') {
-        // Nano Banana Pro parameters
+      if (editImage.endpoint === 'nano-banana-pro' || editImage.endpoint === 'nano-banana-2') {
+        // Nano Banana Pro/2 parameters
         formData.append('output_format', editImage.outputFormat ?? 'png')
+        if (editImage.seed) {
+          formData.append('seed', editImage.seed)
+        }
+      } else if (editImage.endpoint === 'seedream') {
+        // SeeDream v4.5 parameters
+        formData.append('num_images', String(editImage.numImages ?? 1))
+        formData.append('max_images', String(editImage.maxImages ?? 1))
+        formData.append('image_size', editImage.imageSize ?? 'auto_4K')
+        formData.append('enable_safety_checker', String(editImage.enableSafetyChecker ?? true))
         if (editImage.seed) {
           formData.append('seed', editImage.seed)
         }
@@ -329,20 +341,24 @@ function RouteComponent() {
     }
   }
 
+  const maxFiles = editImage.endpoint === 'seedream' ? 10 : 4
+
   return (
     <div className="container mx-auto p-4 max-w-6xl">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Input Section */}
         <InputCard title="Upload And Configure" description="Select an image to edit using AI">
           <div>
-            <Label>Image Files ({editImage.originalFiles.length}/4 images)</Label>
+            <Label>
+              Image Files ({editImage.originalFiles.length}/{maxFiles} images)
+            </Label>
             <Dropzone
               accept={{ 'image/*': ['.jpg', '.jpeg', '.png', '.bmp', '.webp', '.tiff'] }}
               src={editImage.originalFiles.length > 0 ? editImage.originalFiles : undefined}
               onDrop={handleFileDrop}
               className="mt-2"
               multiple
-              maxFiles={4}
+              maxFiles={maxFiles}
             >
               <DropzoneEmptyState />
               <DropzoneContent />
@@ -352,9 +368,9 @@ function RouteComponent() {
                 <p className="text-xs text-muted-foreground">
                   {editImage.originalFiles.length} image
                   {editImage.originalFiles.length > 1 ? 's' : ''} selected
-                  {editImage.originalFiles.length < 4 &&
-                    ` • Drop more to add (${4 - editImage.originalFiles.length} slot${
-                      4 - editImage.originalFiles.length > 1 ? 's' : ''
+                  {editImage.originalFiles.length < maxFiles &&
+                    ` • Drop more to add (${maxFiles - editImage.originalFiles.length} slot${
+                      maxFiles - editImage.originalFiles.length > 1 ? 's' : ''
                     } available)`}
                 </p>
                 <Button
@@ -418,11 +434,17 @@ function RouteComponent() {
             >
               <option value="qwen">Qwen Edit</option>
               <option value="nano-banana-pro">Nano Banana Pro</option>
+              <option value="nano-banana-2">Nano Banana 2</option>
+              <option value="seedream">SeeDream v4.5</option>
             </select>
             <p className="text-xs text-muted-foreground mt-1">
               {editImage.endpoint === 'nano-banana-pro'
-                ? 'High-quality text-to-image generation with advanced features'
-                : 'AI-powered image editing with Qwen'}
+                ? 'High-quality image-to-image editing with Nano Banana Pro'
+                : editImage.endpoint === 'nano-banana-2'
+                  ? 'Advanced image-to-image editing with Nano Banana 2'
+                  : editImage.endpoint === 'seedream'
+                    ? 'Multi-image generation with SeeDream v4.5 (supports up to 10 reference images)'
+                    : 'AI-powered image editing with Qwen'}
             </p>
           </div>
 
@@ -487,7 +509,7 @@ function RouteComponent() {
             <h3 className="text-sm font-semibold">Advanced Options</h3>
 
             {/* Qwen Edit specific options */}
-            {editImage.endpoint !== 'nano-banana-pro' && (
+            {editImage.endpoint !== 'nano-banana-pro' && editImage.endpoint !== 'nano-banana-2' && (
               <>
                 {/* Negative Prompt */}
                 <div>
@@ -554,6 +576,82 @@ function RouteComponent() {
                     className="mt-2"
                   />
                   <Label htmlFor="safety-checker" className="mt-2">
+                    Enable Safety Checker (filter NSFW content)
+                  </Label>
+                </div>
+              </>
+            )}
+
+            {/* SeeDream v4.5 specific options */}
+            {editImage.endpoint === 'seedream' && (
+              <>
+                {/* Number of Images to Generate */}
+                <div>
+                  <Label htmlFor="num-images">Number of Images: {editImage.numImages || 1}</Label>
+                  <input
+                    id="num-images"
+                    type="range"
+                    min="1"
+                    max="6"
+                    value={editImage.numImages || 1}
+                    onChange={(e) => setEditNumImages(Number(e.target.value))}
+                    className="w-full mt-2"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    How many images to generate (1-6, default: 1)
+                  </p>
+                </div>
+
+                {/* Max Images Per Run */}
+                <div>
+                  <Label htmlFor="max-images">Max Images Per Run: {editImage.maxImages || 1}</Label>
+                  <input
+                    id="max-images"
+                    type="range"
+                    min="1"
+                    max="6"
+                    value={editImage.maxImages || 1}
+                    onChange={(e) => setEditMaxImages(Number(e.target.value))}
+                    className="w-full mt-2"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Maximum images to generate per run (1-6, default: 1)
+                  </p>
+                </div>
+
+                {/* Image Size Preset */}
+                <div>
+                  <Label htmlFor="image-size">Image Size Preset</Label>
+                  <select
+                    id="image-size"
+                    value={editImage.imageSize || 'auto_4K'}
+                    onChange={(e) => setEditImageSize(e.target.value)}
+                    className="w-full mt-2 px-3 py-2 border rounded-md bg-background text-foreground"
+                  >
+                    <option value="square_hd">Square HD</option>
+                    <option value="square">Square</option>
+                    <option value="portrait_4_3">Portrait 4:3</option>
+                    <option value="portrait_16_9">Portrait 16:9</option>
+                    <option value="landscape_4_3">Landscape 4:3</option>
+                    <option value="landscape_16_9">Landscape 16:9</option>
+                    <option value="auto_2K">Auto 2K</option>
+                    <option value="auto_4K">Auto 4K</option>
+                  </select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Choose image size and aspect ratio (default: auto_4K)
+                  </p>
+                </div>
+
+                {/* Enable Safety Checker */}
+                <div className="flex items-center gap-2">
+                  <input
+                    id="safety-checker-seedream"
+                    type="checkbox"
+                    checked={editImage.enableSafetyChecker !== false}
+                    onChange={(e) => setEditEnableSafetyChecker(e.target.checked)}
+                    className="mt-2"
+                  />
+                  <Label htmlFor="safety-checker-seedream" className="mt-2">
                     Enable Safety Checker (filter NSFW content)
                   </Label>
                 </div>
